@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+html {
+  font-size: 103%; /* 128.8% × 0.8 — net +20% from original */
+}
+@media (min-width: 768px) {
+  html {
+    font-size: 98.56%; /* 123.2% × 0.8 — net +12% from original */
+  }
+  .main-content-area {
+    zoom: 1.0416; /* 1.302 × 0.8 — net +12% from original */
+  }
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  @apply bg-white text-slate-800 font-sans antialiased;
+}
+
+/* Utilities */
+@layer components {
+  .container-x {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200;
+  }
+  .btn-primary {
+    @apply btn text-white bg-gradient-brand shadow-soft hover:shadow-glow hover:-translate-y-0.5;
+  }
+  .btn-ghost {
+    @apply btn text-brand-700 hover:bg-brand-50;
+  }
+  .btn-outline {
+    @apply btn border border-brand-200 text-brand-700 hover:bg-brand-50;
+  }
+  .card {
+    @apply bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-300;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold;
+  }
+  .section {
+    @apply py-16 sm:py-20;
+  }
+  .heading {
+    @apply font-display font-extrabold text-3xl sm:text-4xl text-slate-900;
+  }
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-brand;
+  }
+  .input {
+    @apply w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition;
+  }
+  .label {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-brand-200 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-brand-400;
+}
+
+/* Hide scrollbar for horizontal chips */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* Marquee animations for reviews slider */
+@keyframes marquee-left {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes marquee-right {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
+}
+.marquee-left {
+  animation: marquee-left 40s linear infinite;
+  will-change: transform;
+}
+.marquee-right {
+  animation: marquee-right 40s linear infinite;
+  will-change: transform;
+}
+.marquee-container:hover .marquee-left,
+.marquee-container:hover .marquee-right {
+  animation-play-state: paused;
+}

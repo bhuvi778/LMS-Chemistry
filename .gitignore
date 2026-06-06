@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables (secrets - never push these)
+.env
+**/.env
+!**/.env.example
+
+# Build outputs
+dist/
+build/
+**/dist/
+**/build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# MongoDB local data
+server/mongo_data/
+
+# Uploaded files (images, PDFs etc.)
+server/uploads/
+
+# Misc
+*.local
+.cache/
+coverage/
