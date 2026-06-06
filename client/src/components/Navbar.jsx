@@ -8,7 +8,7 @@ const links = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/courses', label: 'Courses', icon: BookOpen },
   { to: '/ebooks', label: 'E-Books', icon: BookMarked },
-  { to: '/tests', label: 'Tests', icon: ClipboardList },
+  { to: '/tests', label: 'Test Series', icon: ClipboardList },
   { to: '/feed', label: 'Feed', icon: Rss },
 ];
 
@@ -53,11 +53,10 @@ export default function Navbar() {
   }, []);
 
   return (
-    <header className={`sticky top-0 z-40 transition-all duration-300 ${
-      isHome && !scrolled
+    <header className={`sticky top-0 z-40 transition-all duration-300 ${isHome && !scrolled
         ? 'bg-[#050B1F]/95 backdrop-blur-xl border-b border-white/10'
         : 'bg-white/90 backdrop-blur-xl border-b border-slate-100 shadow-sm'
-    }`}>
+      }`}>
       <div className="container-x h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center">
           <img
@@ -73,12 +72,11 @@ export default function Navbar() {
               key={l.to}
               to={l.to}
               className={({ isActive }) =>
-                `px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  isActive
-                    ? isHome && !scrolled
-                      ? 'text-white bg-white/15'
-                      : 'text-brand-700 bg-brand-50'
-                    : isHome && !scrolled
+                `px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive
+                  ? isHome && !scrolled
+                    ? 'text-white bg-white/15'
+                    : 'text-brand-700 bg-brand-50'
+                  : isHome && !scrolled
                     ? 'text-white/75 hover:text-white hover:bg-white/10'
                     : 'text-slate-600 hover:text-brand-700 hover:bg-brand-50/60'
                 }`
@@ -96,11 +94,10 @@ export default function Navbar() {
             onMouseLeave={() => setMoreMenuOpen(false)}
           >
             <button
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-1 focus:outline-none ${
-                isHome && !scrolled
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-1 focus:outline-none ${isHome && !scrolled
                   ? 'text-white/75 hover:text-white hover:bg-white/10'
                   : 'text-slate-600 hover:text-brand-700 hover:bg-brand-50/60'
-              }`}
+                }`}
             >
               More <ChevronDown size={14} />
             </button>
@@ -111,10 +108,9 @@ export default function Navbar() {
                     key={sub.to}
                     to={sub.to}
                     className={({ isActive }) =>
-                      `flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-all ${
-                        isActive
-                          ? 'text-brand-700 bg-brand-50'
-                          : 'text-slate-600 hover:text-brand-700 hover:bg-brand-50/60'
+                      `flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-all ${isActive
+                        ? 'text-brand-700 bg-brand-50'
+                        : 'text-slate-600 hover:text-brand-700 hover:bg-brand-50/60'
                       }`
                     }
                   >
@@ -137,11 +133,10 @@ export default function Navbar() {
             <>
               <Link
                 to="/login"
-                className={`btn text-sm font-semibold px-4 py-2 rounded-xl transition-all ${
-                  isHome && !scrolled
+                className={`btn text-sm font-semibold px-4 py-2 rounded-xl transition-all ${isHome && !scrolled
                     ? 'text-white/80 hover:text-white hover:bg-white/10'
                     : 'text-brand-700 hover:bg-brand-50'
-                }`}
+                  }`}
               >
                 Login
               </Link>
@@ -256,8 +251,7 @@ export default function Navbar() {
                 to={l.to}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
-                    isActive ? 'text-brand-700 bg-brand-50' : 'text-slate-700 hover:bg-slate-50'
+                  `flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${isActive ? 'text-brand-700 bg-brand-50' : 'text-slate-700 hover:bg-slate-50'
                   }`
                 }
                 end={l.to === '/'}
@@ -274,8 +268,7 @@ export default function Navbar() {
                   to={sub.to}
                   onClick={() => setOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-semibold transition ${
-                      isActive ? 'text-brand-700 bg-brand-50' : 'text-slate-700 hover:bg-slate-50'
+                    `flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-semibold transition ${isActive ? 'text-brand-700 bg-brand-50' : 'text-slate-700 hover:bg-slate-50'
                     }`
                   }
                 >
