@@ -7,12 +7,14 @@ import {
   answerDoubt,
   updateDoubtStatus,
   doubtStats,
+  getDoubtUsage,
 } from '../controllers/doubt.controller.js';
 
 const router = Router();
 router.use(protect);
 
 // Student routes
+router.get('/usage', getDoubtUsage);
 router.post('/', createDoubt);
 router.get('/my', myDoubts);
 

@@ -36,7 +36,11 @@ export const getCourse = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Course not found');
   }
-  res.json(course);
+  const enrolledInfinityCount = await Enrollment.countDocuments({
+    course: course._id,
+    planType: 'infinity',
+  });
+  res.json({ ...course.toObject(), enrolledInfinityCount });
 });
 
 export const createCourse = asyncHandler(async (req, res) => {

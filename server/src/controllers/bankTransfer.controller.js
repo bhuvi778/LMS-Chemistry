@@ -9,14 +9,14 @@ import CoinRedemption from '../models/CoinRedemption.js';
 
 // ─── Internet handling fee calculation ───────────────────────────────────────
 export const calcHandlingFee = (baseAmount) => {
-  if (baseAmount < 7300) return 45;
+  if (baseAmount <= 7299) return 45;
   return Math.round(baseAmount * 0.007 * 100) / 100; // 0.7%
 };
 
 // ─── STUDENT: Submit bank transfer request ────────────────────────────────────
 export const submitBankTransfer = asyncHandler(async (req, res) => {
   const {
-    itemType, courseId, testSeriesId,
+    itemType, courseId, testSeriesId, planType,
     studentName, studentPhone, studentEmail, studentAddress,
     referenceNumber, screenshotUrl, notes,
     baseAmount, redeemCoins,
@@ -42,6 +42,24 @@ export const submitBankTransfer = asyncHandler(async (req, res) => {
     finalBaseAmount = Math.max(0, finalBaseAmount - coinDiscount);
   }
 
+  // Seat limit check for Ace Infinity in bank transfer
+  if (itemType === 'course' && planType === 'infinity') {
+    const item = await Course.findById(courseId);
+    if (item) {
+      const seatsLimit = item.plans?.infinity?.seatsLimit || 15;
+      const seatsReserved = item.plans?.infinity?.seatsReserved || 0;
+      const enrolledInfinityCount = await Enrollment.countDocuments({
+        course: courseId,
+        planType: 'infinity',
+      });
+      const remainingSeats = seatsLimit - seatsReserved - enrolledInfinityCount;
+      if (remainingSeats <= 0) {
+        res.status(400);
+        throw new Error('Ace Infinity plan seats are completely full (Sold Out)!');
+      }
+    }
+  }
+
   const handlingFee = calcHandlingFee(finalBaseAmount);
   const totalAmount = finalBaseAmount + handlingFee;
 
@@ -49,6 +67,7 @@ export const submitBankTransfer = asyncHandler(async (req, res) => {
     student: req.user._id,
     itemType,
     course: courseId || null,
+    planType: itemType === 'course' ? (planType || 'batch') : 'batch',
     testSeries: testSeriesId || null,
     baseAmount: finalBaseAmount,
     handlingFee,
@@ -155,6 +174,7 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
       await Enrollment.create({
         student: request.student,
         course: request.course,
+        planType: request.planType || 'batch',
         pricePaid: request.totalAmount,
         paymentId: 'BANK_' + request._id,
         paymentStatus: 'paid',

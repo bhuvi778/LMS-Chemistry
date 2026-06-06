@@ -492,6 +492,28 @@ export default function CourseDetail() {
   const [couponApplied, setCouponApplied] = useState(null); // { couponCode, discountAmount, finalAmount }
   const [couponBusy, setCouponBusy] = useState(false);
   const [redeemCoins, setRedeemCoins] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('batch');
+
+  const getPlanPriceAndMrp = () => {
+    if (!course) return { price: 0, mrp: 0 };
+    if (course.plans && course.plans[selectedPlan]) {
+      return {
+        price: course.plans[selectedPlan].price || 0,
+        mrp: course.plans[selectedPlan].mrp || course.plans[selectedPlan].price || 0,
+      };
+    }
+    // Fallback if plans object is not yet loaded/configured
+    let price = course.price || 0;
+    let mrp = course.mrp || price;
+    if (selectedPlan === 'pro') {
+      price = Math.round(price * 1.25);
+      mrp = Math.round(mrp * 1.25);
+    } else if (selectedPlan === 'infinity') {
+      price = Math.round(price * 1.5);
+      mrp = Math.round(mrp * 1.5);
+    }
+    return { price, mrp };
+  };
 
   // Rating state
   const [ratingVal, setRatingVal] = useState(0);
@@ -538,6 +560,7 @@ export default function CourseDetail() {
       const { data } = await api.post('/payment/validate-coupon', {
         courseId: course._id,
         couponCode: couponInput.trim(),
+        planType: selectedPlan,
       });
       setCouponApplied(data);
       toast.success(`Coupon applied! You save AED ${data.discountAmount}`);
@@ -621,6 +644,7 @@ export default function CourseDetail() {
         courseId: course._id,
         couponCode: couponApplied?.couponCode || '',
         redeemCoins: redeemCoins,
+        planType: selectedPlan,
       });
 
       // Free course / coupon made it free
@@ -705,10 +729,12 @@ export default function CourseDetail() {
     { k: 'overview',   l: 'Overview',     icon: BookOpen      },
     { k: 'subjects',   l: 'All Classes',  icon: Layers        },
     ...(course.demoVideoUrl || course.orientationVideoUrl ? [{ k: 'demo', l: 'Demo', icon: PlayCircle }] : []),
-    { k: 'syllabus',   l: 'Syllabus',     icon: BookMarked    },
+    ...((enrolled || user?.role === 'admin') ? [
+      { k: 'syllabus',   l: 'Syllabus',     icon: BookMarked    },
+      { k: 'timetable',  l: 'Time Table',   icon: Calendar      }
+    ] : []),
     { k: 'highlights', l: 'Highlights',   icon: Award         },
     { k: 'instructor', l: 'Instructor',   icon: GraduationCap },
-    { k: 'timetable',  l: 'Time Table',   icon: Calendar      },
     ...(course.faqs?.length ? [{ k: 'faqs', l: 'FAQs', icon: ChevronDown }] : []),
     { k: 'reviews', l: 'Reviews & Ratings', icon: Star },
   ];
@@ -835,8 +861,64 @@ export default function CourseDetail() {
                 )}
               </div>
               <div className="p-5">
+                {/* Choose Your Prep Plan Selector */}
+                {!enrolled && (
+                  <div className="mb-4">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                      Choose Your Prep Plan
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200/60">
+                      {[
+                        { k: 'batch', l: 'Ace Batch' },
+                        { k: 'pro', l: 'Ace Pro' },
+                        { k: 'infinity', l: 'Ace Infinity' }
+                      ].map((p) => {
+                        const planConfig = course.plans?.[p.k];
+                        const isEnabled = planConfig ? planConfig.enabled : true;
+                        
+                        let planPrice = course.price;
+                        if (planConfig && planConfig.price) {
+                          planPrice = planConfig.price;
+                        } else {
+                          if (p.k === 'pro') planPrice = Math.round(course.price * 1.25);
+                          else if (p.k === 'infinity') planPrice = Math.round(course.price * 1.5);
+                        }
+
+                        const isSelected = selectedPlan === p.k;
+                        
+                        return (
+                          <button
+                            key={p.k}
+                            type="button"
+                            disabled={!isEnabled}
+                            onClick={() => {
+                              setSelectedPlan(p.k);
+                              setCouponApplied(null);
+                              setCouponInput('');
+                            }}
+                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all text-center ${
+                              isSelected
+                                ? 'bg-white text-brand-700 shadow-md border border-brand-100 scale-[1.03] font-bold'
+                                : isEnabled
+                                  ? 'text-slate-600 hover:bg-white/60 text-xs font-semibold'
+                                  : 'opacity-45 cursor-not-allowed text-xs'
+                            }`}
+                          >
+                            <span className="text-[10px] sm:text-xs leading-none whitespace-nowrap">{p.l}</span>
+                            <span className="text-[10px] mt-0.5 text-slate-500 font-medium">AED {planPrice}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {(() => {
-                  const initialBaseAmt = couponApplied ? couponApplied.finalAmount : course.price;
+                  const planInfo = getPlanPriceAndMrp();
+                  const currentPlanPrice = planInfo.price;
+                  const currentPlanMrp = planInfo.mrp;
+
+                  const initialBaseAmt = couponApplied ? couponApplied.finalAmount : currentPlanPrice;
                   let displayPrice = initialBaseAmt;
                   let coinDiscount = 0;
                   if (redeemCoins && user) {
@@ -845,31 +927,66 @@ export default function CourseDetail() {
                     coinDiscount = coinsToRedeem / 25;
                     displayPrice = Math.max(0, initialBaseAmt - coinDiscount);
                   }
+                  
+                  const actualDiscount = currentPlanMrp && currentPlanMrp > currentPlanPrice
+                    ? Math.round(((currentPlanMrp - currentPlanPrice) / currentPlanMrp) * 100)
+                    : 0;
+
                   return (
-                    <div className="flex items-baseline gap-3 flex-wrap w-full">
-                      <div className="text-3xl font-extrabold gradient-text">
-                        AED {displayPrice?.toLocaleString()}
+                    <div>
+                      <div className="flex items-baseline gap-3 flex-wrap w-full">
+                        <div className="text-3xl font-extrabold gradient-text">
+                          AED {displayPrice?.toLocaleString()}
+                        </div>
+                        {(couponApplied || coinDiscount > 0 || (currentPlanMrp > currentPlanPrice)) && (
+                          <div className="text-sm text-slate-400 line-through">
+                            AED {(couponApplied ? currentPlanPrice : currentPlanMrp)?.toLocaleString()}
+                          </div>
+                        )}
+                        {couponApplied && (
+                          <div className="ml-auto text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
+                            Save AED {couponApplied.discountAmount?.toLocaleString()}
+                          </div>
+                        )}
+                        {coinDiscount > 0 && (
+                          <div className="ml-auto text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-1 rounded-lg">
+                            Coins Saved AED {coinDiscount?.toLocaleString()}
+                          </div>
+                        )}
+                        {!couponApplied && coinDiscount === 0 && actualDiscount > 0 && (
+                          <div className="ml-auto text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
+                            Save AED {(currentPlanMrp - currentPlanPrice)?.toLocaleString()}
+                          </div>
+                        )}
                       </div>
-                      {(couponApplied || coinDiscount > 0 || (course.mrp > course.price)) && (
-                        <div className="text-sm text-slate-400 line-through">
-                          AED {(couponApplied ? course.price : course.mrp)?.toLocaleString()}
-                        </div>
-                      )}
-                      {couponApplied && (
-                        <div className="ml-auto text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
-                          Save AED {couponApplied.discountAmount?.toLocaleString()}
-                        </div>
-                      )}
-                      {coinDiscount > 0 && (
-                        <div className="ml-auto text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-1 rounded-lg">
-                          Coins Saved AED {coinDiscount?.toLocaleString()}
-                        </div>
-                      )}
-                      {!couponApplied && coinDiscount === 0 && discount > 0 && (
-                        <div className="ml-auto text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
-                          Save AED {(course.mrp - course.price)?.toLocaleString()}
-                        </div>
-                      )}
+
+                      {/* Scarcity seat limit notice for Ace Infinity */}
+                      {selectedPlan === 'infinity' && !enrolled && (() => {
+                        const seatsLimit = course.plans?.infinity?.seatsLimit || 15;
+                        const seatsReserved = course.plans?.infinity?.seatsReserved || 0;
+                        const enrolledInfinityCount = course.enrolledInfinityCount || 0;
+                        const remainingSeats = Math.max(0, seatsLimit - seatsReserved - enrolledInfinityCount);
+                        
+                        if (remainingSeats <= 3 && remainingSeats > 0) {
+                          return (
+                            <div className="mt-3 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 p-2.5 rounded-xl text-center animate-pulse flex items-center justify-center gap-1.5 shadow-sm">
+                              🔥 Urgency: Only {remainingSeats} seat{remainingSeats > 1 ? 's' : ''} left in this cohort!
+                            </div>
+                          );
+                        } else if (remainingSeats <= 0) {
+                          return (
+                            <div className="mt-3 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-center flex items-center justify-center gap-1.5">
+                              🔒 Sold Out: All Infinity Plan slots filled!
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div className="mt-3 text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-100 p-2.5 rounded-xl text-center flex items-center justify-center gap-1.5">
+                              🎓 Hurry: Only {remainingSeats} seats left for mentorship!
+                            </div>
+                          );
+                        }
+                      })()}
                     </div>
                   );
                 })()}
@@ -967,7 +1084,9 @@ export default function CourseDetail() {
 
                     {/* Payment Mode Selector — only for paid courses + students */}
                     {user && user.role !== 'admin' && course.price > 0 && (() => {
-                      const initialAmt = couponApplied ? couponApplied.finalAmount : course.price;
+                      const planInfo = getPlanPriceAndMrp();
+                      const currentPlanPrice = planInfo.price;
+                      const initialAmt = couponApplied ? couponApplied.finalAmount : currentPlanPrice;
                       let baseAmt = initialAmt;
                       let coinDiscount = 0;
                       if (redeemCoins && user.coins >= 250) {
@@ -976,22 +1095,31 @@ export default function CourseDetail() {
                         coinDiscount = coinsToRedeem / 25;
                         baseAmt = Math.max(0, initialAmt - coinDiscount);
                       }
-                      const gwFee = baseAmt < 7300 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
+                      const gwFee = baseAmt <= 7299 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
                       const rzpTotal = Math.round((baseAmt + gwFee) * 100) / 100;
+
+                      const seatsLimit = course.plans?.infinity?.seatsLimit || 15;
+                      const seatsReserved = course.plans?.infinity?.seatsReserved || 0;
+                      const enrolledInfinityCount = course.enrolledInfinityCount || 0;
+                      const remainingSeats = Math.max(0, seatsLimit - seatsReserved - enrolledInfinityCount);
+                      const isSoldOut = selectedPlan === 'infinity' && remainingSeats <= 0;
+
                       return (
                         <div className="mt-4 space-y-3">
                           {/* Mode toggle */}
                           <div className="grid grid-cols-2 gap-2">
                             <button
+                              disabled={isSoldOut}
                               onClick={() => setPayMode('razorpay')}
-                              className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border text-xs font-semibold transition peer-checked:bg-indigo-50 ${payMode === 'razorpay' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-indigo-300'}`}
+                              className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border text-xs font-semibold transition peer-checked:bg-indigo-50 ${isSoldOut ? 'opacity-40 cursor-not-allowed' : ''} ${payMode === 'razorpay' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-indigo-300'}`}
                             >
                               <CreditCard size={15} />
                               Online (Razorpay)
                             </button>
                             <button
+                              disabled={isSoldOut}
                               onClick={() => setPayMode('bank')}
-                              className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border text-xs font-semibold transition ${payMode === 'bank' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:border-emerald-300'}`}
+                              className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border text-xs font-semibold transition ${isSoldOut ? 'opacity-40 cursor-not-allowed' : ''} ${payMode === 'bank' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:border-emerald-300'}`}
                             >
                               <Building2 size={15} />
                               Bank Transfer
@@ -999,7 +1127,7 @@ export default function CourseDetail() {
                           </div>
 
                           {/* Razorpay fee breakdown */}
-                          {payMode === 'razorpay' && (
+                          {payMode === 'razorpay' && !isSoldOut && (
                             <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl px-3 py-2.5 space-y-1 text-xs">
                               <div className="flex justify-between text-slate-600"><span>Course price</span><span>AED {initialAmt.toFixed(2)}</span></div>
                               {coinDiscount > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coin discount</span><span>- AED {coinDiscount.toFixed(2)}</span></div>}
@@ -1009,8 +1137,8 @@ export default function CourseDetail() {
                           )}
 
                           {/* Bank transfer info */}
-                          {payMode === 'bank' && (() => {
-                            const bankFee = baseAmt < 7300 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
+                          {payMode === 'bank' && !isSoldOut && (() => {
+                            const bankFee = baseAmt <= 7299 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
                             const bankTotal = Math.round((baseAmt + bankFee) * 100) / 100;
                             return (
                               <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl px-3 py-2.5 text-xs text-emerald-700 space-y-1">
@@ -1025,7 +1153,14 @@ export default function CourseDetail() {
                           })()}
 
                           {/* Action button */}
-                          {payMode === 'razorpay' ? (
+                          {isSoldOut ? (
+                            <button
+                              disabled
+                              className="w-full py-3 bg-slate-300 text-slate-600 rounded-xl font-semibold text-base cursor-not-allowed"
+                            >
+                              Sold Out
+                            </button>
+                          ) : payMode === 'razorpay' ? (
                             <button
                               onClick={enroll}
                               disabled={busy}
@@ -1166,6 +1301,58 @@ export default function CourseDetail() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Plans Comparison Table */}
+              <div className="mt-10 border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                <div className="p-5 border-b border-slate-100 bg-slate-50/50">
+                  <h3 className="font-bold text-slate-800 text-base">Plan Comparison & Features Matrix</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Explore features and find the best plan for you.</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/30">
+                        <th className="p-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Features</th>
+                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-brand-50/20">Ace Batch</th>
+                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-violet-50/20">Ace Pro</th>
+                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-amber-50/20">Ace Infinity</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                      <tr>
+                        <td className="p-3 text-xs font-semibold text-slate-800">Recorded Classes & Notes</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 text-xs font-semibold text-slate-800">Chapter Tests & DPPs</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 text-xs font-semibold text-slate-800">Doubt Support (Ask Prepiify AI)</td>
+                        <td className="p-3 text-center text-slate-500 text-xs font-medium">1 / Week</td>
+                        <td className="p-3 text-center text-slate-500 text-xs font-medium">3 / Week</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">Unlimited</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 text-xs font-semibold text-slate-800">Live Interactive Classes</td>
+                        <td className="p-3 text-center text-rose-500 font-bold">✗</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 text-xs font-semibold text-slate-800">1:1 Personal Mentorship</td>
+                        <td className="p-3 text-center text-rose-500 font-bold">✗</td>
+                        <td className="p-3 text-center text-rose-500 font-bold">✗</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

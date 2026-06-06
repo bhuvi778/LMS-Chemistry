@@ -10,7 +10,6 @@ import {
   MessageSquare,
   Video,
   LogOut,
-  Atom,
   Sparkles,
   Layers,
   ClipboardList,
@@ -31,6 +30,7 @@ import {
   Share2,
   BarChart2,
   Clock,
+  Menu,
 } from 'lucide-react';
 
 const groups = [
@@ -104,22 +104,16 @@ export default function AdminLayout() {
   const n = useNavigate();
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState({});
-  const [uaeTime, setUaeTime] = useState('');
+  const [uaeTime, setUaeTime] = useState({ time: '', date: '' });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
-      const options = {
-        timeZone: 'Asia/Dubai',
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      };
-      const formatter = new Intl.DateTimeFormat('en-US', options);
-      setUaeTime(formatter.format(new Date()));
+      const now = new Date();
+      setUaeTime({
+        time: now.toLocaleTimeString('en-US', { timeZone: 'Asia/Dubai', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
+        date: now.toLocaleDateString('en-US', { timeZone: 'Asia/Dubai', weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }),
+      });
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -132,131 +126,193 @@ export default function AdminLayout() {
       const hasActiveChild = group.items.some(
         (item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/')
       );
-      if (hasActiveChild) {
-        initialOpen[group.title] = true;
-      }
+      if (hasActiveChild) initialOpen[group.title] = true;
     });
     setOpenGroups((prev) => ({ ...initialOpen, ...prev }));
   }, [location.pathname]);
 
-  const toggleGroup = (title) => {
-    setOpenGroups((prev) => ({
-      ...prev,
-      [title]: !prev[title],
-    }));
-  };
+  const toggleGroup = (title) => setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }));
+
+  const currentPageLabel = (() => {
+    for (const g of groups) {
+      for (const item of g.items) {
+        if (location.pathname === item.to || location.pathname.startsWith(item.to + '/')) return item.label;
+      }
+    }
+    return 'Dashboard';
+  })();
+
+  const SidebarNav = () => (
+    <>
+      <Link
+        to="/admin"
+        onClick={() => setSidebarOpen(false)}
+        className="flex items-center gap-3 px-5 py-4 border-b border-white/10 shrink-0"
+      >
+        <img src="/Ace2exam_white (1).png" alt="Ace2Examz" className="h-8 w-auto object-contain" />
+        <div className="leading-tight">
+          <div className="text-white font-extrabold text-sm tracking-wide">Ace2Examz</div>
+          <div className="text-[10px] text-slate-400 font-medium">Admin Panel</div>
+        </div>
+      </Link>
+
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        <NavLink
+          to="/admin"
+          end
+          onClick={() => setSidebarOpen(false)}
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all mb-1 ${isActive
+              ? 'bg-gradient-to-r from-brand-500 to-violet-600 text-white shadow-md'
+              : 'text-slate-400 hover:text-white hover:bg-white/8'
+            }`
+          }
+        >
+          <LayoutDashboard size={17} /> Dashboard
+        </NavLink>
+
+        {groups.map((group) => {
+          const isOpen = !!openGroups[group.title];
+          const hasActiveChild = group.items.some(
+            (item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/')
+          );
+          return (
+            <div key={group.title}>
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.title)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-semibold transition-all ${hasActiveChild ? 'text-white bg-white/8' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  <group.icon size={16} />
+                  <span>{group.title}</span>
+                </div>
+                <ChevronDown
+                  size={13}
+                  className={`transition-transform duration-200 text-slate-500 ${isOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {isOpen && (
+                <div className="mt-0.5 mb-1 space-y-0.5 pl-2">
+                  {group.items.map((item) => {
+                    const isItemActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setSidebarOpen(false)}
+                        className={`flex items-center gap-2.5 pl-6 pr-3 py-2 rounded-xl text-xs font-medium transition-all ${isItemActive
+                          ? 'bg-gradient-to-r from-brand-500 to-violet-600 text-white shadow font-semibold'
+                          : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'
+                          }`}
+                      >
+                        <item.icon size={13} /> {item.label}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
+      <div className="p-3 border-t border-white/10 space-y-1 shrink-0">
+        <Link
+          to="/"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-slate-400 hover:text-white hover:bg-white/5 transition"
+        >
+          ← View Site
+        </Link>
+        <button
+          onClick={() => { logout(); n('/'); }}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-rose-400 hover:bg-rose-500/10 transition"
+        >
+          <LogOut size={14} /> Logout
+        </button>
+      </div>
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      <aside className="w-64 bg-slate-900 text-slate-200 flex flex-col sticky top-0 h-screen">
-        <Link to="/admin" className="flex items-center justify-center px-5 py-5 border-b border-white/10">
-          <img src="/logo-light.png" alt="Ace2Examz Logo" className="h-9 w-auto object-contain" />
-        </Link>
-        <nav className="flex-1 p-3 space-y-3 overflow-y-auto">
-          {/* Dashboard (standalone at top) */}
-          <div>
-            <NavLink
-              to="/admin"
-              end
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-gradient-brand text-white shadow-soft'
-                    : 'text-slate-300 hover:bg-white/5'
-                }`
-              }
-            >
-              <LayoutDashboard size={18} /> Dashboard
-            </NavLink>
-          </div>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
 
-          {/* Groups */}
-          {groups.map((group) => {
-            const isOpen = !!openGroups[group.title];
-            const hasActiveChild = group.items.some(
-              (item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/')
-            );
-            return (
-              <div key={group.title} className="space-y-1">
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(group.title)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    hasActiveChild
-                      ? 'text-white bg-white/5 font-semibold'
-                      : 'text-slate-300 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <group.icon size={18} />
-                    <span>{group.title}</span>
-                  </div>
-                  <ChevronDown
-                    size={14}
-                    className={`transform transition-transform duration-200 text-slate-400 ${
-                      isOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-
-                {isOpen && (
-                  <div className="space-y-1 pt-0.5">
-                    {group.items.map((item) => {
-                      const isItemActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
-                      return (
-                        <NavLink
-                          key={item.to}
-                          to={item.to}
-                          className={
-                            `flex items-center gap-3 pl-8 pr-3 py-2 rounded-lg text-xs font-medium transition ${
-                              isItemActive
-                                ? 'bg-gradient-brand text-white shadow-soft font-semibold'
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                            }`
-                          }
-                        >
-                          <item.icon size={14} className="opacity-80" /> {item.label}
-                        </NavLink>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
-        <div className="p-3 border-t border-white/10 space-y-2.5">
-          <div className="px-2 py-1.5 bg-slate-800/40 rounded-lg border border-white/5 text-center">
-            <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">UAE Local Time</span>
-            <span className="text-[10px] font-mono font-bold text-slate-300 flex items-center justify-center gap-1">
-              <Clock size={11} className="text-slate-450 shrink-0" />
-              {uaeTime}
-            </span>
-          </div>
-          <div>
-            <div className="text-xs text-slate-400 px-2 mb-1">Signed in as</div>
-            <div className="px-2 text-sm font-semibold text-white truncate">{user?.email}</div>
-          </div>
-          <Link
-            to="/"
-            className="flex items-center gap-2 px-3 py-2 mt-2 rounded-lg text-sm text-slate-300 hover:bg-white/5"
-          >
-            ← View Site
-          </Link>
-          <button
-            onClick={() => {
-              logout();
-              n('/');
-            }}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-rose-300 hover:bg-rose-500/10"
-          >
-            <LogOut size={16} /> Logout
-          </button>
-        </div>
+      {/* Sidebar */}
+      <aside
+        className={`fixed lg:sticky top-0 h-screen w-64 bg-slate-900 text-slate-200 flex flex-col z-40 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          }`}
+      >
+        <SidebarNav />
       </aside>
-      <main className="flex-1 min-w-0 p-6 sm:p-8 main-content-area">
-        <Outlet />
-      </main>
+
+      {/* Main area */}
+      <div className="flex-1 min-w-0 flex flex-col">
+
+        {/* ── Top Navbar ── */}
+        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between px-4 sm:px-6 h-14 gap-4">
+
+            {/* Left: hamburger + breadcrumb */}
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition"
+              >
+                <Menu size={20} />
+              </button>
+              <div className="hidden sm:flex items-center gap-1.5 text-sm">
+                <span className="text-slate-400 font-medium">Admin</span>
+                <span className="text-slate-300">/</span>
+                <span className="text-slate-700 font-bold truncate">{currentPageLabel}</span>
+              </div>
+            </div>
+
+            {/* Right: time + user */}
+            <div className="flex items-center gap-3 shrink-0">
+
+              {/* UAE Time — desktop */}
+              <div className="hidden md:flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <div className="leading-tight text-right">
+                  <div className="text-xs font-black text-slate-800 font-mono tracking-wide">{uaeTime.time}</div>
+                  <div className="text-[10px] text-slate-400 font-medium whitespace-nowrap">{uaeTime.date} · UAE</div>
+                </div>
+                <Clock size={14} className="text-slate-400" />
+              </div>
+
+              {/* UAE Time — mobile compact */}
+              <div className="md:hidden flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
+                <Clock size={12} className="text-slate-400" />
+                <span className="text-xs font-mono font-bold text-slate-700">{uaeTime.time}</span>
+              </div>
+
+              <div className="h-6 w-px bg-slate-200" />
+
+              {/* User badge */}
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-violet-600 grid place-items-center text-white text-xs font-black shadow">
+                  {user?.name?.[0]?.toUpperCase() || 'A'}
+                </div>
+                <div className="hidden sm:block leading-tight max-w-[130px]">
+                  <div className="text-xs font-bold text-slate-800 truncate">{user?.name || 'Admin'}</div>
+                  <div className="text-[10px] text-slate-400 truncate">{user?.email}</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

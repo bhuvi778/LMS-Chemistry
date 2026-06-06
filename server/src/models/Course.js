@@ -47,6 +47,25 @@ const courseSchema = new mongoose.Schema(
     description: { type: String, default: '' }, // HTML from rich-text editor
     price: { type: Number, required: true, default: 0 },
     mrp: { type: Number, default: 0 },
+    plans: {
+      batch: {
+        enabled: { type: Boolean, default: true },
+        price: { type: Number, default: 0 },
+        mrp: { type: Number, default: 0 },
+      },
+      pro: {
+        enabled: { type: Boolean, default: true },
+        price: { type: Number, default: 0 },
+        mrp: { type: Number, default: 0 },
+      },
+      infinity: {
+        enabled: { type: Boolean, default: true },
+        price: { type: Number, default: 0 },
+        mrp: { type: Number, default: 0 },
+        seatsLimit: { type: Number, default: 10 },
+        seatsReserved: { type: Number, default: 0 },
+      },
+    },
     // Legacy duration field (backward compat)
     durationMonths: { type: Number, default: 0 },
     // New validity system
@@ -171,6 +190,15 @@ courseSchema.pre('save', function (next) {
         .replace(/^-|-$/g, '') +
       '-' +
       Math.random().toString(36).slice(2, 7);
+  }
+  if (!this.plans || !this.plans.batch || !this.plans.batch.price) {
+    const basePrice = this.price || 0;
+    const baseMrp = this.mrp || 0;
+    this.plans = {
+      batch: { enabled: true, price: basePrice, mrp: baseMrp },
+      pro: { enabled: true, price: Math.round(basePrice * 1.25), mrp: Math.round(baseMrp * 1.25) },
+      infinity: { enabled: true, price: Math.round(basePrice * 1.5), mrp: Math.round(baseMrp * 1.5), seatsLimit: 15, seatsReserved: 0 }
+    };
   }
   if (this.lessons) this.totalLessons = this.lessons.length;
   next();

@@ -23,7 +23,8 @@ import {
   ArrowRight,
   ChevronDown,
   HelpCircle,
-  MessageSquare
+  MessageSquare,
+  Clock,
 } from 'lucide-react';
 
 const navSections = [
@@ -110,7 +111,7 @@ export default function StudentLayout() {
           setUser(res.data);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [location.pathname]);
 
   // Open the group containing the active item automatically
@@ -179,11 +180,10 @@ export default function StudentLayout() {
                       key={item.to}
                       to={item.to}
                       onClick={() => setMobileOpen(false)}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
-                        isActive
-                          ? 'bg-gradient-brand text-white shadow-soft font-black scale-[1.02]'
-                          : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-                      }`}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${isActive
+                        ? 'bg-gradient-brand text-white shadow-soft font-black scale-[1.02]'
+                        : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <item.icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
@@ -202,11 +202,10 @@ export default function StudentLayout() {
               <button
                 type="button"
                 onClick={() => toggleGroup(section.title)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
-                  hasActiveChild
-                    ? 'text-white bg-slate-800/60 font-black'
-                    : 'text-slate-400 hover:bg-slate-800/30 hover:text-slate-200'
-                }`}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${hasActiveChild
+                  ? 'text-white bg-slate-800/60 font-black'
+                  : 'text-slate-400 hover:bg-slate-800/30 hover:text-slate-200'
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <section.icon size={16} className={hasActiveChild ? 'text-brand-400' : 'text-slate-400'} />
@@ -214,9 +213,8 @@ export default function StudentLayout() {
                 </div>
                 <ChevronDown
                   size={14}
-                  className={`transform transition-transform duration-200 text-slate-500 ${
-                    isOpen ? 'rotate-180 text-slate-300' : ''
-                  }`}
+                  className={`transform transition-transform duration-200 text-slate-500 ${isOpen ? 'rotate-180 text-slate-300' : ''
+                    }`}
                 />
               </button>
 
@@ -229,11 +227,10 @@ export default function StudentLayout() {
                         key={item.to}
                         to={item.to}
                         onClick={() => setMobileOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                          isItemActive
-                            ? 'text-white font-bold bg-gradient-brand shadow-sm scale-[1.02]'
-                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
-                        }`}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition ${isItemActive
+                          ? 'text-white font-bold bg-gradient-brand shadow-sm scale-[1.02]'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+                          }`}
                       >
                         <item.icon size={14} className={isItemActive ? 'text-white' : 'text-slate-500'} />
                         <span>{item.label}</span>
@@ -246,12 +243,6 @@ export default function StudentLayout() {
           );
         })}
       </nav>
-
-      {/* UAE Time Indicator (Sidebar / Mobile) */}
-      <div className="mx-4 my-2 px-3 py-2 bg-slate-800/40 rounded-xl border border-slate-800 text-center shrink-0">
-        <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">UAE Local Time</span>
-        <span className="text-[10px] font-mono font-bold text-slate-300">{uaeTime}</span>
-      </div>
 
       {/* User Footer Profile */}
       <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
@@ -337,7 +328,7 @@ export default function StudentLayout() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Global Content Header (Desktop Only) */}
         <header className="hidden md:flex h-16 bg-white border-b border-slate-100 px-8 items-center justify-between sticky top-0 z-10">
-        <div>
+          <div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Workspace</span>
             <h2 className="text-xs font-bold text-slate-700 mt-0.5 capitalize">
               {(() => {

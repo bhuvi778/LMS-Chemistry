@@ -21,8 +21,10 @@ export const listEbooks = asyncHandler(async (req, res) => {
     const hasAccess =
       eb.isFree ||
       (req.user?.role === 'admin') ||
-      eb.courses.length === 0 || // no restriction = all enrolled
-      eb.courses.some((c) => enrolledCourseIds.includes(String(c._id)));
+      (enrolledCourseIds.length > 0 && (
+        eb.courses.length === 0 ||
+        eb.courses.some((c) => enrolledCourseIds.includes(String(c._id)))
+      ));
     return { ...eb, hasAccess };
   });
 
@@ -36,11 +38,18 @@ export const downloadEbook = asyncHandler(async (req, res) => {
 
   // Check access
   if (!ebook.isFree && req.user.role !== 'admin') {
+    const enrollments = await Enrollment.find({ student: req.user._id, paymentStatus: 'paid' }).select('course');
+    const enrolled = enrollments.map((e) => String(e.course));
+    if (enrolled.length === 0) {
+      res.status(403);
+      throw new Error('Enroll in a course to access this ebook');
+    }
     if (ebook.courses.length > 0) {
-      const enrollments = await Enrollment.find({ student: req.user._id, paymentStatus: 'paid' }).select('course');
-      const enrolled = enrollments.map((e) => String(e.course));
       const allowed = ebook.courses.some((c) => enrolled.includes(String(c)));
-      if (!allowed) { res.status(403); throw new Error('Enroll in the course to access this ebook'); }
+      if (!allowed) {
+        res.status(403);
+        throw new Error('Enroll in the course to access this ebook');
+      }
     }
   }
 

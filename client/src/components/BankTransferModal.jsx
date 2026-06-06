@@ -13,7 +13,7 @@ const BANK_DETAILS = {
   bankAddress: '12 Steward Street, The Steward Building, London, E1 6FQ, GB',
 };
 
-export default function BankTransferModal({ isOpen, onClose, itemType, itemId, itemName, baseAmount, initialRequest, redeemCoins }) {
+export default function BankTransferModal({ isOpen, onClose, itemType, itemId, itemName, planType, baseAmount, initialRequest, redeemCoins }) {
   const { user } = useAuth();
   const [step, setStep] = useState(initialRequest && initialRequest.status === 'pending' ? 2 : 1);
   const [submittedRequest, setSubmittedRequest] = useState(initialRequest || null);
@@ -50,7 +50,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
     finalBaseAmt = Math.max(0, baseAmount - coinDiscountVal);
   }
 
-  const handlingFee = finalBaseAmt < 7300 ? 45 : Math.round(finalBaseAmt * 0.007 * 100) / 100;
+  const handlingFee = finalBaseAmt <= 7299 ? 45 : Math.round(finalBaseAmt * 0.007 * 100) / 100;
   const totalAmount = finalBaseAmt + handlingFee;
 
   if (!isOpen) return null;
@@ -74,7 +74,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
     try {
       const payload = {
         itemType,
-        ...(itemType === 'course' ? { courseId: itemId } : { testSeriesId: itemId }),
+        ...(itemType === 'course' ? { courseId: itemId, planType } : { testSeriesId: itemId }),
         studentName: studentName.trim(),
         studentPhone: fullPhone,
         studentEmail: studentEmail.trim(),

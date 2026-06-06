@@ -468,7 +468,7 @@ export default function TestSeriesDetail() {
                 coinDiscountVal = coinsToRedeem / 25;
                 baseAmt = Math.max(0, initialAmt - coinDiscountVal);
               }
-              const gwFee = baseAmt < 7300 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
+              const gwFee = baseAmt <= 7299 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
               const rzpTotal = Math.round((baseAmt + gwFee) * 100) / 100;
               return (
                 <div className="space-y-3">
@@ -502,7 +502,7 @@ export default function TestSeriesDetail() {
 
                   {/* Bank transfer info */}
                   {payMode === 'bank' && (() => {
-                    const bankFee = baseAmt < 7300 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
+                    const bankFee = baseAmt <= 7299 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
                     const bankTotal = Math.round((baseAmt + bankFee) * 100) / 100;
                     return (
                       <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl px-3 py-2.5 text-xs text-emerald-700 space-y-1">

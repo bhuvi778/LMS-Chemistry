@@ -7,6 +7,7 @@ const bankTransferRequestSchema = new mongoose.Schema(
     // What they're paying for
     itemType: { type: String, enum: ['course', 'test_series'], required: true },
     course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', default: null },
+    planType: { type: String, enum: ['batch', 'pro', 'infinity'], default: 'batch' },
     testSeries: { type: mongoose.Schema.Types.ObjectId, ref: 'TestSeries', default: null },
 
     // Amounts (AED)

@@ -11,14 +11,23 @@ export const getLearningContent = asyncHandler(async (req, res) => {
   const { courseId } = req.params;
 
   // Verify enrollment (admins bypass)
+  let enrolled = null;
   if (req.user.role !== 'admin') {
-    const enrolled = await Enrollment.findOne({
+    enrolled = await Enrollment.findOne({
       student: req.user._id,
       course: courseId,
     });
     if (!enrolled) {
       res.status(403);
       throw new Error('You are not enrolled in this course.');
+    }
+  } else {
+    enrolled = await Enrollment.findOne({
+      student: req.user._id,
+      course: courseId,
+    });
+    if (!enrolled) {
+      enrolled = { planType: 'infinity', pricePaid: 0 };
     }
   }
 
@@ -39,7 +48,8 @@ export const getLearningContent = asyncHandler(async (req, res) => {
     throw new Error('Course not found.');
   }
 
-  res.json({ course, pdfs, tests, liveClasses });
+  // Return enrollment object so client knows the plan details
+  res.json({ course, pdfs, tests, liveClasses, enrollment: enrolled });
 });
 
 // ─── Admin: Lessons (embedded in Course) ─────────────────────────────────────
@@ -212,4 +222,33 @@ export const adminDeleteAnnouncement = asyncHandler(async (req, res) => {
   );
   await course.save();
   res.json({ message: 'Announcement deleted' });
+});
+
+// ─── Student: toggle announcement read status ───────────────────────────────
+export const toggleAnnouncementRead = asyncHandler(async (req, res) => {
+  const { courseId, announcementId } = req.params;
+  const { read } = req.body;
+
+  const enrolled = await Enrollment.findOne({
+    student: req.user._id,
+    course: courseId,
+  });
+
+  if (!enrolled) {
+    res.status(403);
+    throw new Error('You are not enrolled in this course.');
+  }
+
+  const alreadyRead = enrolled.readAnnouncements.includes(announcementId);
+
+  if (read && !alreadyRead) {
+    enrolled.readAnnouncements.push(announcementId);
+  } else if (!read && alreadyRead) {
+    enrolled.readAnnouncements = enrolled.readAnnouncements.filter(
+      (id) => id.toString() !== announcementId
+    );
+  }
+
+  await enrolled.save();
+  res.json({ message: 'Success', readAnnouncements: enrolled.readAnnouncements });
 });

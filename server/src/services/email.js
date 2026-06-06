@@ -9,6 +9,9 @@ const getTransporter = () => {
     port: parseInt(process.env.SMTP_PORT || '587', 10),
     secure: process.env.SMTP_SECURE === 'true',
     auth: { user, pass },
+    tls: {
+      rejectUnauthorized: false,
+    },
   });
 };
 

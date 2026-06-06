@@ -1457,7 +1457,7 @@ function SubjectsTab({ subjects, myAttempts, courseId, onPlayVideo, onViewPdf })
 }
 
 // ─── Announcements Tab ────────────────────────────────────────────────────────
-function AnnouncementsTab({ announcements }) {
+function AnnouncementsTab({ announcements, readAnnouncements = [], onToggleRead }) {
   if (!announcements || announcements.length === 0) {
     return (
       <div className="card p-10 text-center text-slate-500">
@@ -1471,27 +1471,63 @@ function AnnouncementsTab({ announcements }) {
 
   return (
     <div className="space-y-4 max-w-3xl">
-      {sorted.map((ann, idx) => (
-        <div key={ann._id || idx} className="card p-5 border border-slate-100 shadow-soft bg-white animate-fade-in">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0 mt-0.5">
-              <Bell size={18} />
+      {sorted.map((ann, idx) => {
+        const isRead = readAnnouncements.includes(ann._id);
+        return (
+          <div
+            key={ann._id || idx}
+            className={`card p-5 border shadow-soft bg-white animate-fade-in transition-all duration-300 relative ${
+              isRead ? 'border-slate-100 opacity-90' : 'border-slate-200 border-l-4 border-l-brand-600 ring-1 ring-brand-100/50'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                  isRead ? 'bg-slate-100 text-slate-500' : 'bg-brand-50 text-brand-700'
+                }`}>
+                  <Bell size={18} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-extrabold text-slate-800 text-base leading-snug">{ann.title}</h4>
+                    {!isRead && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 text-[10px] font-extrabold uppercase tracking-wide">
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-600"></span>
+                        New
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {new Date(ann.createdAt).toLocaleString('en-AE', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                    })}
+                  </p>
+                </div>
+              </div>
+              
+              <label className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none px-2.5 py-1.5 rounded-lg border transition shrink-0 ${
+                isRead 
+                  ? 'text-slate-400 bg-slate-50 border-slate-150 hover:bg-slate-100/80 hover:text-slate-500' 
+                  : 'text-brand-700 bg-brand-50/50 border-brand-100 hover:bg-brand-50 hover:border-brand-200 shadow-sm'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={isRead}
+                  onChange={(e) => onToggleRead(ann._id, e.target.checked)}
+                  className="w-3.5 h-3.5 text-brand-600 border-slate-300 rounded focus:ring-brand-500 cursor-pointer"
+                />
+                <span>{isRead ? 'Read' : 'Mark as read'}</span>
+              </label>
             </div>
-            <div>
-              <h4 className="font-extrabold text-slate-800 text-base leading-snug">{ann.title}</h4>
-              <p className="text-xs text-slate-400 mt-1">
-                {new Date(ann.createdAt).toLocaleString('en-AE', {
-                  day: 'numeric', month: 'short', year: 'numeric',
-                  hour: '2-digit', minute: '2-digit',
-                })}
-              </p>
+            <div className={`text-sm mt-3 whitespace-pre-line leading-relaxed pl-0 sm:pl-13 ${
+              isRead ? 'text-slate-500 font-medium' : 'text-slate-700 font-semibold'
+            }`}>
+              {ann.content}
             </div>
           </div>
-          <div className="text-sm text-slate-600 mt-3 whitespace-pre-line leading-relaxed pl-0 sm:pl-13">
-            {ann.content}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -1508,6 +1544,25 @@ export default function LearnCourse() {
   const [myAttempts, setMyAttempts] = useState([]);
   const [activeVideo, setActiveVideo] = useState(null);
   const [openPdf, setOpenPdf] = useState(null);
+
+  const handleToggleRead = async (announcementId, isRead) => {
+    try {
+      const response = await api.post(`/course-content/learn/${courseId}/announcements/${announcementId}/read`, { read: isRead });
+      setData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          enrollment: {
+            ...prev.enrollment,
+            readAnnouncements: response.data.readAnnouncements,
+          }
+        };
+      });
+      toast.success(isRead ? 'Marked as read' : 'Marked as unread');
+    } catch (err) {
+      toast.error('Failed to update read status');
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -1553,14 +1608,15 @@ export default function LearnCourse() {
 
   if (!data) return null;
 
-  const { course, pdfs, tests, liveClasses = [] } = data;
+  const { course, pdfs, tests, liveClasses = [], enrollment } = data;
   const lessons = course.lessons || [];
+  const planType = enrollment?.planType || 'batch';
 
   const tabs = [
     { k: 'announcements', l: `Announcements${course.announcements?.length ? ` (${course.announcements.length})` : ''}`, icon: Bell },
     { k: 'subjects', l: 'All Classes', icon: Layers },
     ...(course.courseType === 'live' || liveClasses.length > 0 ? [
-      { k: 'live', l: `Live Classes${liveClasses.length ? ` (${liveClasses.length})` : ''}`, icon: Video }
+      { k: 'live', l: `${planType === 'batch' ? '🔒 ' : ''}Live Classes${liveClasses.length ? ` (${liveClasses.length})` : ''}`, icon: Video }
     ] : []),
     { k: 'test-series', l: 'Test Series', icon: ListChecks },
     { k: 'ebooks', l: 'E-Books', icon: BookOpen },
@@ -1658,11 +1714,37 @@ export default function LearnCourse() {
             onViewPdf={(pdf) => setOpenPdf(pdf)}
           />
         )}
-        {tab === 'live' && <LiveClassesTab liveClasses={liveClasses} />}
+        {tab === 'live' && (
+          planType === 'batch' ? (
+            <div className="max-w-md mx-auto text-center py-16 px-6 bg-slate-50 border border-slate-200 rounded-3xl shadow-sm">
+              <div className="w-16 h-16 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-4 border border-violet-100 shadow-inner">
+                <Video size={28} className="animate-pulse" />
+              </div>
+              <h3 className="font-display text-lg font-extrabold text-slate-800">Live Classes Locked</h3>
+              <p className="text-slate-500 text-xs mt-2 leading-relaxed">
+                Live interactive classes are exclusive benefits of our <strong>Ace Pro</strong> and <strong>Ace Infinity</strong> cohorts. Upgrade your subscription to unlock schedule-based classes with live Q&A.
+              </p>
+              <Link
+                to={`/courses/${course.slug || course._id}`}
+                className="btn-primary inline-flex justify-center mt-6 text-xs font-bold px-5 py-2.5"
+              >
+                Upgrade Prep Plan
+              </Link>
+            </div>
+          ) : (
+            <LiveClassesTab liveClasses={liveClasses} />
+          )
+        )}
         {tab === 'test-series' && <TestSeriesTab courseId={courseId} />}
         {tab === 'ebooks' && <EbooksTab courseId={courseId} />}
         {tab === 'about' && <AboutTab course={course} />}
-        {tab === 'announcements' && <AnnouncementsTab announcements={course.announcements} />}
+        {tab === 'announcements' && (
+          <AnnouncementsTab
+            announcements={course.announcements}
+            readAnnouncements={enrollment?.readAnnouncements || []}
+            onToggleRead={handleToggleRead}
+          />
+        )}
         {tab === 'reviews' && <ReviewsTab courseId={courseId} user={user} />}
       </div>
 

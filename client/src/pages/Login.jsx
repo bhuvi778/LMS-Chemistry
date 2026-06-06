@@ -80,7 +80,7 @@ export default function Login() {
         <div className="hidden lg:flex relative items-center justify-center bg-gradient-brand text-white p-12">
           <div className="max-w-md">
             <div className="flex items-center gap-3 mb-6">
-              <img src="/logo-light.png" alt="Ace2Examz Logo" className="h-10 w-auto object-contain" />
+              <img src="/Ace2exam_white (1).png" alt="Ace2Examz Logo" className="h-10 w-auto object-contain" />
               <span className="font-display font-extrabold text-2xl">Ace2Examz</span>
             </div>
             <h2 className="font-display text-4xl font-extrabold leading-tight">
@@ -142,7 +142,7 @@ export default function Login() {
         <div className="hidden lg:flex relative items-center justify-center bg-gradient-brand text-white p-12">
           <div className="max-w-md">
             <div className="flex items-center gap-3 mb-6">
-              <img src="/logo-light.png" alt="Ace2Examz Logo" className="h-10 w-auto object-contain" />
+              <img src="/Ace2exam_white (1).png" alt="Ace2Examz Logo" className="h-10 w-auto object-contain" />
               <span className="font-display font-extrabold text-2xl">Ace2Examz</span>
             </div>
             <h2 className="font-display text-4xl font-extrabold leading-tight">
@@ -203,7 +203,7 @@ export default function Login() {
       <div className="hidden lg:flex relative items-center justify-center bg-gradient-brand text-white p-12">
         <div className="max-w-md">
           <div className="flex items-center gap-3 mb-6">
-            <img src="/logo-light.png" alt="Ace2Examz Logo" className="h-10 w-auto object-contain" />
+            <img src="/Ace2exam_white (1).png" alt="Ace2Examz Logo" className="h-10 w-auto object-contain" />
             <span className="font-display font-extrabold text-2xl">Ace2Examz</span>
           </div>
           <h2 className="font-display text-4xl font-extrabold leading-tight">

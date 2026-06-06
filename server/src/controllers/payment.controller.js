@@ -31,7 +31,8 @@ const getRazorpay = () => {
 
 // ─── Coupon validation helper ─────────────────────────────────────────────────
 // Supports new discountCoupons array; falls back to legacy discountCoupon object.
-const applyCoupon = (item, couponCode) => {
+const applyCoupon = (item, couponCode, basePrice) => {
+  const priceToUse = basePrice !== undefined ? basePrice : item.price;
   const normalized = couponCode.trim().toUpperCase();
 
   // Build list: prefer new array, fall back to legacy single coupon
@@ -50,11 +51,11 @@ const applyCoupon = (item, couponCode) => {
 
   let discountAmount = 0;
   if (coupon.discountType === 'percent') {
-    discountAmount = Math.round(item.price * coupon.discountValue) / 100;
+    discountAmount = Math.round(priceToUse * coupon.discountValue) / 100;
   } else {
     discountAmount = coupon.discountValue;
   }
-  discountAmount = Math.min(discountAmount, item.price);
+  discountAmount = Math.min(discountAmount, priceToUse);
   return { valid: true, discountAmount };
 };
 
@@ -77,11 +78,31 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
 
   let item;
+  let planType = req.body.planType || 'batch';
+  if (isCourse && !['batch', 'pro', 'infinity'].includes(planType)) {
+    planType = 'batch';
+  }
+
   if (isCourse) {
     item = await Course.findById(courseId);
     if (!item) { res.status(404); throw new Error('Course not found'); }
     const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
     if (existing) { res.status(400); throw new Error('You are already enrolled in this course'); }
+
+    // Seat limit check for Ace Infinity
+    if (planType === 'infinity') {
+      const seatsLimit = item.plans?.infinity?.seatsLimit || 15;
+      const seatsReserved = item.plans?.infinity?.seatsReserved || 0;
+      const enrolledInfinityCount = await Enrollment.countDocuments({
+        course: courseId,
+        planType: 'infinity',
+      });
+      const remainingSeats = seatsLimit - seatsReserved - enrolledInfinityCount;
+      if (remainingSeats <= 0) {
+        res.status(400);
+        throw new Error('Ace Infinity plan seats are completely full (Sold Out)!');
+      }
+    }
   } else {
     item = await TestSeries.findById(resolvedSeriesId);
     if (!item) { res.status(404); throw new Error('Test series not found'); }
@@ -91,7 +112,23 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
 
   // Coupon support (courses and test series)
-  const originalAmount = item.price;
+  let originalAmount = item.price;
+  if (isCourse && item.plans && item.plans[planType]) {
+    const pConfig = item.plans[planType];
+    if (!pConfig.enabled) {
+      res.status(400);
+      throw new Error(`The selected plan "${planType}" is not enabled for this course`);
+    }
+    originalAmount = pConfig.price;
+  } else if (isCourse) {
+    // Fallback for legacy
+    if (planType === 'pro') {
+      originalAmount = Math.round(item.price * 1.25);
+    } else if (planType === 'infinity') {
+      originalAmount = Math.round(item.price * 1.5);
+    }
+  }
+
   let finalAmount = originalAmount;
   let discountAmount = 0;
   let appliedCoupon = '';
@@ -126,6 +163,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       enrollment = await Enrollment.create({
         student: req.user._id,
         course: courseId,
+        planType: planType,
         pricePaid: 0,
         paymentId: 'FREE_' + Date.now(),
         paymentStatus: 'paid',
@@ -167,8 +205,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     return res.status(201).json({ free: true, enrollment });
   }
 
-  // Internet handling fee: AED 45 flat if < 7300, else 0.7%
-  const gatewayFee = finalAmount < 7300
+  // Internet handling fee: AED 45 flat if <= 7299, else 0.7%
+  const gatewayFee = finalAmount <= 7299
     ? 45
     : Math.round(finalAmount * 0.007 * 100) / 100;
   const chargeAmount = Math.round((finalAmount + gatewayFee) * 100) / 100;
@@ -192,6 +230,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     student: req.user._id,
     itemType,
     course: isCourse ? courseId : null,
+    planType: isCourse ? planType : 'batch',
     testSeries: isCourse ? null : resolvedSeriesId,
     razorpayOrderId: razorpayOrder.id,
     amount: chargeAmount,
@@ -268,6 +307,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     enrollment = already || await Enrollment.create({
       student: req.user._id,
       course: courseId,
+      planType: payment.planType || 'batch',
       pricePaid: payment.amount,
       paymentId: razorpayPaymentId,
       paymentStatus: 'paid',
@@ -357,7 +397,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
 
 // ─── POST /api/payment/validate-coupon ───────────────────────────────────────
 export const validateCoupon = asyncHandler(async (req, res) => {
-  const { courseId, testSeriesId, couponCode } = req.body;
+  const { courseId, testSeriesId, couponCode, planType } = req.body;
   if ((!courseId && !testSeriesId) || !couponCode) {
     res.status(400); throw new Error('courseId or testSeriesId, and couponCode are required');
   }
@@ -377,15 +417,26 @@ export const validateCoupon = asyncHandler(async (req, res) => {
     if (!item) { res.status(404); throw new Error('Test series not found'); }
   }
 
-  const result = applyCoupon(item, couponCode);
+  let originalAmount = item.price;
+  if (courseId) {
+    const pType = planType || 'batch';
+    if (item.plans && item.plans[pType]) {
+      originalAmount = item.plans[pType].price;
+    } else {
+      if (pType === 'pro') originalAmount = Math.round(item.price * 1.25);
+      else if (pType === 'infinity') originalAmount = Math.round(item.price * 1.5);
+    }
+  }
+
+  const result = applyCoupon(item, couponCode, originalAmount);
   if (!result.valid) { res.status(400); throw new Error('Invalid or inactive coupon code'); }
 
   res.json({
     valid: true,
     couponCode: couponCode.trim().toUpperCase(),
-    originalAmount: item.price,
+    originalAmount,
     discountAmount: result.discountAmount,
-    finalAmount: Math.round((item.price - result.discountAmount) * 100) / 100,
+    finalAmount: Math.round((originalAmount - result.discountAmount) * 100) / 100,
   });
 });
 

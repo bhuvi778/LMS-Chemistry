@@ -7,6 +7,7 @@ const paymentSchema = new mongoose.Schema(
     // What they paid for
     itemType: { type: String, enum: ['course', 'test_series'], default: 'course' },
     course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', default: null },
+    planType: { type: String, enum: ['batch', 'pro', 'infinity'], default: 'batch' },
     testSeries: { type: mongoose.Schema.Types.ObjectId, ref: 'TestSeries', default: null },
 
     // Razorpay IDs
