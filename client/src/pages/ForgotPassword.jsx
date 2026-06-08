@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import toast from 'react-hot-toast';
-import { Atom, Mail, Lock, Loader2, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 export default function ForgotPassword() {
   const { forgotPassword, resetPassword, loading } = useAuth();
@@ -13,14 +13,26 @@ export default function ForgotPassword() {
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [resendTimer, setResendTimer] = useState(0);
+
+  useEffect(() => {
+    let interval;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   const handleSendOtp = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!email) return toast.error('Please enter your email');
     try {
       await forgotPassword(email);
       toast.success('Password reset OTP sent to your email');
       setStep(2);
+      setResendTimer(60); // Start 60 second cooldown
     } catch (err) {
       toast.error(err.message);
     }
@@ -52,8 +64,7 @@ export default function ForgotPassword() {
       <div className="hidden lg:flex relative items-center justify-center bg-gradient-brand text-white p-12">
         <div className="max-w-md">
           <div className="flex items-center gap-2 mb-6">
-            <Atom size={28} />
-            <span className="font-display font-extrabold text-2xl">Ace2Examz</span>
+            <img src="/Ace2exam_white (1).png" alt="Ace2Examz Logo" className="h-10 w-auto object-contain" />
           </div>
           <h2 className="font-display text-4xl font-extrabold leading-tight">
             Security & Account Recovery
@@ -157,6 +168,22 @@ export default function ForgotPassword() {
                 {loading && <Loader2 className="animate-spin" size={16} />}
                 Reset Password
               </button>
+
+              <div className="mt-4 text-center">
+                {resendTimer > 0 ? (
+                  <span className="text-xs text-slate-500 font-medium">
+                    Resend code in <span className="font-bold text-brand-600">{resendTimer}s</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSendOtp()}
+                    className="text-xs font-bold text-brand-600 hover:text-brand-700 hover:underline"
+                  >
+                    Resend OTP Code
+                  </button>
+                )}
+              </div>
 
               <button
                 type="button"

@@ -283,13 +283,13 @@ export default function AdminCourses() {
                     >
                       <Edit size={13} />
                     </Link>
-                    <button
-                      onClick={() => duplicate(c._id)}
+                    <Link
+                      to={`/admin/courses/new?duplicateFrom=${c._id}`}
                       className="btn-outline !py-1.5 !px-2 text-xs text-brand-700 border-brand-200 hover:bg-brand-50"
                       title="Duplicate Course"
                     >
                       <Copy size={13} />
-                    </button>
+                    </Link>
                     <Link
                       to={`/admin/courses/${c._id}/content`}
                       className="flex-1 btn-primary !py-1.5 text-xs justify-center"
@@ -371,13 +371,13 @@ export default function AdminCourses() {
                       >
                         <Edit size={16} />
                       </Link>
-                      <button
-                        onClick={() => duplicate(c._id)}
+                      <Link
+                        to={`/admin/courses/new?duplicateFrom=${c._id}`}
                         className="p-2 rounded-lg hover:bg-brand-50 text-brand-700"
                         title="Duplicate Course"
                       >
                         <Copy size={16} />
-                      </button>
+                      </Link>
                       <Link
                         to={`/admin/courses/${c._id}/content`}
                         className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700 hover:bg-brand-100"

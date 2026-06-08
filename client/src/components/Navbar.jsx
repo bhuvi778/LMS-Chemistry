@@ -1,7 +1,7 @@
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Atom, Menu, X, LogOut, LayoutDashboard, ShieldCheck, UserCircle, BookOpen, Trophy, Info, Home, User, Clock, ClipboardList, BookMarked, HelpCircle, ChevronDown, Rss, Mail } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import NotificationBell from './NotificationBell.jsx';
 
 const links = [
@@ -27,8 +27,20 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [uaeTime, setUaeTime] = useState('');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
 
   const isHome = location.pathname === '/';
+
+  useEffect(() => {
+    if (!menu) return;
+    const onClick = (e) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+        setMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [menu]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -102,22 +114,25 @@ export default function Navbar() {
               More <ChevronDown size={14} />
             </button>
             {moreMenuOpen && (
-              <div className="absolute left-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-50">
-                {moreLinks.map((sub) => (
-                  <NavLink
-                    key={sub.to}
-                    to={sub.to}
-                    className={({ isActive }) =>
-                      `flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-all ${isActive
-                        ? 'text-brand-700 bg-brand-50'
-                        : 'text-slate-600 hover:text-brand-700 hover:bg-brand-50/60'
-                      }`
-                    }
-                  >
-                    <sub.icon size={14} />
-                    {sub.label}
-                  </NavLink>
-                ))}
+              <div className="absolute left-0 top-full pt-1 w-40 z-50">
+                <div className="bg-white rounded-xl shadow-lg border border-slate-100 py-1">
+                  {moreLinks.map((sub) => (
+                    <NavLink
+                      key={sub.to}
+                      to={sub.to}
+                      onClick={() => setMoreMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-all ${isActive
+                          ? 'text-brand-700 bg-brand-50'
+                          : 'text-slate-600 hover:text-brand-700 hover:bg-brand-50/60'
+                        }`
+                      }
+                    >
+                      <sub.icon size={14} />
+                      {sub.label}
+                    </NavLink>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -148,7 +163,7 @@ export default function Navbar() {
               </Link>
             </>
           ) : (
-            <div className="relative flex items-center gap-1">
+            <div className="relative flex items-center gap-1" ref={profileMenuRef}>
               <NotificationBell darkMode={isHome && !scrolled} />
               <button
                 onClick={() => setMenu((v) => !v)}
@@ -175,7 +190,6 @@ export default function Navbar() {
               {menu && (
                 <div
                   className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50"
-                  onMouseLeave={() => setMenu(false)}
                 >
                   <div className="p-3 bg-gradient-soft border-b border-slate-100">
                     <div className="text-xs text-slate-500">Signed in as</div>

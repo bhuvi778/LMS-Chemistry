@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save, Plus, Trash2, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
@@ -16,6 +16,11 @@ const empty = {
   description: '',
   price: 0,
   mrp: 0,
+  plans: {
+    batch: { enabled: true, price: 0, mrp: 0 },
+    pro: { enabled: true, price: 0, mrp: 0 },
+    infinity: { enabled: true, price: 0, mrp: 0, seatsLimit: 10, seatsReserved: 0 }
+  },
   validity: { type: 'lifetime', durationValue: 12, durationUnit: 'months', endDate: '' },
   startDate: '',
   endDate: '',
@@ -45,6 +50,8 @@ const empty = {
 export default function AdminCourseForm() {
   const { id } = useParams();
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
+  const duplicateFrom = searchParams.get('duplicateFrom');
   const [categories, setCategories] = useState([]);
   const [allCourses, setAllCourses] = useState([]);
   const [form, setForm] = useState(empty);
@@ -55,9 +62,20 @@ export default function AdminCourseForm() {
   useEffect(() => {
     api.get('/categories').then((r) => setCategories(r.data));
     api.get('/courses?includeUnpublished=true').then((r) => setAllCourses(r.data)).catch(() => {});
-    if (edit) {
-      api.get(`/courses/${id}`).then((r) => {
-        const d = r.data;
+    
+    const targetId = id || duplicateFrom;
+    if (targetId) {
+      api.get(`/courses/${targetId}`).then((r) => {
+        const d = { ...r.data };
+        
+        // If duplicating, remove unique fields
+        if (duplicateFrom) {
+          delete d._id;
+          delete d.createdAt;
+          delete d.updatedAt;
+          d.title = `${d.title} (Copy)`;
+        }
+
         // Migrate legacy single category to array
         if (!d.categories?.length && d.category) d.categories = [d.category];
         if (!d.validity?.type) d.validity = { type: 'lifetime', durationValue: d.durationMonths || 12, durationUnit: 'months', endDate: '' };
@@ -77,10 +95,24 @@ export default function AdminCourseForm() {
           d.syllabus = d.syllabus.map((s) => ({ title: s, description: '' }));
         }
         if (d.isFree === undefined) d.isFree = false;
+        
+        // Ensure plans are initialized
+        if (!d.plans) {
+          d.plans = {
+            batch: { enabled: true, price: d.price || 0, mrp: d.mrp || 0 },
+            pro: { enabled: true, price: Math.round((d.price || 0) * 1.25), mrp: Math.round((d.mrp || 0) * 1.25) },
+            infinity: { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0 }
+          };
+        } else {
+          if (!d.plans.batch) d.plans.batch = { enabled: true, price: d.price || 0, mrp: d.mrp || 0 };
+          if (!d.plans.pro) d.plans.pro = { enabled: true, price: Math.round((d.price || 0) * 1.25), mrp: Math.round((d.mrp || 0) * 1.25) };
+          if (!d.plans.infinity) d.plans.infinity = { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0 };
+        }
+
         setForm(d);
       });
     }
-  }, [id]);
+  }, [id, duplicateFrom]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setNested = (k, k2, v) => setForm((f) => ({ ...f, [k]: { ...f[k], [k2]: v } }));
@@ -152,6 +184,18 @@ export default function AdminCourseForm() {
   const submit = async (e) => {
     e.preventDefault();
     if (!form.categories?.length) { toast.error('Select at least one category'); return; }
+    
+    // Validate number of active plans
+    if (!form.isFree) {
+      const enabledPlans = ['batch', 'pro', 'infinity'].filter(
+        (key) => form.plans?.[key]?.enabled
+      );
+      if (enabledPlans.length < 2 || enabledPlans.length > 3) {
+        toast.error('Please activate between 2 and 3 pricing plans (Min 2, Max 3)');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       // Keep legacy category field in sync with first selected category
@@ -179,7 +223,7 @@ export default function AdminCourseForm() {
             <ArrowLeft size={14} className="inline" /> All Courses
           </Link>
           <h1 className="font-display text-3xl font-extrabold mt-2">
-            {edit ? 'Edit Course' : 'Add New Course'}
+            {edit ? 'Edit Course' : duplicateFrom ? 'Duplicate Course' : 'Add New Course'}
           </h1>
         </div>
       </div>
@@ -485,6 +529,13 @@ export default function AdminCourseForm() {
                       price: checked ? 0 : f.price,
                       mrp: checked ? 0 : f.mrp,
                       discountCoupons: checked ? [] : f.discountCoupons,
+                      plans: checked
+                        ? {
+                            batch: { enabled: true, price: 0, mrp: 0 },
+                            pro: { enabled: false, price: 0, mrp: 0 },
+                            infinity: { enabled: false, price: 0, mrp: 0, seatsLimit: 10, seatsReserved: 0 }
+                          }
+                        : f.plans
                     }));
                   }}
                   className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
@@ -492,34 +543,235 @@ export default function AdminCourseForm() {
                 Free Course
               </label>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Price (AED)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">AED</span>
-                  <input
-                    type="number"
-                    disabled={form.isFree}
-                    className="input !pl-12 disabled:bg-slate-50 disabled:text-slate-400"
-                    value={form.price}
-                    onChange={(e) => set('price', Number(e.target.value))}
-                  />
+
+            {!form.isFree ? (
+              <div className="space-y-4">
+                <p className="text-xs text-slate-500 font-medium">
+                  Configure pricing for Batch, Pro, and Infinity plans. You must enable between 2 and 3 plans.
+                </p>
+                
+                {/* Batch Plan */}
+                <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 text-sm">Batch Plan</span>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={form.plans?.batch?.enabled ?? true}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setForm((f) => ({
+                            ...f,
+                            plans: {
+                              ...f.plans,
+                              batch: { ...f.plans?.batch, enabled: val }
+                            }
+                          }));
+                        }}
+                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      />
+                      Active
+                    </label>
+                  </div>
+                  {(form.plans?.batch?.enabled ?? true) && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="label text-xs">Price (AED)</label>
+                        <input
+                          type="number"
+                          className="input text-sm"
+                          value={form.plans?.batch?.price ?? 0}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setForm((f) => ({
+                              ...f,
+                              price: val, // Backwards compat
+                              plans: {
+                                ...f.plans,
+                                batch: { ...f.plans?.batch, price: val }
+                              }
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="label text-xs">MRP (AED)</label>
+                        <input
+                          type="number"
+                          className="input text-sm"
+                          value={form.plans?.batch?.mrp ?? 0}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setForm((f) => ({
+                              ...f,
+                              mrp: val, // Backwards compat
+                              plans: {
+                                ...f.plans,
+                                batch: { ...f.plans?.batch, mrp: val }
+                              }
+                            }));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pro Plan */}
+                <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 text-sm">Pro Plan</span>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={form.plans?.pro?.enabled ?? true}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setForm((f) => ({
+                            ...f,
+                            plans: {
+                              ...f.plans,
+                              pro: { ...f.plans?.pro, enabled: val }
+                            }
+                          }));
+                        }}
+                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      />
+                      Active
+                    </label>
+                  </div>
+                  {(form.plans?.pro?.enabled ?? true) && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="label text-xs">Price (AED)</label>
+                        <input
+                          type="number"
+                          className="input text-sm"
+                          value={form.plans?.pro?.price ?? 0}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setForm((f) => ({
+                              ...f,
+                              plans: {
+                                ...f.plans,
+                                pro: { ...f.plans?.pro, price: val }
+                              }
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="label text-xs">MRP (AED)</label>
+                        <input
+                          type="number"
+                          className="input text-sm"
+                          value={form.plans?.pro?.mrp ?? 0}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setForm((f) => ({
+                              ...f,
+                              plans: {
+                                ...f.plans,
+                                pro: { ...f.plans?.pro, mrp: val }
+                              }
+                            }));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Infinity Plan */}
+                <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 text-sm">Infinity Plan</span>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={form.plans?.infinity?.enabled ?? true}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setForm((f) => ({
+                            ...f,
+                            plans: {
+                              ...f.plans,
+                              infinity: { ...f.plans?.infinity, enabled: val }
+                            }
+                          }));
+                        }}
+                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      />
+                      Active
+                    </label>
+                  </div>
+                  {(form.plans?.infinity?.enabled ?? true) && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="label text-xs">Price (AED)</label>
+                          <input
+                            type="number"
+                            className="input text-sm"
+                            value={form.plans?.infinity?.price ?? 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setForm((f) => ({
+                                ...f,
+                                plans: {
+                                  ...f.plans,
+                                  infinity: { ...f.plans?.infinity, price: val }
+                                }
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="label text-xs">MRP (AED)</label>
+                          <input
+                            type="number"
+                            className="input text-sm"
+                            value={form.plans?.infinity?.mrp ?? 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setForm((f) => ({
+                                ...f,
+                                plans: {
+                                  ...f.plans,
+                                  infinity: { ...f.plans?.infinity, mrp: val }
+                                }
+                              }));
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label text-xs">Seats Limit</label>
+                        <input
+                          type="number"
+                          className="input text-sm"
+                          value={form.plans?.infinity?.seatsLimit ?? 10}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setForm((f) => ({
+                              ...f,
+                              plans: {
+                                ...f.plans,
+                                infinity: { ...f.plans?.infinity, seatsLimit: val }
+                              }
+                            }));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div>
-                <label className="label">MRP (AED)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">AED</span>
-                  <input
-                    type="number"
-                    disabled={form.isFree}
-                    className="input !pl-12 disabled:bg-slate-50 disabled:text-slate-400"
-                    value={form.mrp}
-                    onChange={(e) => set('mrp', Number(e.target.value))}
-                  />
-                </div>
+            ) : (
+              <div className="text-sm text-emerald-600 font-semibold bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                Free Course selected. All plan prices set to 0.
               </div>
-            </div>
+            )}
 
             {/* Discount Coupons (multiple) */}
             {!form.isFree && (

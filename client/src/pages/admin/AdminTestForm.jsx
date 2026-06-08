@@ -43,9 +43,10 @@ const blankQ = () => ({
   marks: 4,
   negativeMarks: -1,
   image: '',
+  section: '',
 });
 
-function QuestionCard({ q, idx, onChange, onDelete, onMove, total }) {
+function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
   const [open, setOpen] = useState(true);
   // Strip HTML tags for title preview
   const plainText = q.question ? q.question.replace(/<[^>]*>/g, '').slice(0, 60) : '';
@@ -88,6 +89,25 @@ function QuestionCard({ q, idx, onChange, onDelete, onMove, total }) {
       </div>
       {open && (
         <div className="p-4 space-y-4">
+          {/* Section Selector */}
+          {sections && sections.length > 0 && (
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1 block font-bold">ASSIGN TO SECTION</label>
+              <select
+                className="w-full sm:w-64 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400 bg-white font-medium"
+                value={q.section || ''}
+                onChange={(e) => onChange(idx, 'section', e.target.value)}
+              >
+                <option value="">— Select a Section —</option>
+                {sections.filter(s => s.name?.trim() !== '').map((s) => (
+                  <option key={s.name} value={s.name}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Question Type Selector */}
           <div>
             <label className="text-xs font-semibold text-slate-500 mb-1 block font-bold">QUESTION TYPE</label>
@@ -295,6 +315,7 @@ export default function AdminTestForm() {
     examTags: [],
     questions: [],
     isDailyTest: false,
+    sections: [],
   });
 
   const [saving, setSaving] = useState(false);
@@ -338,6 +359,7 @@ export default function AdminTestForm() {
             isDailyTest: data.isDailyTest || false,
             liveStartDate: data.liveStartDate ? formatDateTimeLocal(data.liveStartDate) : '',
             liveEndDate: data.liveEndDate ? formatDateTimeLocal(data.liveEndDate) : '',
+            sections: data.sections || [],
           });
         })
         .catch((err) => toast.error(err.message));
@@ -411,6 +433,21 @@ export default function AdminTestForm() {
   const submit = async (e) => {
     e.preventDefault();
     if (!form.title.trim()) { toast.error('Title is required'); return; }
+
+    // Validate section names
+    if (form.sections && form.sections.length > 0) {
+      const secNames = form.sections.map(s => s.name?.trim()).filter(Boolean);
+      if (secNames.length !== form.sections.length) {
+        toast.error('All sections must have a valid name');
+        return;
+      }
+      const uniqueNames = new Set(secNames);
+      if (uniqueNames.size !== secNames.length) {
+        toast.error('Section names must be unique');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -828,6 +865,95 @@ export default function AdminTestForm() {
         </div>
       </div>
 
+      {/* Sections Management */}
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 space-y-4">
+        <div className="flex items-center justify-between border-b pb-2">
+          <h2 className="font-semibold text-slate-700">Test Sections</h2>
+          <button
+            type="button"
+            onClick={() => {
+              setForm((f) => ({
+                ...f,
+                sections: [...(f.sections || []), { name: '', attemptAllowed: 0 }]
+              }));
+            }}
+            className="flex items-center gap-1.5 text-xs font-bold text-brand-650 hover:text-brand-800 transition"
+          >
+            <Plus size={14} /> Add Section
+          </button>
+        </div>
+        
+        {(!form.sections || form.sections.length === 0) ? (
+          <p className="text-xs text-slate-450 italic">No sections created. The entire test will be treated as a single section.</p>
+        ) : (
+          <div className="space-y-3">
+            {form.sections.map((sec, sIdx) => {
+              const countAssigned = (form.questions || []).filter(q => q.section === sec.name && sec.name !== '').length;
+              return (
+                <div key={sIdx} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 relative">
+                  <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-0.5 block">Section Name</label>
+                      <input
+                        type="text"
+                        className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-brand-400 bg-white font-medium"
+                        placeholder="e.g. Section A"
+                        value={sec.name}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const oldName = sec.name;
+                          setForm((f) => {
+                            const secs = [...f.sections];
+                            secs[sIdx] = { ...secs[sIdx], name: val };
+                            const qs = (f.questions || []).map(q => q.section === oldName ? { ...q, section: val } : q);
+                            return { ...f, sections: secs, questions: qs };
+                          });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-0.5 block">Attempt Allowed (0 = all)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-brand-400 bg-white font-medium"
+                        value={sec.attemptAllowed}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setForm((f) => {
+                            const secs = [...f.sections];
+                            secs[sIdx] = { ...secs[sIdx], attemptAllowed: val };
+                            return { ...f, sections: secs };
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 self-end sm:self-center">
+                    <span className="text-[11px] font-bold text-slate-500 bg-slate-200/60 px-2 py-1 rounded-md">
+                      {countAssigned} Qs
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm((f) => {
+                          const secs = f.sections.filter((_, idx) => idx !== sIdx);
+                          const qs = (f.questions || []).map(q => q.section === sec.name ? { ...q, section: '' } : q);
+                          return { ...f, sections: secs, questions: qs };
+                        });
+                      }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-55 transition"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* PDF / File Upload */}
       <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 space-y-4">
         <h2 className="font-semibold text-slate-700">Test Materials & Files</h2>
@@ -933,6 +1059,7 @@ export default function AdminTestForm() {
               onChange={changeQ}
               onDelete={removeQ}
               onMove={moveQ}
+              sections={form.sections || []}
             />
           ))}
         </div>

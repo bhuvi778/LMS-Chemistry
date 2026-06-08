@@ -936,73 +936,6 @@ function LiveClassesTab({ liveClasses }) {
     { id: 'past', label: 'Past', count: pastClasses.length },
   ];
 
-  const ClassCard = ({ lc }) => {
-    const isLive = lc.status === 'live';
-    const isPast = lc.status === 'ended' || new Date(lc.scheduledAt) < now;
-    return (
-      <div className="card overflow-hidden">
-        <div className={`p-4 text-white ${isLive
-          ? 'bg-gradient-to-br from-rose-500 to-pink-600'
-          : isPast
-          ? 'bg-gradient-to-br from-slate-400 to-slate-500'
-          : 'bg-gradient-to-br from-brand-500 to-violet-600'}`}>
-          <div className="flex items-center gap-2 mb-1">
-            {isLive ? (
-              <span className="flex items-center gap-1.5 text-xs font-bold">
-                <span className="w-2 h-2 rounded-full bg-white animate-ping inline-block" />
-                LIVE NOW
-              </span>
-            ) : isPast ? (
-              <span className="text-xs opacity-70 font-semibold uppercase">Ended</span>
-            ) : (
-              <span className="text-xs opacity-70 font-semibold uppercase">Upcoming</span>
-            )}
-          </div>
-          <h3 className="font-bold text-base leading-snug">{lc.title}</h3>
-          <p className="text-xs opacity-80 mt-0.5">By {lc.instructor}</p>
-        </div>
-        <div className="p-4 space-y-2">
-          <div className="flex items-center gap-2 text-sm text-slate-600">
-            <Calendar size={14} className="shrink-0 text-slate-400" />
-            {new Date(lc.scheduledAt).toLocaleString('en-AE', {
-              day: 'numeric', month: 'short', year: 'numeric',
-              hour: '2-digit', minute: '2-digit',
-            })}
-          </div>
-          <div className="flex items-center gap-2 text-sm text-slate-600">
-            <Clock size={14} className="shrink-0 text-slate-400" />
-            {lc.durationMins} minutes
-          </div>
-          {lc.description && (
-            <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">{lc.description}</p>
-          )}
-          {!isPast && (
-            <div className="pt-2">
-              {lc.useInternalRoom ? (
-                <Link
-                  to={`/live/${lc._id}`}
-                  className={`btn-primary w-full justify-center !py-2 text-sm ${isLive ? '!bg-rose-600 hover:!bg-rose-700' : ''}`}
-                >
-                  <Video size={14} />
-                  {isLive ? 'Join Now' : 'Open Room'}
-                </Link>
-              ) : lc.meetLink ? (
-                <a
-                  href={lc.meetLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-primary w-full justify-center !py-2 text-sm"
-                >
-                  <ExternalLink size={14} /> Join Class
-                </a>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex gap-2 border-b border-slate-100 pb-3">
@@ -1027,9 +960,72 @@ function LiveClassesTab({ liveClasses }) {
         </div>
       ) : (
         <div className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-4 ${activeSubTab === 'past' ? 'opacity-75' : ''}`}>
-          {activeClasses.map((lc) => (
-            <ClassCard key={lc._id} lc={lc} />
-          ))}
+          {activeClasses.map((lc) => {
+            const isLive = lc.status === 'live';
+            const isPast = lc.status === 'ended' || new Date(lc.scheduledAt) < now;
+            return (
+              <div key={lc._id} className="card overflow-hidden">
+                <div className={`p-4 text-white ${isLive
+                  ? 'bg-gradient-to-br from-rose-500 to-pink-600'
+                  : isPast
+                  ? 'bg-gradient-to-br from-slate-400 to-slate-500'
+                  : 'bg-gradient-to-br from-brand-500 to-violet-600'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    {isLive ? (
+                      <span className="flex items-center gap-1.5 text-xs font-bold">
+                        <span className="w-2 h-2 rounded-full bg-white animate-ping inline-block" />
+                        LIVE NOW
+                      </span>
+                    ) : isPast ? (
+                      <span className="text-xs opacity-70 font-semibold uppercase">Ended</span>
+                    ) : (
+                      <span className="text-xs opacity-70 font-semibold uppercase">Upcoming</span>
+                    )}
+                  </div>
+                  <h3 className="font-bold text-base leading-snug">{lc.title}</h3>
+                  <p className="text-xs opacity-80 mt-0.5">By {lc.instructor}</p>
+                </div>
+                <div className="p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Calendar size={14} className="shrink-0 text-slate-400" />
+                    {new Date(lc.scheduledAt).toLocaleString('en-AE', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                    })}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Clock size={14} className="shrink-0 text-slate-400" />
+                    {lc.durationMins} minutes
+                  </div>
+                  {lc.description && (
+                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">{lc.description}</p>
+                  )}
+                  {!isPast && (
+                    <div className="pt-2">
+                      {lc.useInternalRoom ? (
+                        <Link
+                          to={`/live/${lc._id}`}
+                          className={`btn-primary w-full justify-center !py-2 text-sm ${isLive ? '!bg-rose-600 hover:!bg-rose-700' : ''}`}
+                        >
+                          <Video size={14} />
+                          {isLive ? 'Join Now' : 'Open Room'}
+                        </Link>
+                      ) : lc.meetLink ? (
+                        <a
+                          href={lc.meetLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-primary w-full justify-center !py-2 text-sm"
+                        >
+                          <ExternalLink size={14} /> Join Class
+                        </a>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

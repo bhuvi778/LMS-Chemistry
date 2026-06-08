@@ -18,6 +18,7 @@ const questionSchema = new mongoose.Schema(
     marks: { type: Number, default: 4 },
     negativeMarks: { type: Number, default: -1 },
     image: { type: String, default: '' }, // optional question image URL
+    section: { type: String, default: '' },
   },
   { _id: true }
 );
@@ -38,6 +39,12 @@ const testSchema = new mongoose.Schema(
     durationMins: { type: Number, default: 60 },
     totalMarks: { type: Number, default: 0 }, // computed or set manually
     passMarks: { type: Number, default: 0 },
+    sections: [
+      {
+        name: { type: String, required: true },
+        attemptAllowed: { type: Number, default: 0 }, // 0 = no limit
+      }
+    ],
     questions: [questionSchema],
     // Free/Paid access
     isFree: { type: Boolean, default: false },
@@ -87,7 +94,23 @@ const testSchema = new mongoose.Schema(
 // Auto-compute totalMarks before save
 testSchema.pre('save', function (next) {
   if (this.questions && this.questions.length > 0) {
-    this.totalMarks = this.questions.reduce((sum, q) => sum + (q.marks || 4), 0);
+    if (this.sections && this.sections.length > 0) {
+      let total = 0;
+      this.sections.forEach((sec) => {
+        const secQuestions = this.questions.filter((q) => q.section === sec.name);
+        const limit = sec.attemptAllowed > 0 ? sec.attemptAllowed : secQuestions.length;
+        const sortedMarks = secQuestions.map((q) => q.marks || 4).sort((a, b) => b - a);
+        for (let i = 0; i < Math.min(limit, sortedMarks.length); i++) {
+          total += sortedMarks[i];
+        }
+      });
+      // Add questions with no section
+      const noSecQuestions = this.questions.filter((q) => !q.section);
+      total += noSecQuestions.reduce((sum, q) => sum + (q.marks || 4), 0);
+      this.totalMarks = total;
+    } else {
+      this.totalMarks = this.questions.reduce((sum, q) => sum + (q.marks || 4), 0);
+    }
   }
   next();
 });

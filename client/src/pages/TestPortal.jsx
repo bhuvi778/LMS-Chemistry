@@ -204,6 +204,7 @@ export default function TestPortal() {
   const { user } = useAuth();
   const [tests, setTests] = useState([]);
   const [series, setSeries] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [myAttempts, setMyAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('tests'); // tests | series
@@ -214,17 +215,21 @@ export default function TestPortal() {
   const [freeOnly, setFreeOnly] = useState(false);
   const [seriesCategory, setSeriesCategory] = useState(''); // category filter for series tab
   const [practiceCategory, setPracticeCategory] = useState(''); // category filter for practice tab
+  const [practiceSubCategory, setPracticeSubCategory] = useState('');
+  const [seriesSubCategory, setSeriesSubCategory] = useState('');
 
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const [tRes, sRes] = await Promise.all([
+        const [tRes, sRes, cRes] = await Promise.all([
           api.get('/tests/tests'),
           api.get('/tests/series'),
+          api.get('/categories').catch(() => ({ data: [] })),
         ]);
         setTests(tRes.data);
         setSeries(sRes.data);
+        setCategories(cRes.data || []);
         if (user) {
           const aRes = await api.get('/tests/attempts/me');
           setMyAttempts(aRes.data);
@@ -243,7 +248,8 @@ export default function TestPortal() {
     const matchD = !difficulty || t.difficulty === difficulty;
     const matchF = !freeOnly || t.isFree;
     const matchCat = !practiceCategory || (t.categories || []).includes(practiceCategory);
-    if (!matchQ || !matchD || !matchF || !matchCat) return false;
+    const matchSubCat = !practiceSubCategory || (t.subCategories || []).includes(practiceSubCategory);
+    if (!matchQ || !matchD || !matchF || !matchCat || !matchSubCat) return false;
 
     if (practiceTab === 'quiz') {
       return t.testType === 'quiz';
@@ -314,7 +320,8 @@ export default function TestPortal() {
     const matchQ = !q || s.title.toLowerCase().includes(q.toLowerCase());
     const matchF = !freeOnly || s.isFree;
     const matchCat = !seriesCategory || (s.categories || []).includes(seriesCategory);
-    return matchQ && matchF && matchCat;
+    const matchSubCat = !seriesSubCategory || (s.subCategories || []).includes(seriesSubCategory);
+    return matchQ && matchF && matchCat && matchSubCat;
   });
 
   // Extract all unique categories from all series
@@ -492,7 +499,10 @@ export default function TestPortal() {
           <div className="flex flex-wrap gap-2 mb-6 items-center">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">Categories:</span>
             <button
-              onClick={() => setPracticeCategory('')}
+              onClick={() => {
+                setPracticeCategory('');
+                setPracticeSubCategory('');
+              }}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
                 !practiceCategory
                   ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
@@ -504,7 +514,10 @@ export default function TestPortal() {
             {activePracticeCategories.map(({ cat, count }) => (
               <button
                 key={cat}
-                onClick={() => setPracticeCategory(practiceCategory === cat ? '' : cat)}
+                onClick={() => {
+                  setPracticeCategory(practiceCategory === cat ? '' : cat);
+                  setPracticeSubCategory('');
+                }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
                   practiceCategory === cat
                     ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
@@ -515,6 +528,43 @@ export default function TestPortal() {
               </button>
             ))}
           </div>
+        )}
+
+        {/* Sub-Category filter chips for Practice */}
+        {tab === 'tests' && practiceCategory && (
+          (() => {
+            const catObj = categories.find(c => c.name === practiceCategory);
+            const subs = catObj?.subcategories || [];
+            if (subs.length === 0) return null;
+            return (
+              <div className="flex flex-wrap gap-2 mb-6 items-center bg-slate-100/50 p-2.5 rounded-xl border border-slate-200/60">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Sub-Categories:</span>
+                <button
+                  onClick={() => setPracticeSubCategory('')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                    !practiceSubCategory
+                      ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  All
+                </button>
+                {subs.map((sub) => (
+                  <button
+                    key={sub}
+                    onClick={() => setPracticeSubCategory(practiceSubCategory === sub ? '' : sub)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                      practiceSubCategory === sub
+                        ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
+                        : 'bg-white text-slate-655 border-slate-200 hover:bg-slate-50 hover:border-brand-300'
+                    }`}
+                  >
+                    {sub}
+                  </button>
+                ))}
+              </div>
+            );
+          })()
         )}
 
         {/* Sub-sub-tabs under Live */}
@@ -586,7 +636,10 @@ export default function TestPortal() {
               <div className="flex flex-wrap gap-2 mb-5 items-center">
                 <span className="text-xs font-semibold text-slate-500 mr-1">Filter by Category:</span>
                 <button
-                  onClick={() => setSeriesCategory('')}
+                  onClick={() => {
+                    setSeriesCategory('');
+                    setSeriesSubCategory('');
+                  }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
                     !seriesCategory
                       ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
@@ -598,7 +651,10 @@ export default function TestPortal() {
                 {activeSeriesCategories.map(({ cat, count }) => (
                   <button
                     key={cat}
-                    onClick={() => setSeriesCategory(seriesCategory === cat ? '' : cat)}
+                    onClick={() => {
+                      setSeriesCategory(seriesCategory === cat ? '' : cat);
+                      setSeriesSubCategory('');
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
                       seriesCategory === cat
                         ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
@@ -609,6 +665,43 @@ export default function TestPortal() {
                   </button>
                 ))}
               </div>
+            )}
+
+            {/* Sub-Category filter chips for series */}
+            {seriesCategory && (
+              (() => {
+                const catObj = categories.find(c => c.name === seriesCategory);
+                const subs = catObj?.subcategories || [];
+                if (subs.length === 0) return null;
+                return (
+                  <div className="flex flex-wrap gap-2 mb-5 items-center bg-slate-100/50 p-2.5 rounded-xl border border-slate-200/60">
+                    <span className="text-[10px] font-bold text-slate-500 mr-1">Sub-Categories:</span>
+                    <button
+                      onClick={() => setSeriesSubCategory('')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                        !seriesSubCategory
+                          ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {subs.map((sub) => (
+                      <button
+                        key={sub}
+                        onClick={() => setSeriesSubCategory(seriesSubCategory === sub ? '' : sub)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                          seriesSubCategory === sub
+                            ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-brand-300'
+                        }`}
+                      >
+                        {sub}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()
             )}
             {filteredSeries.length === 0 ? (
               <div className="text-center py-16 text-slate-400">

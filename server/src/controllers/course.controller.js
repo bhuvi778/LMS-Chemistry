@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import Course from '../models/Course.js';
 import Category from '../models/Category.js';
+import Enrollment from '../models/Enrollment.js';
 
 export const listCourses = asyncHandler(async (req, res) => {
   const { category, q, featured, includeUnpublished } = req.query;

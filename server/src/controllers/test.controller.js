@@ -217,7 +217,14 @@ export const submitAttempt = asyncHandler(async (req, res) => {
   let wrong = 0;
   let unattempted = 0;
 
-  const processedAnswers = test.questions.map((q) => {
+  const processedAnswers = [];
+  const sectionAttemptCounts = {};
+
+  test.questions.forEach((q) => {
+    const secName = q.section || '';
+    const sectionObj = (test.sections || []).find((s) => s.name === secName);
+    const limit = sectionObj?.attemptAllowed || 0;
+
     const ans = (answers || []).find(
       (a) => a.questionId?.toString() === q._id.toString()
     );
@@ -233,7 +240,20 @@ export const submitAttempt = asyncHandler(async (req, res) => {
 
     if (isUnattempted) {
       unattempted++;
-      return { questionId: q._id, selected: -1, isCorrect: false, marksAwarded: 0 };
+      processedAnswers.push({ questionId: q._id, selected: -1, isCorrect: false, marksAwarded: 0 });
+      return;
+    }
+
+    // It is attempted. Check if we have already reached the limit for this section.
+    if (secName !== '' && limit > 0) {
+      const currentAttempts = sectionAttemptCounts[secName] || 0;
+      if (currentAttempts >= limit) {
+        // Over the limit: treat as unattempted for grading
+        unattempted++;
+        processedAnswers.push({ questionId: q._id, selected, isCorrect: false, marksAwarded: 0 });
+        return;
+      }
+      sectionAttemptCounts[secName] = currentAttempts + 1;
     }
 
     let isCorrect = false;
@@ -296,7 +316,7 @@ export const submitAttempt = asyncHandler(async (req, res) => {
     }
 
     scored += marksAwarded;
-    return { questionId: q._id, selected, isCorrect, marksAwarded };
+    processedAnswers.push({ questionId: q._id, selected, isCorrect, marksAwarded });
   });
 
   const percentage = test.totalMarks > 0 ? Math.round((scored / test.totalMarks) * 100) : 0;
@@ -412,7 +432,7 @@ export const getCourseTests = asyncHandler(async (req, res) => {
 
   let isEnrolled = false;
   if (user) {
-    const enrollment = await Enrollment.findOne({ user: user._id, course: courseId });
+    const enrollment = await Enrollment.findOne({ student: user._id, course: courseId });
     isEnrolled = !!enrollment;
   }
 

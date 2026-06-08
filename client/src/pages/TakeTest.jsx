@@ -226,6 +226,14 @@ export default function TakeTest() {
     }).length;
   }, [answers, test]);
 
+  const getSectionAttemptedCount = useCallback((secName) => {
+    const qList = test?.questions || [];
+    return Object.entries(answers).filter(([qId, val]) => {
+      const qObj = qList.find((quest) => quest._id === qId);
+      return qObj?.section === secName && isQuestionAttempted(val, qObj?.type);
+    }).length;
+  }, [answers, test]);
+
   useEffect(() => {
     api.get(`/tests/tests/${testId}`)
       .then(({ data }) => {
@@ -261,6 +269,9 @@ export default function TakeTest() {
   const handleSelectOption = (qId, optIdx) => {
     const qObj = (test?.questions || []).find((quest) => quest._id === qId);
     const qType = qObj?.type || 'mcq';
+    const sectionName = qObj?.section || '';
+    const sectionObj = (test?.sections || []).find(s => s.name === sectionName);
+    const secLimit = sectionObj?.attemptAllowed || 0;
 
     if (qType === 'msq') {
       const currentVal = Array.isArray(tempAnswers[qId]) ? tempAnswers[qId] : [];
@@ -269,18 +280,30 @@ export default function TakeTest() {
         newVal = currentVal.filter((idx) => idx !== optIdx);
       } else {
         const isCurrentlyAttempted = isQuestionAttempted(answers[qId], qType);
-        if (!isCurrentlyAttempted && getAttemptedCount() >= (test?.maxQuestionsToAttempt || Infinity)) {
-          toast.error(`You have already attempted the maximum allowed ${test.maxQuestionsToAttempt} questions. Please clear another answer first.`);
-          return;
+        if (!isCurrentlyAttempted) {
+          if (secLimit > 0 && getSectionAttemptedCount(sectionName) >= secLimit) {
+            toast.error(`You have already attempted the maximum allowed ${secLimit} questions in section "${sectionName}". Please clear another answer in this section first.`);
+            return;
+          }
+          if (getAttemptedCount() >= (test?.maxQuestionsToAttempt || Infinity)) {
+            toast.error(`You have already attempted the maximum allowed ${test.maxQuestionsToAttempt} questions. Please clear another answer first.`);
+            return;
+          }
         }
         newVal = [...currentVal, optIdx].sort();
       }
       setTempAnswers((t) => ({ ...t, [qId]: newVal }));
     } else {
       const isCurrentlyAttempted = isQuestionAttempted(answers[qId], qType);
-      if (!isCurrentlyAttempted && getAttemptedCount() >= (test?.maxQuestionsToAttempt || Infinity)) {
-        toast.error(`You have already attempted the maximum allowed ${test.maxQuestionsToAttempt} questions. Please clear another answer first.`);
-        return;
+      if (!isCurrentlyAttempted) {
+        if (secLimit > 0 && getSectionAttemptedCount(sectionName) >= secLimit) {
+          toast.error(`You have already attempted the maximum allowed ${secLimit} questions in section "${sectionName}". Please clear another answer in this section first.`);
+          return;
+        }
+        if (getAttemptedCount() >= (test?.maxQuestionsToAttempt || Infinity)) {
+          toast.error(`You have already attempted the maximum allowed ${test.maxQuestionsToAttempt} questions. Please clear another answer first.`);
+          return;
+        }
       }
       setTempAnswers((t) => ({ ...t, [qId]: optIdx }));
     }
@@ -485,6 +508,69 @@ export default function TakeTest() {
         {/* Left Side: Question Canvas */}
         <main className="flex-1 flex flex-col p-3 md:p-5 min-w-0">
           <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+            {/* Sections Header Tabs */}
+            {test.sections && test.sections.length > 0 && (
+              <div className="bg-slate-100 border-b border-slate-200 px-4 py-2 flex items-center gap-2 overflow-x-auto">
+                {test.sections.map((sec) => {
+                  const isCurrentSection = q?.section === sec.name;
+                  const secQuestions = questions.filter((quest) => quest.section === sec.name);
+                  if (secQuestions.length === 0) return null; // skip if no questions assigned
+                  
+                  // Calculate how many are attempted in this section
+                  const attemptedInSection = secQuestions.filter(
+                    (quest) => isQuestionAttempted(answers[quest._id], quest.type)
+                  ).length;
+
+                  return (
+                    <button
+                      key={sec.name}
+                      onClick={() => {
+                        const firstQIdx = questions.findIndex(quest => quest.section === sec.name);
+                        if (firstQIdx !== -1) {
+                          handleNavigateTo(firstQIdx);
+                        }
+                      }}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap shadow-sm border ${
+                        isCurrentSection
+                          ? 'bg-brand-650 text-white border-brand-700'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>{sec.name}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold ${
+                        isCurrentSection ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'
+                      }`}>
+                        {attemptedInSection} {sec.attemptAllowed > 0 ? `/ ${sec.attemptAllowed}` : ''}
+                      </span>
+                    </button>
+                  );
+                })}
+                {/* Also handle no-section questions if they exist */}
+                {questions.some(quest => !quest.section) && (
+                  <button
+                    onClick={() => {
+                      const firstQIdx = questions.findIndex(quest => !quest.section);
+                      if (firstQIdx !== -1) {
+                        handleNavigateTo(firstQIdx);
+                      }
+                    }}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap shadow-sm border ${
+                      !q?.section
+                        ? 'bg-brand-650 text-white border-brand-700'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>General</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold ${
+                      !q?.section ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {questions.filter(quest => !quest.section && isQuestionAttempted(answers[quest._id], quest.type)).length}
+                    </span>
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Question Heading */}
             <div className="bg-slate-50 border-b border-slate-200 px-4 md:px-6 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -523,9 +609,18 @@ export default function TakeTest() {
                     onChange={(e) => {
                       const val = e.target.value;
                       const isCurrentlyAttempted = isQuestionAttempted(answers[q._id], 'numerical');
-                      if (val !== '' && !isCurrentlyAttempted && getAttemptedCount() >= (test?.maxQuestionsToAttempt || Infinity)) {
-                        toast.error(`You have already attempted the maximum allowed ${test.maxQuestionsToAttempt} questions. Please clear another answer first.`);
-                        return;
+                      const sectionName = q.section || '';
+                      const sectionObj = (test?.sections || []).find(s => s.name === sectionName);
+                      const secLimit = sectionObj?.attemptAllowed || 0;
+                      if (val !== '' && !isCurrentlyAttempted) {
+                        if (secLimit > 0 && getSectionAttemptedCount(sectionName) >= secLimit) {
+                          toast.error(`You have already attempted the maximum allowed ${secLimit} questions in section "${sectionName}". Please clear another answer in this section first.`);
+                          return;
+                        }
+                        if (getAttemptedCount() >= (test?.maxQuestionsToAttempt || Infinity)) {
+                          toast.error(`You have already attempted the maximum allowed ${test.maxQuestionsToAttempt} questions. Please clear another answer first.`);
+                          return;
+                        }
                       }
                       setTempAnswers((t) => ({ ...t, [q._id]: val }));
                     }}
@@ -708,19 +803,67 @@ export default function TakeTest() {
           </div>
 
           {/* Palette Grid */}
-          <div className="flex-1 flex flex-col px-4 pb-4 pt-1">
+          <div className="flex-1 flex flex-col px-4 pb-4 pt-1 overflow-y-auto">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Question Palette</p>
-            <div className="grid grid-cols-5 gap-1.5 overflow-y-auto p-1">
-              {questions.map((qItem, idx) => (
-                <PaletteItem
-                  key={qItem._id}
-                  number={idx + 1}
-                  state={states[qItem._id]}
-                  isActive={current === idx}
-                  onClick={() => handleNavigateTo(idx)}
-                />
-              ))}
-            </div>
+            {test.sections && test.sections.length > 0 ? (
+              <div className="space-y-4">
+                {test.sections.map((sec) => {
+                  const secQuestions = questions.filter(quest => quest.section === sec.name);
+                  if (secQuestions.length === 0) return null;
+                  return (
+                    <div key={sec.name} className="space-y-1.5">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide border-b pb-0.5">{sec.name}</p>
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {secQuestions.map((qItem) => {
+                          const idx = questions.findIndex(quest => quest._id === qItem._id);
+                          return (
+                            <PaletteItem
+                              key={qItem._id}
+                              number={idx + 1}
+                              state={states[qItem._id]}
+                              isActive={current === idx}
+                              onClick={() => handleNavigateTo(idx)}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* Questions with no section */}
+                {questions.some(quest => !quest.section) && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide border-b pb-0.5">General</p>
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {questions.filter(quest => !quest.section).map((qItem) => {
+                        const idx = questions.findIndex(quest => quest._id === qItem._id);
+                        return (
+                          <PaletteItem
+                            key={qItem._id}
+                            number={idx + 1}
+                            state={states[qItem._id]}
+                            isActive={current === idx}
+                            onClick={() => handleNavigateTo(idx)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-5 gap-1.5 p-1">
+                {questions.map((qItem, idx) => (
+                  <PaletteItem
+                    key={qItem._id}
+                    number={idx + 1}
+                    state={states[qItem._id]}
+                    isActive={current === idx}
+                    onClick={() => handleNavigateTo(idx)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </aside>
       </div>
