@@ -1740,6 +1740,23 @@ export default function LearnCourse() {
                 {course.title}
               </h1>
               <p className="text-slate-500 text-sm mt-1">{course.shortDescription}</p>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  planType === 'infinity' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                  planType === 'pro' ? 'bg-violet-100 text-violet-800 border border-violet-200' :
+                  'bg-slate-100 text-slate-800 border border-slate-200'
+                }`}>
+                  Plan: Ace {planType}
+                </span>
+                {planType !== 'infinity' && (
+                  <Link
+                    to={`/courses/${course.slug || course._id}`}
+                    className="text-[10px] font-bold text-brand-600 hover:underline flex items-center gap-0.5 ml-1"
+                  >
+                    Upgrade Prep Plan →
+                  </Link>
+                )}
+              </div>
             </div>
             {course.telegramJoinLink && (
               <a

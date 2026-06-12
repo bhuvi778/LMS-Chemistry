@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import NotificationBell from '../../components/NotificationBell.jsx';
 import {
   LayoutDashboard,
   BookOpen,
@@ -290,6 +291,8 @@ export default function AdminLayout() {
                 <Clock size={12} className="text-slate-400" />
                 <span className="text-xs font-mono font-bold text-slate-700">{uaeTime.time}</span>
               </div>
+
+              <NotificationBell />
 
               <div className="h-6 w-px bg-slate-200" />
 

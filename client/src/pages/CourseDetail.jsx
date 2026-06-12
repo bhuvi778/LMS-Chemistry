@@ -858,6 +858,115 @@ export default function CourseDetail() {
                 </span>
               ))}
             </div>
+
+            {/* Choose Prep Plan Selector (Moved to Left Column) */}
+            <div className="mt-8 bg-white border border-slate-250 rounded-3xl p-6 shadow-sm max-w-xl">
+              <label className="text-sm font-black uppercase tracking-wider text-slate-700 block mb-3">
+                {enrolled ? 'Upgrade Prep Plan' : 'Choose Your Prep Plan'}
+              </label>
+              <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-slate-100 border border-slate-200/60">
+                {[
+                  { k: 'batch', l: 'Ace Batch' },
+                  { k: 'pro', l: 'Ace Pro' },
+                  { k: 'infinity', l: 'Ace Infinity' }
+                ].map((p) => {
+                  const planConfig = course.plans?.[p.k];
+                  const isEnabled = planConfig ? planConfig.enabled : true;
+                  
+                  let planPrice = course.price;
+                  if (planConfig && planConfig.price) {
+                    planPrice = planConfig.price;
+                  } else {
+                    if (p.k === 'pro') planPrice = Math.round(course.price * 1.25);
+                    else if (p.k === 'infinity') planPrice = Math.round(course.price * 1.5);
+                  }
+
+                  const planOrder = { batch: 1, pro: 2, infinity: 3 };
+                  const isDowngradeOrSame = enrollment && planOrder[p.k] <= planOrder[enrollment.planType];
+                  const isSelected = selectedPlan === p.k;
+                  
+                  return (
+                    <button
+                      key={p.k}
+                      type="button"
+                      disabled={!isEnabled || isDowngradeOrSame}
+                      onClick={() => {
+                        setSelectedPlan(p.k);
+                        setCouponApplied(null);
+                        setCouponInput('');
+                      }}
+                      className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl transition-all text-center ${
+                        isSelected
+                          ? 'bg-white text-brand-700 shadow-md border border-brand-100 scale-[1.02] font-extrabold'
+                          : isEnabled && !isDowngradeOrSame
+                            ? 'text-slate-600 hover:bg-white/60 text-xs font-semibold'
+                            : 'opacity-40 cursor-not-allowed text-xs'
+                      }`}
+                    >
+                      <span className="text-xs sm:text-sm leading-none whitespace-nowrap">{p.l}</span>
+                      <span className="text-xs mt-1 text-slate-500 font-bold">
+                        {isDowngradeOrSame ? 'Owned' : `AED ${planPrice}`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Features list for the selected plan */}
+              {(() => {
+                const PLAN_FEATURES = {
+                  batch: [
+                    { text: '📚 Complete Chemistry Syllabus', included: true },
+                    { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
+                    { text: '🧪 Standard Online Practice Tests', included: true },
+                    { text: '💬 1 Doubt Query Per Day', included: true },
+                    { text: '🎥 Interactive Live Classes', included: false },
+                    { text: '👑 1-on-1 Personal Mentorship', included: false },
+                    { text: '🤖 Ask Prepiify AI Access', included: false },
+                  ],
+                  pro: [
+                    { text: '📚 Complete Chemistry Syllabus', included: true },
+                    { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
+                    { text: '🧪 Standard Online Practice Tests', included: true },
+                    { text: '💬 3 Doubt Queries Per Day', included: true },
+                    { text: '🎥 Interactive Live Classes', included: true },
+                    { text: '👑 1-on-1 Personal Mentorship', included: false },
+                    { text: '🤖 Ask Prepiify AI Access', included: true },
+                  ],
+                  infinity: [
+                    { text: '📚 Complete Chemistry Syllabus', included: true },
+                    { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
+                    { text: '🧪 Standard Online Practice Tests', included: true },
+                    { text: '💬 Unlimited Doubt Queries', included: true },
+                    { text: '🎥 Interactive Live Classes', included: true },
+                    { text: '👑 1-on-1 Personal Mentorship', included: true },
+                    { text: '🤖 Ask Prepiify AI Access', included: true },
+                  ]
+                };
+
+                return (
+                  <div className="mt-5 bg-slate-50 border border-slate-100 rounded-2xl p-4 shadow-inner animate-fade-in">
+                    <div className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3">
+                      {selectedPlan === 'batch' ? 'Ace Batch Features' : selectedPlan === 'pro' ? 'Ace Pro Features' : 'Ace Infinity Features'}
+                    </div>
+                    <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-2.5">
+                      {PLAN_FEATURES[selectedPlan].map((feat, fi) => (
+                        <li key={fi} className="flex items-start gap-2.5 text-xs">
+                          {feat.included ? (
+                            <CheckCircle className="text-emerald-500 w-4 h-4 shrink-0 mt-0.5" />
+                          ) : (
+                            <XCircle className="text-slate-350 w-4 h-4 shrink-0 mt-0.5" />
+                          )}
+                          <span className={feat.included ? "font-bold text-slate-700" : "text-slate-400 line-through decoration-slate-200"}>
+                            {feat.text}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
 
           {/* Price card */}
@@ -889,118 +998,6 @@ export default function CourseDetail() {
                     )}
                   </div>
                 )}
-
-                {/* Choose Your Prep Plan Selector */}
-                {true && (
-                  <div className="mb-4">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
-                      {enrolled ? 'Upgrade Prep Plan' : 'Choose Your Prep Plan'}
-                    </label>
-                    <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200/60">
-                      {[
-                        { k: 'batch', l: 'Ace Batch' },
-                        { k: 'pro', l: 'Ace Pro' },
-                        { k: 'infinity', l: 'Ace Infinity' }
-                      ].map((p) => {
-                        const planConfig = course.plans?.[p.k];
-                        const isEnabled = planConfig ? planConfig.enabled : true;
-                        
-                        let planPrice = course.price;
-                        if (planConfig && planConfig.price) {
-                          planPrice = planConfig.price;
-                        } else {
-                          if (p.k === 'pro') planPrice = Math.round(course.price * 1.25);
-                          else if (p.k === 'infinity') planPrice = Math.round(course.price * 1.5);
-                        }
-
-                        // Downgrade not possible check
-                        const planOrder = { batch: 1, pro: 2, infinity: 3 };
-                        const isDowngradeOrSame = enrollment && planOrder[p.k] <= planOrder[enrollment.planType];
-                        const isSelected = selectedPlan === p.k;
-                        
-                        return (
-                          <button
-                            key={p.k}
-                            type="button"
-                            disabled={!isEnabled || isDowngradeOrSame}
-                            onClick={() => {
-                              setSelectedPlan(p.k);
-                              setCouponApplied(null);
-                              setCouponInput('');
-                            }}
-                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all text-center ${
-                              isSelected
-                                ? 'bg-white text-brand-700 shadow-md border border-brand-100 scale-[1.03] font-bold'
-                                : isEnabled && !isDowngradeOrSame
-                                  ? 'text-slate-600 hover:bg-white/60 text-xs font-semibold'
-                                  : 'opacity-40 cursor-not-allowed text-xs'
-                            }`}
-                          >
-                            <span className="text-[10px] sm:text-xs leading-none whitespace-nowrap">{p.l}</span>
-                            <span className="text-[10px] mt-0.5 text-slate-500 font-medium">
-                              {isDowngradeOrSame ? 'Owned' : `AED ${planPrice}`}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Features list for the selected plan */}
-                {(() => {
-                  const PLAN_FEATURES = {
-                    batch: [
-                      { text: '📚 Complete Chemistry Syllabus', included: true },
-                      { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
-                      { text: '🧪 Standard Online Practice Tests', included: true },
-                      { text: '💬 1 Doubt Query Per Day', included: true },
-                      { text: '🎥 Interactive Live Classes', included: false },
-                      { text: '👑 1-on-1 Personal Mentorship', included: false },
-                      { text: '🤖 Ask Prepiify AI Access', included: false },
-                    ],
-                    pro: [
-                      { text: '📚 Complete Chemistry Syllabus', included: true },
-                      { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
-                      { text: '🧪 Standard Online Practice Tests', included: true },
-                      { text: '💬 3 Doubt Queries Per Day', included: true },
-                      { text: '🎥 Interactive Live Classes', included: true },
-                      { text: '👑 1-on-1 Personal Mentorship', included: false },
-                      { text: '🤖 Ask Prepiify AI Access', included: true },
-                    ],
-                    infinity: [
-                      { text: '📚 Complete Chemistry Syllabus', included: true },
-                      { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
-                      { text: '🧪 Standard Online Practice Tests', included: true },
-                      { text: '💬 Unlimited Doubt Queries', included: true },
-                      { text: '🎥 Interactive Live Classes', included: true },
-                      { text: '👑 1-on-1 Personal Mentorship', included: true },
-                      { text: '🤖 Ask Prepiify AI Access', included: true },
-                    ]
-                  };
-
-                  return (
-                    <div className="mt-2 mb-4 bg-slate-50 border border-slate-100 rounded-xl p-3.5 shadow-inner">
-                      <div className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2.5">
-                        {selectedPlan === 'batch' ? 'Ace Batch Features' : selectedPlan === 'pro' ? 'Ace Pro Features' : 'Ace Infinity Features'}
-                      </div>
-                      <ul className="space-y-2">
-                        {PLAN_FEATURES[selectedPlan].map((feat, fi) => (
-                          <li key={fi} className="flex items-start gap-2.5 text-xs">
-                            {feat.included ? (
-                              <CheckCircle className="text-emerald-500 w-4 h-4 shrink-0 mt-0.5" />
-                            ) : (
-                              <XCircle className="text-slate-300 w-4 h-4 shrink-0 mt-0.5" />
-                            )}
-                            <span className={feat.included ? "font-semibold text-slate-700" : "text-slate-400 line-through decoration-slate-200"}>
-                              {feat.text}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
-                })()}
 
                 {!isSelectedDowngradeOrSame && (() => {
                   const planInfo = getPlanPriceAndMrp();

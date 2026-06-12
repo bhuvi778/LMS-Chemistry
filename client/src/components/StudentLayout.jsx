@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-do
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client.js';
 import SupportChatWidget from './SupportChatWidget.jsx';
+import NotificationBell from './NotificationBell.jsx';
 import {
   Home,
   Video,
@@ -300,6 +301,7 @@ export default function StudentLayout() {
           <Link to="/student/wallet" className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-lg text-xs font-bold border border-yellow-100/50">
             🪙 {user?.coins || 0}
           </Link>
+          <NotificationBell />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="p-2 rounded-xl text-slate-500 hover:bg-slate-50 transition"
@@ -372,6 +374,8 @@ export default function StudentLayout() {
               <Coins size={14} className="text-yellow-500" />
               <span>{user?.coins || 0} Ace Coins</span>
             </Link>
+
+            <NotificationBell />
 
             <span className="h-6 w-px bg-slate-200" />
 

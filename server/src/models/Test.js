@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const optionSchema = new mongoose.Schema(
-  { text: { type: String, required: true } },
+  { text: { type: String, default: '' } },
   { _id: true }
 );
 

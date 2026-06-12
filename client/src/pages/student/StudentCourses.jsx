@@ -170,6 +170,14 @@ export default function StudentCourses() {
                   >
                     Continue Learning
                   </Link>
+                  {e.planType !== 'infinity' && (
+                    <Link
+                      to={`/courses/${e.course?.slug || e.course?._id}`}
+                      className="w-full inline-flex items-center justify-center gap-1.5 text-xs text-brand-700 border border-brand-200 rounded-2xl hover:bg-brand-50/50 transition py-2 font-bold"
+                    >
+                      Upgrade Plan (Current: {e.planType === 'pro' ? 'Pro' : 'Batch'})
+                    </Link>
+                  )}
                   {e.paymentId && e.paymentId !== 'FREE' && !e.paymentId?.startsWith('FREE_') && (
                     <button
                       onClick={() => downloadInvoice(e.paymentId, e.invoiceNumber)}
