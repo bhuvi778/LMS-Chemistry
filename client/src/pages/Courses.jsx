@@ -37,16 +37,19 @@ export default function Courses() {
   };
 
   // Derive unique sub-categories from loaded courses
-  const allSubCats = [...new Set(courses.flatMap((c) => c.subCategories || []))];
+  const allSubCats = [...new Set(courses.filter(c => !c.isCombo).flatMap((c) => c.subCategories || []))];
 
   // Client-side type + subcategory filter
   const filteredCourses = courses.filter((c) => {
+    if (c.isCombo) return false;
     if (typeFilter === 'LIVE' && c.courseType !== 'live') return false;
     if (typeFilter === 'RECORDED' && c.courseType !== 'recorded' && c.courseType) return false;
     if (typeFilter === 'FREE' && c.price !== 0) return false;
     if (subCat && !(c.subCategories || []).includes(subCat)) return false;
     return true;
   });
+
+  const comboCourses = courses.filter((c) => c.isCombo === true);
 
   const TYPE_FILTERS = [
     { k: 'ALL', l: 'All Types' },
@@ -147,6 +150,23 @@ export default function Courses() {
               {filteredCourses.map((c) => (
                 <CourseCard key={c._id} course={c} />
               ))}
+            </div>
+          )}
+
+          {/* Combo Packages Section */}
+          {!loading && comboCourses.length > 0 && (
+            <div className="mt-16 border-t border-slate-100 pt-12">
+              <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">
+                📦 Combo Packages
+              </h2>
+              <p className="text-slate-550 mb-6 text-sm font-semibold">
+                Get multiple courses together at highly discounted bundle prices.
+              </p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {comboCourses.map((c) => (
+                  <CourseCard key={c._id} course={c} />
+                ))}
+              </div>
             </div>
           )}
         </div>

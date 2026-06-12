@@ -71,6 +71,7 @@ export default function AdminCourseForm() {
         // If duplicating, remove unique fields
         if (duplicateFrom) {
           delete d._id;
+          delete d.slug;
           delete d.createdAt;
           delete d.updatedAt;
           d.title = `${d.title} (Copy)`;

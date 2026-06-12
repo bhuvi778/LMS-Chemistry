@@ -9,6 +9,7 @@ const enrollmentSchema = new mongoose.Schema(
     paymentId: { type: String, default: '' },
     paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'paid' },
     progress: { type: Number, default: 0 },
+    validUntil: { type: Date, default: null },
     completedLessons: [{ type: mongoose.Schema.Types.ObjectId }],
     readAnnouncements: [{ type: mongoose.Schema.Types.ObjectId }],
   },

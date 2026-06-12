@@ -13,10 +13,36 @@ export default function Dashboard() {
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [liveClasses, setLiveClasses] = useState({ ongoing: [], upcoming: [] });
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const loadNotifications = () => {
+    api.get('/notifications').then(r => {
+      setNotifications(r.data.list || []);
+      setUnreadCount(r.data.unread || 0);
+    }).catch(() => {});
+  };
+  const handleNotifClick = async (n) => {
+    if (!n.read) {
+      try {
+        await api.put(`/notifications/${n._id}/read`);
+        loadNotifications();
+      } catch (_) {}
+    }
+  };
+
+  const fmtTime = (ts) => {
+    const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return new Date(ts).toLocaleDateString('en-AE', { day: 'numeric', month: 'short' });
+  };
 
   useEffect(() => {
     api.get('/enroll/me').then(r => setEnrollments(r.data)).finally(() => setLoading(false));
     api.get('/admin/live-classes/all').then(r => setLiveClasses(r.data)).catch(() => {});
+    loadNotifications();
   }, []);
 
   const now = new Date();
@@ -226,6 +252,75 @@ export default function Dashboard() {
                         <a href={lc.meetLink} target="_blank" rel="noreferrer" className="shrink-0 px-3 py-1.5 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl hover:bg-rose-100 transition">
                           <ExternalLink size={12} />
                         </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Recent Notifications */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display font-extrabold text-slate-800 text-lg flex items-center gap-2">
+                <Bell size={18} className="text-brand-600" />
+                Recent Notifications
+                {unreadCount > 0 && (
+                  <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
+              </h2>
+              {unreadCount > 0 && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await api.put('/notifications/read-all');
+                      loadNotifications();
+                    } catch (_) {}
+                  }}
+                  className="text-xs font-semibold text-brand-700 hover:underline"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+
+            {notifications.length === 0 ? (
+              <div className="text-center py-6 text-slate-400 text-sm">
+                No notifications yet
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {notifications.slice(0, 4).map((n) => (
+                  <div
+                    key={n._id}
+                    onClick={() => handleNotifClick(n)}
+                    className={`p-3 rounded-2xl border transition relative cursor-pointer ${
+                      n.read
+                        ? 'bg-slate-50/50 border-slate-100'
+                        : 'bg-brand-50/40 border-brand-100/50 hover:bg-brand-50/60'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="font-bold text-slate-800 text-xs leading-snug">{n.title}</div>
+                      {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-1" />}
+                    </div>
+                    {n.message && (
+                      <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                        {n.message}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-[10px] text-slate-400 font-semibold">{fmtTime(n.createdAt)}</span>
+                      {n.link && (
+                        <Link
+                          to={n.link}
+                          className="text-[10px] font-bold text-brand-700 hover:underline flex items-center gap-0.5"
+                        >
+                          View <ChevronRight size={10} />
+                        </Link>
                       )}
                     </div>
                   </div>

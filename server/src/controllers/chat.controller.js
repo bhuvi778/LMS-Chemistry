@@ -47,6 +47,8 @@ export const getAdminConversations = asyncHandler(async (req, res) => {
         }
       }
     },
+    // Sort ascending by createdAt so that $last returns the latest message in the group
+    { $sort: { createdAt: 1 } },
     // Group by studentId
     {
       $group: {

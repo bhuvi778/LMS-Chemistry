@@ -33,6 +33,7 @@ import {
   MessageSquare,
   Send,
   CheckCircle,
+  XCircle,
   Building2,
   CreditCard,
   GraduationCap,
@@ -480,6 +481,7 @@ export default function CourseDetail() {
   const { user } = useAuth();
   const [course, setCourse] = useState(null);
   const [enrolled, setEnrolled] = useState(false);
+  const [enrollment, setEnrollment] = useState(null);
   const [tab, setTab] = useState('overview');
   const [busy, setBusy] = useState(false);
   const [upsellCourse, setUpsellCourse] = useState(null);
@@ -493,24 +495,32 @@ export default function CourseDetail() {
   const [couponBusy, setCouponBusy] = useState(false);
   const [redeemCoins, setRedeemCoins] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('batch');
+  const planOrder = { batch: 1, pro: 2, infinity: 3 };
+  const isSelectedDowngradeOrSame = enrolled && enrollment && planOrder[selectedPlan] <= planOrder[enrollment.planType];
 
   const getPlanPriceAndMrp = () => {
     if (!course) return { price: 0, mrp: 0 };
+    let price = 0;
+    let mrp = 0;
     if (course.plans && course.plans[selectedPlan]) {
-      return {
-        price: course.plans[selectedPlan].price || 0,
-        mrp: course.plans[selectedPlan].mrp || course.plans[selectedPlan].price || 0,
-      };
+      price = course.plans[selectedPlan].price || 0;
+      mrp = course.plans[selectedPlan].mrp || course.plans[selectedPlan].price || 0;
+    } else {
+      // Fallback if plans object is not yet loaded/configured
+      price = course.price || 0;
+      mrp = course.mrp || price;
+      if (selectedPlan === 'pro') {
+        price = Math.round(price * 1.25);
+        mrp = Math.round(mrp * 1.25);
+      } else if (selectedPlan === 'infinity') {
+        price = Math.round(price * 1.5);
+        mrp = Math.round(mrp * 1.5);
+      }
     }
-    // Fallback if plans object is not yet loaded/configured
-    let price = course.price || 0;
-    let mrp = course.mrp || price;
-    if (selectedPlan === 'pro') {
-      price = Math.round(price * 1.25);
-      mrp = Math.round(mrp * 1.25);
-    } else if (selectedPlan === 'infinity') {
-      price = Math.round(price * 1.5);
-      mrp = Math.round(mrp * 1.5);
+    if (enrolled && enrollment) {
+      const paid = enrollment.pricePaid || 0;
+      price = Math.max(0, price - paid);
+      mrp = Math.max(0, mrp - paid);
     }
     return { price, mrp };
   };
@@ -534,11 +544,18 @@ export default function CourseDetail() {
       if (user) {
         api.get(`/enroll/check/${courseId}`).then((r) => {
           setEnrolled(r.data.enrolled);
+          setEnrollment(r.data.enrollment);
+          if (r.data.enrolled && r.data.enrollment) {
+            const curPlan = r.data.enrollment.planType || 'batch';
+            if (curPlan === 'batch') setSelectedPlan('pro');
+            else if (curPlan === 'pro') setSelectedPlan('infinity');
+            else setSelectedPlan('infinity');
+          }
         }).catch(() => {});
 
         api.get('/bank-transfer/me').then((r) => {
           const matching = (r.data || []).find(
-            (req) => req.itemType === 'course' && req.course?._id === courseId
+            (req) => req.itemType === 'course' && req.course?._id === courseId && req.status === 'pending'
           );
           setBankTransferRequest(matching);
         }).catch(() => {});
@@ -729,10 +746,8 @@ export default function CourseDetail() {
     { k: 'overview',   l: 'Overview',     icon: BookOpen      },
     { k: 'subjects',   l: 'All Classes',  icon: Layers        },
     ...(course.demoVideoUrl || course.orientationVideoUrl ? [{ k: 'demo', l: 'Demo', icon: PlayCircle }] : []),
-    ...((enrolled || user?.role === 'admin') ? [
-      { k: 'syllabus',   l: 'Syllabus',     icon: BookMarked    },
-      { k: 'timetable',  l: 'Time Table',   icon: Calendar      }
-    ] : []),
+    { k: 'syllabus',   l: 'Syllabus',     icon: BookMarked    },
+    { k: 'timetable',  l: 'Time Table',   icon: Calendar      },
     { k: 'highlights', l: 'Highlights',   icon: Award         },
     { k: 'instructor', l: 'Instructor',   icon: GraduationCap },
     ...(course.faqs?.length ? [{ k: 'faqs', l: 'FAQs', icon: ChevronDown }] : []),
@@ -861,11 +876,25 @@ export default function CourseDetail() {
                 )}
               </div>
               <div className="p-5">
+                {enrolled && enrollment && (
+                  <div className="mb-4 p-3 bg-brand-50 border border-brand-100 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Active Plan</span>
+                      <div className="text-xs font-extrabold text-brand-800">
+                        {enrollment.planType === 'batch' ? 'Ace Batch' : enrollment.planType === 'pro' ? 'Ace Pro' : 'Ace Infinity'}
+                      </div>
+                    </div>
+                    {enrollment.planType !== 'infinity' && (
+                      <span className="chip bg-brand-600 text-white font-bold text-[9px] py-0.5 px-1.5 rounded-full">Upgrade Available</span>
+                    )}
+                  </div>
+                )}
+
                 {/* Choose Your Prep Plan Selector */}
-                {!enrolled && (
+                {true && (
                   <div className="mb-4">
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
-                      Choose Your Prep Plan
+                      {enrolled ? 'Upgrade Prep Plan' : 'Choose Your Prep Plan'}
                     </label>
                     <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200/60">
                       {[
@@ -884,13 +913,16 @@ export default function CourseDetail() {
                           else if (p.k === 'infinity') planPrice = Math.round(course.price * 1.5);
                         }
 
+                        // Downgrade not possible check
+                        const planOrder = { batch: 1, pro: 2, infinity: 3 };
+                        const isDowngradeOrSame = enrollment && planOrder[p.k] <= planOrder[enrollment.planType];
                         const isSelected = selectedPlan === p.k;
                         
                         return (
                           <button
                             key={p.k}
                             type="button"
-                            disabled={!isEnabled}
+                            disabled={!isEnabled || isDowngradeOrSame}
                             onClick={() => {
                               setSelectedPlan(p.k);
                               setCouponApplied(null);
@@ -899,13 +931,15 @@ export default function CourseDetail() {
                             className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all text-center ${
                               isSelected
                                 ? 'bg-white text-brand-700 shadow-md border border-brand-100 scale-[1.03] font-bold'
-                                : isEnabled
+                                : isEnabled && !isDowngradeOrSame
                                   ? 'text-slate-600 hover:bg-white/60 text-xs font-semibold'
-                                  : 'opacity-45 cursor-not-allowed text-xs'
+                                  : 'opacity-40 cursor-not-allowed text-xs'
                             }`}
                           >
                             <span className="text-[10px] sm:text-xs leading-none whitespace-nowrap">{p.l}</span>
-                            <span className="text-[10px] mt-0.5 text-slate-500 font-medium">AED {planPrice}</span>
+                            <span className="text-[10px] mt-0.5 text-slate-500 font-medium">
+                              {isDowngradeOrSame ? 'Owned' : `AED ${planPrice}`}
+                            </span>
                           </button>
                         );
                       })}
@@ -913,7 +947,62 @@ export default function CourseDetail() {
                   </div>
                 )}
 
+                {/* Features list for the selected plan */}
                 {(() => {
+                  const PLAN_FEATURES = {
+                    batch: [
+                      { text: '📚 Complete Chemistry Syllabus', included: true },
+                      { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
+                      { text: '🧪 Standard Online Practice Tests', included: true },
+                      { text: '💬 1 Doubt Query Per Day', included: true },
+                      { text: '🎥 Interactive Live Classes', included: false },
+                      { text: '👑 1-on-1 Personal Mentorship', included: false },
+                      { text: '🤖 Ask Prepiify AI Access', included: false },
+                    ],
+                    pro: [
+                      { text: '📚 Complete Chemistry Syllabus', included: true },
+                      { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
+                      { text: '🧪 Standard Online Practice Tests', included: true },
+                      { text: '💬 3 Doubt Queries Per Day', included: true },
+                      { text: '🎥 Interactive Live Classes', included: true },
+                      { text: '👑 1-on-1 Personal Mentorship', included: false },
+                      { text: '🤖 Ask Prepiify AI Access', included: true },
+                    ],
+                    infinity: [
+                      { text: '📚 Complete Chemistry Syllabus', included: true },
+                      { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
+                      { text: '🧪 Standard Online Practice Tests', included: true },
+                      { text: '💬 Unlimited Doubt Queries', included: true },
+                      { text: '🎥 Interactive Live Classes', included: true },
+                      { text: '👑 1-on-1 Personal Mentorship', included: true },
+                      { text: '🤖 Ask Prepiify AI Access', included: true },
+                    ]
+                  };
+
+                  return (
+                    <div className="mt-2 mb-4 bg-slate-50 border border-slate-100 rounded-xl p-3.5 shadow-inner">
+                      <div className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2.5">
+                        {selectedPlan === 'batch' ? 'Ace Batch Features' : selectedPlan === 'pro' ? 'Ace Pro Features' : 'Ace Infinity Features'}
+                      </div>
+                      <ul className="space-y-2">
+                        {PLAN_FEATURES[selectedPlan].map((feat, fi) => (
+                          <li key={fi} className="flex items-start gap-2.5 text-xs">
+                            {feat.included ? (
+                              <CheckCircle className="text-emerald-500 w-4 h-4 shrink-0 mt-0.5" />
+                            ) : (
+                              <XCircle className="text-slate-300 w-4 h-4 shrink-0 mt-0.5" />
+                            )}
+                            <span className={feat.included ? "font-semibold text-slate-700" : "text-slate-400 line-through decoration-slate-200"}>
+                              {feat.text}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
+
+                {!isSelectedDowngradeOrSame && (() => {
                   const planInfo = getPlanPriceAndMrp();
                   const currentPlanPrice = planInfo.price;
                   const currentPlanMrp = planInfo.mrp;
@@ -991,14 +1080,14 @@ export default function CourseDetail() {
                   );
                 })()}
 
-                {enrolled ? (
+                {isSelectedDowngradeOrSame ? (
                   <Link to={`/student/learn/${course._id}`} className="btn-primary w-full mt-4 justify-center">
                     ▶ Continue Learning
                   </Link>
                 ) : (
                   <>
                     {/* Watch Demo button */}
-                    {(course.demoVideoUrl || course.orientationVideoUrl) && (
+                    {!enrolled && (course.demoVideoUrl || course.orientationVideoUrl) && (
                       <button
                         onClick={() => { setTab('demo'); document.getElementById('course-tabs')?.scrollIntoView({ behavior: 'smooth' }); }}
                         className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-brand-200 text-brand-700 font-semibold text-sm hover:bg-brand-50 transition"
@@ -1216,6 +1305,11 @@ export default function CourseDetail() {
                         <Zap size={16} />
                         Pay AED {course.price?.toLocaleString()}
                       </button>
+                    )}
+                    {enrolled && (
+                      <Link to={`/student/learn/${course._id}`} className="text-center block text-xs font-bold text-brand-650 hover:underline mt-3">
+                        ← Skip &amp; Continue Learning
+                      </Link>
                     )}
                   </>
                 )}
@@ -1799,7 +1893,7 @@ export default function CourseDetail() {
             if (user) {
               api.get('/bank-transfer/me').then((r) => {
                 const matching = (r.data || []).find(
-                  (req) => req.itemType === 'course' && req.course?._id === course._id
+                  (req) => req.itemType === 'course' && req.course?._id === course._id && req.status === 'pending'
                 );
                 setBankTransferRequest(matching);
               }).catch(() => {});
@@ -1808,7 +1902,11 @@ export default function CourseDetail() {
           itemType="course"
           itemId={course._id}
           itemName={course.title}
-          baseAmount={couponApplied ? couponApplied.finalAmount : course.price}
+          baseAmount={(() => {
+            const planInfo = getPlanPriceAndMrp();
+            return couponApplied ? couponApplied.finalAmount : planInfo.price;
+          })()}
+          planType={selectedPlan}
           initialRequest={bankTransferRequest}
           redeemCoins={redeemCoins}
         />

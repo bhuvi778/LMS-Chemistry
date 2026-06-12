@@ -10,27 +10,40 @@ export const createDoubt = asyncHandler(async (req, res) => {
   const { course, subject, question, questionImage } = req.body;
   if (!question?.trim()) { res.status(400); throw new Error('Question is required'); }
 
-  if (course) {
-    const enrolled = await Enrollment.findOne({ student: req.user._id, course });
-    if (!enrolled && req.user.role !== 'admin') {
+  if (req.user.role !== 'admin') {
+    const activeEnrollments = await Enrollment.find({ student: req.user._id, paymentStatus: 'paid' });
+    if (activeEnrollments.length === 0) {
       res.status(403);
-      throw new Error('You are not enrolled in this course.');
+      throw new Error('You must be enrolled in at least one active course to ask doubts.');
     }
 
-    if (req.user.role !== 'admin') {
-      const plan = enrolled?.planType || 'batch';
-      if (plan === 'batch' || plan === 'pro') {
-        const limit = plan === 'batch' ? 1 : 3;
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        const count = await Doubt.countDocuments({
-          student: req.user._id,
-          course,
-          createdAt: { $gte: sevenDaysAgo }
-        });
-        if (count >= limit) {
-          res.status(400);
-          throw new Error(`Your ${plan === 'batch' ? 'Ace Batch' : 'Ace Pro'} plan only allows ${limit} doubt(s) per week for this course. Upgrade to Ace Infinity for unlimited doubts!`);
-        }
+    if (course) {
+      const enrolled = activeEnrollments.find((e) => e.course.toString() === course.toString());
+      if (!enrolled) {
+        res.status(403);
+        throw new Error('You are not enrolled in this course.');
+      }
+    }
+
+    // Find highest active plan across all courses
+    let plan = 'batch';
+    const plans = activeEnrollments.map(e => e.planType || 'batch');
+    if (plans.includes('infinity')) plan = 'infinity';
+    else if (plans.includes('pro')) plan = 'pro';
+
+    if (plan === 'batch' || plan === 'pro') {
+      const limit = plan === 'batch' ? 1 : 3;
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
+      const filter = {
+        student: req.user._id,
+        createdAt: { $gte: oneDayAgo }
+      };
+
+      const count = await Doubt.countDocuments(filter);
+      if (count >= limit) {
+        res.status(400);
+        throw new Error(`Your ${plan === 'batch' ? 'Ace Batch' : 'Ace Pro'} plan only allows ${limit} doubt${limit > 1 ? 's' : ''} per day. Upgrade your plan for higher or unlimited doubts!`);
       }
     }
   }
@@ -169,13 +182,13 @@ export const getDoubtUsage = asyncHandler(async (req, res) => {
   // Define limit based on planType
   let limit = 1;
   if (planType === 'pro') limit = 3;
-  if (planType === 'infinity') limit = Infinity;
+  else if (planType === 'infinity') limit = Infinity;
 
-  // Count doubts asked in the last 7 days
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  // Count doubts asked in the last 24 hours
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const used = await Doubt.countDocuments({
     student: req.user._id,
-    createdAt: { $gte: sevenDaysAgo }
+    createdAt: { $gte: oneDayAgo }
   });
 
   const remaining = limit === Infinity ? Infinity : Math.max(0, limit - used);

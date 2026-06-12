@@ -17,11 +17,16 @@ function safeRedirect(from, role) {
 }
 
 export default function Login() {
-  const { login, verifyOtp, cancelOtp, pending2FA, pendingVerification, verifyEmail, cancelVerification, loading, user } = useAuth();
+  const {
+    login, verifyOtp, cancelOtp, pending2FA, pendingVerification,
+    verifyEmail, cancelVerification, loading, user,
+    pendingOtpLogin, requestOtpLogin, verifyOtpLogin, cancelOtpLogin
+  } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
   const [form, setForm] = useState({ email: '', password: '' });
   const [otp, setOtp] = useState('');
+  const [loginMethod, setLoginMethod] = useState('password'); // 'password' or 'otp'
 
   useEffect(() => {
     if (user) {
@@ -32,18 +37,47 @@ export default function Login() {
 
   const submit = async (e) => {
     e.preventDefault();
-    try {
-      const result = await login(form.email, form.password);
-      if (result?.requiresVerification) {
-        toast.success('Verification code sent to your email');
-      } else if (result?.requires2FA) {
-        toast.success('2FA OTP sent to your email');
-      } else {
-        toast.success(`Welcome back, ${result.name}!`);
-        nav(safeRedirect(loc.state?.from, result.role), { replace: true });
+    if (loginMethod === 'otp') {
+      try {
+        await requestOtpLogin(form.email);
+        toast.success('Login OTP code sent to your email');
+      } catch (err) {
+        toast.error(err.message);
       }
+    } else {
+      try {
+        const result = await login(form.email, form.password);
+        if (result?.requiresVerification) {
+          toast.success('Verification code sent to your email');
+        } else if (result?.requires2FA) {
+          toast.success('2FA OTP sent to your email');
+        } else {
+          toast.success(`Welcome back, ${result.name}!`);
+          if ('Notification' in window) {
+            Notification.requestPermission().catch(() => {});
+          }
+          nav(safeRedirect(loc.state?.from, result.role), { replace: true });
+        }
+      } catch (err) {
+        toast.error(err.message);
+      }
+    }
+  };
+
+  const submitOtpLogin = async (e) => {
+    e.preventDefault();
+    if (otp.length !== 6) return toast.error('Enter the 6-digit OTP');
+    try {
+      const u = await verifyOtpLogin(otp);
+      toast.success(`Welcome back, ${u.name}!`);
+      if ('Notification' in window) {
+        Notification.requestPermission().catch(() => {});
+      }
+      nav(safeRedirect(loc.state?.from, u.role), { replace: true });
+      setOtp('');
     } catch (err) {
       toast.error(err.message);
+      setOtp('');
     }
   };
 
@@ -53,6 +87,9 @@ export default function Login() {
     try {
       const u = await verifyOtp(otp);
       toast.success(`Welcome back, ${u.name}!`);
+      if ('Notification' in window) {
+        Notification.requestPermission().catch(() => {});
+      }
       nav(safeRedirect(loc.state?.from, u.role), { replace: true });
     } catch (err) {
       toast.error(err.message);
@@ -66,6 +103,9 @@ export default function Login() {
     try {
       const u = await verifyEmail(otp);
       toast.success(`Welcome back, ${u.name}!`);
+      if ('Notification' in window) {
+        Notification.requestPermission().catch(() => {});
+      }
       nav(safeRedirect(loc.state?.from, u.role), { replace: true });
     } catch (err) {
       toast.error(err.message);
@@ -125,6 +165,68 @@ export default function Login() {
             <button
               type="button"
               onClick={() => { cancelVerification(); setOtp(''); }}
+              className="w-full mt-3 flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
+            >
+              <X size={14} /> Cancel — back to login
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Login with OTP Verification Screen ──
+  if (pendingOtpLogin) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2">
+        <div className="hidden lg:flex relative items-center justify-center bg-gradient-brand text-white p-12">
+          <div className="max-w-md">
+            <div className="flex items-center gap-3 mb-6">
+              <img src="/Ace2exam_white (1).png" alt="Ace2Examz Logo" className="h-10 w-auto object-contain" />
+              <span className="font-display font-extrabold text-2xl">Ace2Examz</span>
+            </div>
+            <h2 className="font-display text-4xl font-extrabold leading-tight">
+              Sign in with OTP
+            </h2>
+            <p className="mt-4 text-white/80">
+              An OTP was sent to <b>{pendingOtpLogin.email}</b>. Check your inbox to verify and open your account.
+            </p>
+          </div>
+          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
+        </div>
+        <div className="flex items-center justify-center p-6 sm:p-10">
+          <form onSubmit={submitOtpLogin} className="w-full max-w-md">
+            <div className="flex items-center gap-3 mb-2">
+              <ShieldCheck size={28} className="text-brand-600" />
+              <h1 className="font-display text-3xl font-extrabold">Enter OTP</h1>
+            </div>
+            <p className="text-slate-500 mt-1">
+              We sent a 6-digit login OTP code to <b>{pendingOtpLogin.email}</b>
+            </p>
+
+            <div className="mt-6">
+              <label className="label">One-Time Password</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                pattern="\d{6}"
+                required
+                className="input text-center text-2xl tracking-[0.5em] font-bold"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                autoFocus
+              />
+            </div>
+
+            <button disabled={loading} className="btn-primary w-full mt-6 justify-center">
+              {loading && <Loader2 className="animate-spin" size={16} />}
+              Verify & Log In
+            </button>
+            <button
+              type="button"
+              onClick={() => { cancelOtpLogin(); setOtp(''); }}
               className="w-full mt-3 flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
             >
               <X size={14} /> Cancel — back to login
@@ -234,28 +336,41 @@ export default function Login() {
               />
             </div>
           </div>
-          <div className="mt-4">
-            <div className="flex justify-between items-center mb-1">
-              <label className="label !mb-0">Password</label>
-              <Link to="/forgot-password" className="text-sm font-semibold text-brand-600 hover:text-brand-700">
-                Forgot password?
-              </Link>
+          {loginMethod === 'password' && (
+            <div className="mt-4">
+              <div className="flex justify-between items-center mb-1">
+                <label className="label !mb-0">Password</label>
+                <Link to="/forgot-password" className="text-sm font-semibold text-brand-600 hover:text-brand-700">
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="password"
+                  required
+                  className="input !pl-10"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder="••••••••"
+                />
+              </div>
             </div>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type="password"
-                required
-                className="input !pl-10"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder="••••••••"
-              />
-            </div>
+          )}
+
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setLoginMethod(loginMethod === 'password' ? 'otp' : 'password')}
+              className="text-xs font-semibold text-brand-600 hover:underline"
+            >
+              {loginMethod === 'password' ? 'Sign in with OTP instead' : 'Sign in with password instead'}
+            </button>
           </div>
+
           <button disabled={loading} className="btn-primary w-full mt-6 justify-center">
             {loading && <Loader2 className="animate-spin" size={16} />}
-            Sign in
+            {loginMethod === 'otp' ? 'Send Login OTP' : 'Sign in'}
           </button>
 
           <div className="relative my-6">

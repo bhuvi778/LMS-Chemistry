@@ -169,21 +169,19 @@ export default function Home() {
   const [showPopup, setShowPopup] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      api.get('/content/banner').then(r => setBanners(r.data)),
-      api.get('/courses?featured=true').then(r => setCourses(r.data)),
-      api.get('/content/highlight').then(r => setHighlights(r.data)),
-      api.get('/content/topper').then(r => setToppers(r.data)),
-      api.get('/content/review').then(r => setReviews(r.data)),
-      api.get('/content/video').then(r => setVideos(r.data)),
-      api.get('/categories').then(r => setCategories(r.data)),
-      api.get('/popups/active').then(r => {
-        if (r.data && !localStorage.getItem(`popup_seen_${r.data._id}`)) {
-          setActivePopup(r.data);
-          setTimeout(() => setShowPopup(true), 1200);
-        }
-      })
-    ]).catch(() => {});
+    api.get('/content/banner').then(r => setBanners(r.data)).catch(() => {});
+    api.get('/courses?featured=true').then(r => setCourses(r.data)).catch(() => {});
+    api.get('/content/highlight').then(r => setHighlights(r.data)).catch(() => {});
+    api.get('/content/topper').then(r => setToppers(r.data)).catch(() => {});
+    api.get('/content/review').then(r => setReviews(r.data)).catch(() => {});
+    api.get('/content/video').then(r => setVideos(r.data)).catch(() => {});
+    api.get('/categories').then(r => setCategories(r.data)).catch(() => {});
+    api.get('/popups/active').then(r => {
+      if (r.data && !localStorage.getItem(`popup_seen_${r.data._id}`)) {
+        setActivePopup(r.data);
+        setTimeout(() => setShowPopup(true), 1200);
+      }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {

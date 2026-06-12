@@ -39,6 +39,7 @@ export default function AdminTestSeriesForm() {
     tests: [],
     syllabusText: '',
     syllabusFileUrl: '',
+    validity: { type: 'lifetime', durationValue: 12, durationUnit: 'months', endDate: '' },
   });
   const [syllabusUploading, setSyllabusUploading] = useState(false);
 
@@ -72,6 +73,7 @@ export default function AdminTestSeriesForm() {
               subType: t.subType || 'full_test',
               customTags: t.customTags || [],
             })),
+            validity: data.validity || { type: 'lifetime', durationValue: 12, durationUnit: 'months', endDate: '' },
           });
         })
         .catch((err) => toast.error(err.message));
@@ -79,6 +81,7 @@ export default function AdminTestSeriesForm() {
   }, [id, isEdit]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const setNested = (k, sk, v) => setForm((f) => ({ ...f, [k]: { ...(f[k] || {}), [sk]: v } }));
 
   const addTag = () => {
     const t = tagInput.trim().toUpperCase();
@@ -447,6 +450,59 @@ export default function AdminTestSeriesForm() {
               ))}
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Test Series Validity */}
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 space-y-4">
+        <h2 className="font-semibold text-slate-700 text-sm uppercase tracking-wide border-b pb-2">Test Series Validity</h2>
+        <div className="grid grid-cols-3 gap-2">
+          {['lifetime', 'duration', 'endDate'].map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setNested('validity', 'type', t)}
+              className={`py-2 px-2 rounded-lg text-xs font-semibold border transition text-center ${
+                form.validity?.type === t
+                  ? 'bg-brand-600 text-white border-brand-600'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-brand-400'
+              }`}
+            >
+              {t === 'lifetime' ? '♾ Lifetime' : t === 'duration' ? '📅 Duration' : '🗓 End Date'}
+            </button>
+          ))}
+        </div>
+        {form.validity?.type === 'duration' && (
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
+              min={1}
+              placeholder="Number"
+              value={form.validity?.durationValue || 12}
+              onChange={(e) => setNested('validity', 'durationValue', Number(e.target.value))}
+            />
+            <select
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400 bg-white"
+              value={form.validity?.durationUnit || 'months'}
+              onChange={(e) => setNested('validity', 'durationUnit', e.target.value)}
+            >
+              <option value="days">Days</option>
+              <option value="months">Months</option>
+              <option value="years">Years</option>
+            </select>
+          </div>
+        )}
+        {form.validity?.type === 'endDate' && (
+          <input
+            type="date"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
+            value={form.validity?.endDate ? form.validity.endDate.split('T')[0] : ''}
+            onChange={(e) => setNested('validity', 'endDate', e.target.value)}
+          />
+        )}
+        {form.validity?.type === 'lifetime' && (
+          <p className="text-xs text-emerald-600 font-semibold">♾ Students get lifetime access to this test series.</p>
         )}
       </div>
 

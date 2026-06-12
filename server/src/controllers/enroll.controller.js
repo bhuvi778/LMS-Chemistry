@@ -2,6 +2,21 @@ import asyncHandler from 'express-async-handler';
 import Enrollment from '../models/Enrollment.js';
 import Course from '../models/Course.js';
 
+const calculateValidityEndDate = (validitySystem) => {
+  if (!validitySystem || validitySystem.type === 'lifetime') return null;
+  if (validitySystem.type === 'endDate') return validitySystem.endDate;
+  if (validitySystem.type === 'duration') {
+    const d = new Date();
+    const val = validitySystem.durationValue || 0;
+    const unit = validitySystem.durationUnit || 'months';
+    if (unit === 'days') d.setDate(d.getDate() + val);
+    else if (unit === 'months') d.setMonth(d.getMonth() + val);
+    else if (unit === 'years') d.setFullYear(d.getFullYear() + val);
+    return d;
+  }
+  return null;
+};
+
 export const enrollInCourse = asyncHandler(async (req, res) => {
   const courseId = req.params.courseId;
   const course = await Course.findById(courseId);
@@ -20,6 +35,7 @@ export const enrollInCourse = asyncHandler(async (req, res) => {
     pricePaid: course.price,
     paymentId: 'MOCK_' + Date.now(),
     paymentStatus: 'paid',
+    validUntil: calculateValidityEndDate(course.validity),
   });
   course.studentsEnrolled = (course.studentsEnrolled || 0) + 1;
   await course.save();
@@ -38,5 +54,6 @@ export const checkEnrollment = asyncHandler(async (req, res) => {
     student: req.user._id,
     course: req.params.courseId,
   });
-  res.json({ enrolled: !!exists });
+  const isEnrolled = exists && (!exists.validUntil || new Date() <= new Date(exists.validUntil));
+  res.json({ enrolled: !!isEnrolled, enrollment: exists });
 });

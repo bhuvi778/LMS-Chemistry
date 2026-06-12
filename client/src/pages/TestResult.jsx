@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import api from '../api/client.js';
 import toast from 'react-hot-toast';
 import {
@@ -23,7 +24,57 @@ import {
   Zap,
   TrendingUp,
   Video,
+  X,
 } from 'lucide-react';
+
+function resolveEmbedUrl(rawUrl) {
+  if (!rawUrl) return null;
+  let absUrl = rawUrl;
+  if (rawUrl.startsWith('/')) {
+    absUrl = window.location.origin + rawUrl;
+  }
+  const driveFile = absUrl.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+  if (driveFile) return `https://drive.google.com/file/d/${driveFile[1]}/preview`;
+  const driveOpen = absUrl.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  if (driveOpen) return `https://drive.google.com/file/d/${driveOpen[1]}/preview`;
+  const docsMatch = absUrl.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([^/?#]+)/);
+  if (docsMatch) return `https://docs.google.com/${docsMatch[1]}/d/${docsMatch[2]}/preview`;
+  if (absUrl.toLowerCase().includes('.pdf')) {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return rawUrl;
+    }
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(absUrl)}&embedded=true`;
+  }
+  return rawUrl;
+}
+
+function PdfModal({ pdf, onClose }) {
+  const embedUrl = resolveEmbedUrl(pdf.fileUrl);
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80" onClick={onClose}>
+      <div className="relative w-full max-w-4xl bg-white rounded-2xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+          <h3 className="font-bold text-slate-900 text-sm line-clamp-1 pr-4">{pdf.title}</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 grid place-items-center transition shrink-0">
+            <X size={16} />
+          </button>
+        </div>
+        <iframe className="w-full rounded-b-2xl" style={{ height: '80vh' }} src={embedUrl} title={pdf.title} allow="fullscreen" />
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 function ScoreGauge({ percentage }) {
   const radius = 56;
@@ -179,6 +230,7 @@ export default function TestResult() {
   const { attemptId } = useParams();
   const [attempt, setAttempt] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [openPdf, setOpenPdf] = useState(null);
 
   useEffect(() => {
     api.get(`/tests/attempts/${attemptId}`)
@@ -332,24 +384,20 @@ export default function TestResult() {
               {test?.questions?.length || 0} Questions
             </span>
             {test?.pdfUrl && (
-              <a
-                href={test.pdfUrl}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={() => setOpenPdf({ fileUrl: test.pdfUrl, title: `${test.title} - Question Paper` })}
                 className="flex items-center gap-1.5 text-brand-600 hover:text-brand-700 font-bold transition hover:underline"
               >
-                <FileText size={14} /> Download Question Paper
-              </a>
+                <FileText size={14} /> View Question Paper
+              </button>
             )}
             {test?.solutionPdfUrl && (
-              <a
-                href={test.solutionPdfUrl}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={() => setOpenPdf({ fileUrl: test.solutionPdfUrl, title: `${test.title} - Answer Solutions` })}
                 className="flex items-center gap-1.5 text-brand-600 hover:text-brand-700 font-bold transition hover:underline"
               >
-                <FileText size={14} /> Download Answer Solutions
-              </a>
+                <FileText size={14} /> View Answer Solutions
+              </button>
             )}
           </div>
         </div>
@@ -558,6 +606,7 @@ export default function TestResult() {
         </div>
       </div>
 
+      {openPdf && <PdfModal pdf={openPdf} onClose={() => setOpenPdf(null)} />}
     </div>
   );
 }

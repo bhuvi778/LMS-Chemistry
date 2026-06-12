@@ -777,3 +777,100 @@ export const deleteMe = asyncHandler(async (req, res) => {
   res.json({ ok: true, message: 'Your account has been deleted successfully' });
 });
 
+export const sendLoginOtp = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    res.status(400);
+    throw new Error('Email is required');
+  }
+  const emailLower = email.toLowerCase().trim();
+
+  let user = await User.findOne({ email: emailLower });
+  let isNewUser = false;
+
+  if (!user) {
+    // Register a new user automatically with student role
+    isNewUser = true;
+    const name = emailLower.split('@')[0];
+    const rawPass = crypto.randomBytes(16).toString('hex');
+    const hashed = await bcrypt.hash(rawPass, 10);
+    
+    user = await User.create({
+      name,
+      email: emailLower,
+      password: hashed,
+      plainPassword: 'OTP Auto-Generated',
+      studentId: genStudentId(),
+      isEmailVerified: false,
+    });
+  }
+
+  if (user.isActive === false) {
+    res.status(403);
+    throw new Error('Account has been deactivated. Please contact support.');
+  }
+
+  // Generate a 6-digit OTP
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const codeHash = await bcrypt.hash(code, 10);
+
+  // We use purpose 'login_otp'
+  await OTP.deleteMany({ userId: user._id, purpose: 'login_otp' });
+  await OTP.create({
+    userId: user._id,
+    email: user.email,
+    codeHash,
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    purpose: 'login_otp',
+  });
+
+  // Send OTP email
+  await sendOtpEmail(user.email, code, user.name);
+
+  // Return tempToken for verification
+  const tempToken = signToken({ _id: user._id, role: user.role });
+  res.json({
+    success: true,
+    tempToken,
+    email: user.email,
+    isNewUser,
+  });
+});
+
+export const verifyLoginOtp = asyncHandler(async (req, res) => {
+  const { code } = req.body;
+  const userId = req.user._id;
+
+  const record = await OTP.findOne({ userId, purpose: 'login_otp', used: false });
+  if (!record) {
+    res.status(400);
+    throw new Error('No pending OTP found. Please try again.');
+  }
+  if (record.expiresAt < new Date()) {
+    await OTP.findByIdAndDelete(record._id);
+    res.status(400);
+    throw new Error('OTP has expired. Please try again.');
+  }
+  if (!(await bcrypt.compare(String(code), record.codeHash))) {
+    res.status(400);
+    throw new Error('Invalid OTP');
+  }
+
+  await OTP.findByIdAndUpdate(record._id, { used: true });
+
+  let user = await User.findById(userId);
+  if (!user.isEmailVerified) {
+    user.isEmailVerified = true;
+    await user.save();
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(user.email, user.name, user.studentId).catch(() => {});
+  }
+
+  user = await updateUserStreakAndCoins(user);
+  const token = signToken(user);
+  await createSession(user._id, token, req);
+
+  res.json({ ...safeUser(user), token });
+});
+
+

@@ -608,7 +608,7 @@ export default function TestSeriesDetail() {
           )}
 
           {/* Sub type tabs */}
-          {subKeys.length > 1 && (
+          {subKeys.length > 0 && (
             <div className="flex items-center gap-1 px-4 py-2 border-b border-slate-100 bg-slate-50/50">
               {subKeys.map((k) => (
                 <button
@@ -663,7 +663,7 @@ export default function TestSeriesDetail() {
             {displayTests.length === 0 && (
               <div className="text-center py-12 text-slate-400 text-sm">No tests in this category</div>
             )}
-            {displayTests.map(({ test, customTags }, idx) => {
+            {displayTests.map(({ test, customTags, subType }, idx) => {
               if (!test) return null;
               const attempt = myAttempts.find(
                 (a) => a.test?._id === test._id || a.test === test._id
@@ -682,6 +682,11 @@ export default function TestSeriesDetail() {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${dc}`}>
                         {test.difficulty}
                       </span>
+                      {subType && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-750 capitalize">
+                          {SUB_LABELS[subType] || subType}
+                        </span>
+                      )}
                       <span className="flex items-center gap-1 text-xs text-slate-400">
                         <Clock size={11} /> {test.durationMins}m
                       </span>

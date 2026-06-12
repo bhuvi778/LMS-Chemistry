@@ -14,6 +14,21 @@ import { notifyMany } from './notification.controller.js';
 import { signToken } from '../middleware/auth.js';
 import { sendPasswordResetEmail } from '../services/email.js';
 
+const calculateValidityEndDate = (validitySystem) => {
+  if (!validitySystem || validitySystem.type === 'lifetime') return null;
+  if (validitySystem.type === 'endDate') return validitySystem.endDate;
+  if (validitySystem.type === 'duration') {
+    const d = new Date();
+    const val = validitySystem.durationValue || 0;
+    const unit = validitySystem.durationUnit || 'months';
+    if (unit === 'days') d.setDate(d.getDate() + val);
+    else if (unit === 'months') d.setMonth(d.getMonth() + val);
+    else if (unit === 'years') d.setFullYear(d.getFullYear() + val);
+    return d;
+  }
+  return null;
+};
+
 export const stats = asyncHandler(async (_req, res) => {
   const [students, courses, enrollments, revenueAgg] = await Promise.all([
     User.countDocuments({ role: 'student' }),
@@ -327,7 +342,7 @@ export const impersonateStudent = asyncHandler(async (req, res) => {
 
 // ── Admin enroll student in a course ───────────────────────────
 export const adminEnrollStudent = asyncHandler(async (req, res) => {
-  const { courseId } = req.body;
+  const { courseId, planType } = req.body;
   if (!courseId) { res.status(400); throw new Error('courseId is required'); }
 
   const student = await User.findById(req.params.id);
@@ -339,14 +354,22 @@ export const adminEnrollStudent = asyncHandler(async (req, res) => {
   if (!course) { res.status(404); throw new Error('Course not found'); }
 
   const existing = await Enrollment.findOne({ student: student._id, course: courseId });
-  if (existing) { res.status(400); throw new Error('Student is already enrolled in this course'); }
+  if (existing) {
+    existing.planType = planType || 'batch';
+    existing.validUntil = calculateValidityEndDate(course.validity);
+    await existing.save();
+    await existing.populate('course', 'title category price thumbnail courseType');
+    return res.status(200).json(existing);
+  }
 
   const enrollment = await Enrollment.create({
     student: student._id,
     course: courseId,
+    planType: planType || 'batch',
     pricePaid: 0,
     paymentId: 'ADMIN_ALLOT_' + Date.now(),
     paymentStatus: 'paid',
+    validUntil: calculateValidityEndDate(course.validity),
   });
 
   course.studentsEnrolled = (course.studentsEnrolled || 0) + 1;
@@ -395,6 +418,7 @@ export const adminEnrollTestSeries = asyncHandler(async (req, res) => {
     pricePaid: 0,
     paymentId: 'ADMIN_ALLOT_' + Date.now(),
     paymentStatus: 'paid',
+    validUntil: calculateValidityEndDate(series.validity),
   });
 
   await enrollment.populate('testSeries', 'title price thumbnail');
@@ -644,4 +668,19 @@ export const adminFreezeStreak = asyncHandler(async (req, res) => {
   user.streakFrozen = !!frozen;
   await user.save();
   res.json({ ok: true, streakFrozen: user.streakFrozen });
+});
+
+export const adminExtendEnrollmentValidity = asyncHandler(async (req, res) => {
+  const { validUntil, planType } = req.body;
+  const enrollment = await Enrollment.findById(req.params.id);
+  if (!enrollment) {
+    res.status(404);
+    throw new Error('Enrollment not found');
+  }
+  enrollment.validUntil = validUntil ? new Date(validUntil) : null;
+  if (planType) {
+    enrollment.planType = planType;
+  }
+  await enrollment.save();
+  res.json({ ok: true, enrollment });
 });

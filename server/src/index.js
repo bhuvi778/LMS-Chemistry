@@ -27,6 +27,7 @@ import enquiryRoutes from './routes/enquiry.routes.js';
 import feedRoutes from './routes/feed.routes.js';
 import popupRoutes from './routes/popup.routes.js';
 import chatRoutes from './routes/chat.routes.js';
+import doubtRoutes from './routes/doubt.routes.js';
 import { notFound, errorHandler } from './middleware/error.js';
 import { attachLiveSocket } from './liveSocket.js';
 import { startNotificationScheduler } from './services/notificationScheduler.js';
@@ -68,6 +69,7 @@ app.use('/api/enquiries', enquiryRoutes);
 app.use('/api/feed', feedRoutes);
 app.use('/api/popups', popupRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/doubts', doubtRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

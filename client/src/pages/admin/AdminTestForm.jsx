@@ -821,7 +821,7 @@ export default function AdminTestForm() {
       {/* Test Settings */}
       <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 space-y-4">
         <h2 className="font-semibold text-slate-700">Test Settings</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-xs font-semibold text-slate-500 mb-1 block">ATTEMPTS ALLOWED <span className="font-normal text-slate-400">(0 = unlimited)</span></label>
             <input
@@ -830,16 +830,6 @@ export default function AdminTestForm() {
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
               value={form.attemptsAllowed}
               onChange={(e) => set('attemptsAllowed', Number(e.target.value))}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-slate-500 mb-1 block">MAX QUESTIONS TO ATTEMPT <span className="font-normal text-slate-400">(0 = no limit)</span></label>
-            <input
-              type="number"
-              min={0}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
-              value={form.maxQuestionsToAttempt || 0}
-              onChange={(e) => set('maxQuestionsToAttempt', Number(e.target.value))}
             />
           </div>
         </div>

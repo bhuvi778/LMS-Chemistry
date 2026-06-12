@@ -27,6 +27,7 @@ import {
   Bell,
   BookOpen,
   Star,
+  BookMarked,
 } from 'lucide-react';
 import SecureYTPlayer from '../components/SecureYTPlayer.jsx';
 // ─── Video Player ─────────────────────────────────────────────────────────────
@@ -164,25 +165,38 @@ function ClassesTab({ lessons }) {
 function resolveEmbedUrl(rawUrl) {
   if (!rawUrl) return null;
 
+  // Make it absolute if it starts with /
+  let absUrl = rawUrl;
+  if (rawUrl.startsWith('/')) {
+    absUrl = window.location.origin + rawUrl;
+  }
+
   // Google Drive: /file/d/<ID>/view  →  /file/d/<ID>/preview
-  const driveFile = rawUrl.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+  const driveFile = absUrl.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
   if (driveFile) {
     return `https://drive.google.com/file/d/${driveFile[1]}/preview`;
   }
 
   // Google Drive open?id=<ID>
-  const driveOpen = rawUrl.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  const driveOpen = absUrl.match(/drive\.google\.com\/open\?id=([^&]+)/);
   if (driveOpen) {
     return `https://drive.google.com/file/d/${driveOpen[1]}/preview`;
   }
 
   // Google Docs/Sheets/Slides  →  embed
-  const docsMatch = rawUrl.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([^/?#]+)/);
+  const docsMatch = absUrl.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([^/?#]+)/);
   if (docsMatch) {
     return `https://docs.google.com/${docsMatch[1]}/d/${docsMatch[2]}/preview`;
   }
 
-  // Local upload path  →  use as-is (relative URL)
+  // Use Google Docs viewer to embed PDF inline in iframe
+  if (absUrl.toLowerCase().includes('.pdf')) {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return rawUrl;
+    }
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(absUrl)}&embedded=true`;
+  }
+
   return rawUrl;
 }
 
@@ -392,7 +406,7 @@ function TestsTab({ tests, courseId, myAttempts = [] }) {
 }
 
 // ─── E-Books Tab ─────────────────────────────────────────────────────────────
-function EbooksTab({ courseId }) {
+function EbooksTab({ courseId, onViewPdf }) {
   const [ebooks, setEbooks] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -437,14 +451,12 @@ function EbooksTab({ courseId }) {
             {book.author && <p className="text-xs text-slate-400 mt-1">By {book.author}</p>}
           </div>
           {book.fileUrl ? (
-            <a
-              href={book.fileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-auto inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"
+            <button
+              onClick={() => onViewPdf({ fileUrl: book.fileUrl, title: book.title })}
+              className="mt-auto inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900 text-left"
             >
               <Download size={14} /> Download / Read
-            </a>
+            </button>
           ) : (
             <p className="mt-auto text-sm text-slate-400 italic">File not available</p>
           )}
@@ -596,7 +608,7 @@ function ReviewsTab({ courseId, user }) {
 }
 
 // ─── Test Series Tab ──────────────────────────────────────────────────────────
-function TestSeriesTab({ courseId }) {
+function TestSeriesTab({ courseId, onViewPdf }) {
   const [series, setSeries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null); // expanded series id
@@ -696,14 +708,12 @@ function TestSeriesTab({ courseId }) {
                       <p className="text-sm text-amber-900 whitespace-pre-line leading-relaxed mb-3">{s.syllabusText}</p>
                     )}
                     {s.syllabusFileUrl && (
-                      <a
-                        href={s.syllabusFileUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        onClick={() => onViewPdf({ fileUrl: s.syllabusFileUrl, title: `${s.title} Syllabus` })}
                         className="inline-flex items-center gap-2 text-xs font-bold text-amber-700 hover:text-amber-900 bg-white border border-amber-200 rounded-lg px-3 py-1.5 hover:shadow transition"
                       >
-                        <Download size={13} /> Download Syllabus PDF
-                      </a>
+                        <FileText size={13} /> View Syllabus PDF
+                      </button>
                     )}
                   </div>
                 )}
@@ -755,16 +765,20 @@ function TestSeriesTab({ courseId }) {
                               {(t.pdfUrl || t.solutionPdfUrl || t.videoSolutionUrl) && (
                                 <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
                                   {t.pdfUrl && (
-                                    <a href={t.pdfUrl} target="_blank" rel="noreferrer"
-                                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-900 bg-brand-50 rounded-lg px-3 py-1.5 hover:bg-brand-100 transition">
+                                    <button
+                                      onClick={() => onViewPdf({ fileUrl: t.pdfUrl, title: `${testTitle} Question Paper` })}
+                                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-900 bg-brand-50 rounded-lg px-3 py-1.5 hover:bg-brand-100 transition"
+                                    >
                                       <FileText size={12} /> Question Paper
-                                    </a>
+                                    </button>
                                   )}
                                   {t.solutionPdfUrl && (
-                                    <a href={t.solutionPdfUrl} target="_blank" rel="noreferrer"
-                                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 rounded-lg px-3 py-1.5 hover:bg-emerald-100 transition">
+                                    <button
+                                      onClick={() => onViewPdf({ fileUrl: t.solutionPdfUrl, title: `${testTitle} Answer Key` })}
+                                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 rounded-lg px-3 py-1.5 hover:bg-emerald-100 transition"
+                                    >
                                       <FileText size={12} /> Answer Key
-                                    </a>
+                                    </button>
                                   )}
                                   {t.videoSolutionUrl && (
                                     <a href={t.videoSolutionUrl} target="_blank" rel="noreferrer"
@@ -1614,6 +1628,8 @@ export default function LearnCourse() {
     ...(course.courseType === 'live' || liveClasses.length > 0 ? [
       { k: 'live', l: `${planType === 'batch' ? '🔒 ' : ''}Live Classes${liveClasses.length ? ` (${liveClasses.length})` : ''}`, icon: Video }
     ] : []),
+    { k: 'timetable', l: 'Time Table', icon: Calendar },
+    { k: 'syllabus', l: 'Syllabus', icon: BookMarked },
     { k: 'test-series', l: 'Test Series', icon: ListChecks },
     { k: 'ebooks', l: 'E-Books', icon: BookOpen },
     { k: 'about', l: 'About', icon: Info },
@@ -1731,8 +1747,72 @@ export default function LearnCourse() {
             <LiveClassesTab liveClasses={liveClasses} />
           )
         )}
-        {tab === 'test-series' && <TestSeriesTab courseId={courseId} />}
-        {tab === 'ebooks' && <EbooksTab courseId={courseId} />}
+        {tab === 'test-series' && <TestSeriesTab courseId={courseId} onViewPdf={(pdf) => setOpenPdf(pdf)} />}
+        {tab === 'ebooks' && <EbooksTab courseId={courseId} onViewPdf={(pdf) => setOpenPdf(pdf)} />}
+        {tab === 'timetable' && (
+          <div className="max-w-2xl bg-white rounded-2xl border border-slate-100 shadow-sm p-6 sm:p-8">
+            <h2 className="text-lg font-bold text-slate-800 mb-4">Class Time Table</h2>
+            {(course.timetable || []).length === 0 ? (
+              <div className="text-center text-slate-400 py-12">
+                <Calendar size={40} className="mx-auto mb-3 opacity-30" />
+                <p className="font-semibold">Time table will be updated soon.</p>
+                <p className="text-sm mt-1 opacity-70">Check back later for the class schedule.</p>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {(course.timetable || [])
+                  .slice()
+                  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                  .map((slot, i) => (
+                    <div key={i} className="bg-slate-50 rounded-2xl border border-slate-100 p-5 flex items-start gap-4 hover:shadow-md transition-shadow">
+                      <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 grid place-items-center shrink-0">
+                        <Clock size={18} />
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800">{slot.subject}</div>
+                        <div className="text-sm text-slate-500 mt-0.5">
+                          {slot.timeFrom} – {slot.timeTo}
+                        </div>
+                        <div className="text-xs text-brand-600 font-bold mt-1.5 uppercase tracking-wider">{slot.days}</div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'syllabus' && (
+          <div className="max-w-3xl bg-white rounded-2xl border border-slate-100 shadow-sm p-6 sm:p-8">
+            <h2 className="text-lg font-bold text-slate-800 mb-4">Course Syllabus</h2>
+            {course.syllabus?.length > 0 ? (
+              <div className="space-y-4">
+                {course.syllabus.map((item, i) => (
+                  <div key={i} className="bg-slate-50 rounded-2xl border border-slate-100 p-5 flex gap-4 hover:shadow-md transition-shadow">
+                    <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 grid place-items-center shrink-0 font-bold text-sm">
+                      {i + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-slate-800 text-base leading-snug">
+                        {typeof item === 'string' ? item : item.title}
+                      </div>
+                      {typeof item !== 'string' && item.description && (
+                        <p className="text-sm text-slate-500 mt-1.5 leading-relaxed whitespace-pre-line">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-slate-400 py-12">
+                <BookMarked size={40} className="mx-auto mb-3 opacity-30" />
+                <p className="font-semibold">Syllabus will be updated soon.</p>
+              </div>
+            )}
+          </div>
+        )}
         {tab === 'about' && <AboutTab course={course} />}
         {tab === 'announcements' && (
           <AnnouncementsTab

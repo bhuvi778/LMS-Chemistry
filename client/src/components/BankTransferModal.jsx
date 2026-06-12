@@ -66,8 +66,10 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
     if (!studentName.trim()) { toast.error('Please enter your name'); return; }
     if (!studentPhone.trim()) { toast.error('Please enter your phone number'); return; }
     if (!studentEmail.trim()) { toast.error('Please enter your email address'); return; }
+    if (!studentStreet.trim()) { toast.error('Please enter your street address'); return; }
     if (!studentCity.trim()) { toast.error('Please enter your city'); return; }
     if (!studentState.trim()) { toast.error('Please enter your state/emirate'); return; }
+    if (!studentPinCode.trim()) { toast.error('Please enter your pin/postal code'); return; }
     const fullPhone = '+971' + studentPhone.trim();
     const fullAddress = [studentStreet.trim(), studentCity.trim(), studentState.trim(), studentPinCode.trim()].filter(Boolean).join(', ');
     setBusy(true);
@@ -119,8 +121,12 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
   };
 
   const handleSubmitProof = async () => {
-    if (!refNumber.trim() && !screenshotUrl) {
-      toast.error('Please add reference number or screenshot');
+    if (!refNumber.trim()) {
+      toast.error('Please enter the reference number');
+      return;
+    }
+    if (!screenshotUrl) {
+      toast.error('Please upload the payment screenshot');
       return;
     }
     setProofBusy(true);
@@ -261,7 +267,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 font-medium block mb-1">Street Address</label>
+                  <label className="text-xs text-slate-500 font-medium block mb-1">Street Address *</label>
                   <input
                     type="text"
                     value={studentStreet}
@@ -293,7 +299,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 font-medium block mb-1">Pin / Postal Code</label>
+                  <label className="text-xs text-slate-500 font-medium block mb-1">Pin / Postal Code *</label>
                   <input
                     type="text"
                     value={studentPinCode}

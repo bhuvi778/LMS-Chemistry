@@ -7,6 +7,21 @@ import TestSeries from '../models/TestSeries.js';
 import User from '../models/User.js';
 import CoinRedemption from '../models/CoinRedemption.js';
 
+const calculateValidityEndDate = (validitySystem) => {
+  if (!validitySystem || validitySystem.type === 'lifetime') return null;
+  if (validitySystem.type === 'endDate') return validitySystem.endDate;
+  if (validitySystem.type === 'duration') {
+    const d = new Date();
+    const val = validitySystem.durationValue || 0;
+    const unit = validitySystem.durationUnit || 'months';
+    if (unit === 'days') d.setDate(d.getDate() + val);
+    else if (unit === 'months') d.setMonth(d.getMonth() + val);
+    else if (unit === 'years') d.setFullYear(d.getFullYear() + val);
+    return d;
+  }
+  return null;
+};
+
 // ─── Internet handling fee calculation ───────────────────────────────────────
 export const calcHandlingFee = (baseAmount) => {
   if (baseAmount <= 7299) return 45;
@@ -40,6 +55,17 @@ export const submitBankTransfer = asyncHandler(async (req, res) => {
     coinsRedeemed = Math.min(studentUser.coins || 0, maxCoinsNeeded);
     coinDiscount = coinsRedeemed / 25;
     finalBaseAmount = Math.max(0, finalBaseAmount - coinDiscount);
+  }
+
+  if (itemType === 'course' && courseId) {
+    const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
+    if (existing) {
+      const planOrder = { batch: 1, pro: 2, infinity: 3 };
+      if (planOrder[planType] <= planOrder[existing.planType]) {
+        res.status(400);
+        throw new Error(`You are already enrolled in the ${existing.planType.toUpperCase()} plan. Downgrade or same-plan upgrade is not allowed.`);
+      }
+    }
   }
 
   // Seat limit check for Ace Infinity in bank transfer
@@ -170,7 +196,15 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
   // Auto-enroll
   if (request.itemType === 'course' && request.course) {
     const exists = await Enrollment.findOne({ student: request.student, course: request.course });
-    if (!exists) {
+    const courseObj = await Course.findById(request.course);
+    if (exists) {
+      if (request.planType && request.planType !== exists.planType) {
+        exists.planType = request.planType;
+        exists.pricePaid = request.totalAmount;
+        exists.paymentId = 'BANK_' + request._id;
+        await exists.save();
+      }
+    } else {
       await Enrollment.create({
         student: request.student,
         course: request.course,
@@ -178,18 +212,21 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
         pricePaid: request.totalAmount,
         paymentId: 'BANK_' + request._id,
         paymentStatus: 'paid',
+        validUntil: courseObj ? calculateValidityEndDate(courseObj.validity) : null,
       });
       await Course.findByIdAndUpdate(request.course, { $inc: { studentsEnrolled: 1 } });
     }
   } else if (request.itemType === 'test_series' && request.testSeries) {
     const exists = await TestSeriesEnrollment.findOne({ student: request.student, testSeries: request.testSeries });
     if (!exists) {
+      const tsObj = await TestSeries.findById(request.testSeries);
       await TestSeriesEnrollment.create({
         student: request.student,
         testSeries: request.testSeries,
         pricePaid: request.totalAmount,
         paymentId: 'BANK_' + request._id,
         paymentStatus: 'paid',
+        validUntil: tsObj ? calculateValidityEndDate(tsObj.validity) : null,
       });
     }
   }

@@ -13,6 +13,21 @@ import CoinRedemption from '../models/CoinRedemption.js';
 import { generateInvoicePDF } from '../services/invoice.js';
 import { sendEnrollmentEmail, sendPaymentReceiptEmail } from '../services/email.js';
 
+const calculateValidityEndDate = (validitySystem) => {
+  if (!validitySystem || validitySystem.type === 'lifetime') return null;
+  if (validitySystem.type === 'endDate') return validitySystem.endDate;
+  if (validitySystem.type === 'duration') {
+    const d = new Date();
+    const val = validitySystem.durationValue || 0;
+    const unit = validitySystem.durationUnit || 'months';
+    if (unit === 'days') d.setDate(d.getDate() + val);
+    else if (unit === 'months') d.setMonth(d.getMonth() + val);
+    else if (unit === 'years') d.setFullYear(d.getFullYear() + val);
+    return d;
+  }
+  return null;
+};
+
 /** Generate sequential invoice number */
 const makeInvoiceNumber = async () => {
   const count = await Payment.countDocuments({ status: 'paid' });
@@ -87,7 +102,13 @@ export const createOrder = asyncHandler(async (req, res) => {
     item = await Course.findById(courseId);
     if (!item) { res.status(404); throw new Error('Course not found'); }
     const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
-    if (existing) { res.status(400); throw new Error('You are already enrolled in this course'); }
+    if (existing) {
+      const planOrder = { batch: 1, pro: 2, infinity: 3 };
+      if (planOrder[planType] <= planOrder[existing.planType]) {
+        res.status(400);
+        throw new Error(`You are already enrolled in the ${existing.planType.toUpperCase()} plan. Downgrade or same-plan upgrade is not allowed.`);
+      }
+    }
 
     // Seat limit check for Ace Infinity
     if (planType === 'infinity') {
@@ -129,6 +150,14 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
   }
 
+  // Adjust price if upgrading
+  if (isCourse) {
+    const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
+    if (existing) {
+      originalAmount = Math.max(0, originalAmount - (existing.pricePaid || 0));
+    }
+  }
+
   let finalAmount = originalAmount;
   let discountAmount = 0;
   let appliedCoupon = '';
@@ -160,15 +189,25 @@ export const createOrder = asyncHandler(async (req, res) => {
   if (finalAmount <= 0) {
     let enrollment;
     if (isCourse) {
-      enrollment = await Enrollment.create({
-        student: req.user._id,
-        course: courseId,
-        planType: planType,
-        pricePaid: 0,
-        paymentId: 'FREE_' + Date.now(),
-        paymentStatus: 'paid',
-      });
-      await Course.findByIdAndUpdate(courseId, { $inc: { studentsEnrolled: 1 } });
+      const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
+      if (existing) {
+        existing.planType = planType;
+        existing.pricePaid = (existing.pricePaid || 0) + finalAmount;
+        existing.paymentId = 'FREE_UPGRADE_' + Date.now();
+        await existing.save();
+        enrollment = existing;
+      } else {
+        enrollment = await Enrollment.create({
+          student: req.user._id,
+          course: courseId,
+          planType: planType,
+          pricePaid: 0,
+          paymentId: 'FREE_' + Date.now(),
+          paymentStatus: 'paid',
+          validUntil: calculateValidityEndDate(item.validity),
+        });
+        await Course.findByIdAndUpdate(courseId, { $inc: { studentsEnrolled: 1 } });
+      }
     } else {
       enrollment = await TestSeriesEnrollment.create({
         student: req.user._id,
@@ -176,6 +215,7 @@ export const createOrder = asyncHandler(async (req, res) => {
         pricePaid: 0,
         paymentId: 'FREE_' + Date.now(),
         paymentStatus: 'paid',
+        validUntil: calculateValidityEndDate(item.validity),
       });
     }
 
@@ -303,17 +343,30 @@ export const verifyPayment = asyncHandler(async (req, res) => {
 
   let enrollment;
   if (courseId) {
+    const course = await Course.findById(courseId);
     const already = await Enrollment.findOne({ student: req.user._id, course: courseId });
-    enrollment = already || await Enrollment.create({
-      student: req.user._id,
-      course: courseId,
-      planType: payment.planType || 'batch',
-      pricePaid: payment.amount,
-      paymentId: razorpayPaymentId,
-      paymentStatus: 'paid',
-    });
-    if (!already) await Course.findByIdAndUpdate(courseId, { $inc: { studentsEnrolled: 1 } });
+    if (already) {
+      if (payment.planType && payment.planType !== already.planType) {
+        already.planType = payment.planType;
+        already.pricePaid = (already.pricePaid || 0) + payment.amount;
+        already.paymentId = razorpayPaymentId;
+        await already.save();
+      }
+      enrollment = already;
+    } else {
+      enrollment = await Enrollment.create({
+        student: req.user._id,
+        course: courseId,
+        planType: payment.planType || 'batch',
+        pricePaid: payment.amount,
+        paymentId: razorpayPaymentId,
+        paymentStatus: 'paid',
+        validUntil: course ? calculateValidityEndDate(course.validity) : null,
+      });
+      await Course.findByIdAndUpdate(courseId, { $inc: { studentsEnrolled: 1 } });
+    }
   } else {
+    const ts = await TestSeries.findById(testSeriesId);
     const already = await TestSeriesEnrollment.findOne({ student: req.user._id, testSeries: testSeriesId });
     enrollment = already || await TestSeriesEnrollment.create({
       student: req.user._id,
@@ -321,6 +374,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
       pricePaid: payment.amount,
       paymentId: razorpayPaymentId,
       paymentStatus: 'paid',
+      validUntil: ts ? calculateValidityEndDate(ts.validity) : null,
     });
   }
 
@@ -425,6 +479,11 @@ export const validateCoupon = asyncHandler(async (req, res) => {
     } else {
       if (pType === 'pro') originalAmount = Math.round(item.price * 1.25);
       else if (pType === 'infinity') originalAmount = Math.round(item.price * 1.5);
+    }
+
+    const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
+    if (existing) {
+      originalAmount = Math.max(0, originalAmount - (existing.pricePaid || 0));
     }
   }
 

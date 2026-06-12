@@ -368,6 +368,7 @@ function StudentModal({ id, onClose, onChanged }) {
   const [allCourses, setAllCourses] = useState([]);
   const [courseSearch, setCourseSearch] = useState('');
   const [enrollBusy, setEnrollBusy] = useState('');
+  const [selectedPlans, setSelectedPlans] = useState({});
 
   const updateField = (key, val) => {
     setData(prev => ({ ...prev, [key]: val }));
@@ -413,10 +414,10 @@ function StudentModal({ id, onClose, onChanged }) {
     setShowEnroll(true);
   };
 
-  const enrollInCourse = async (courseId) => {
+  const enrollInCourse = async (courseId, planType = 'batch') => {
     setEnrollBusy(courseId);
     try {
-      await api.post(`/admin/students/${id}/enroll`, { courseId });
+      await api.post(`/admin/students/${id}/enroll`, { courseId, planType });
       toast.success('Course allotted!');
       load();
       onChanged?.();
@@ -773,22 +774,34 @@ function StudentModal({ id, onClose, onChanged }) {
                     </div>
                   ) : (
                     <div className="space-y-1 max-h-48 overflow-y-auto">
-                      {filteredCourses.map((c) => (
-                        <div key={c._id} className="flex items-center gap-2 bg-white rounded-lg p-2 border border-slate-100">
-                          {c.thumbnail && <img src={c.thumbnail} className="w-9 h-9 rounded object-cover shrink-0" alt="" />}
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-xs truncate">{c.title}</div>
-                            <div className="text-[10px] text-slate-500">{c.category}</div>
+                      {filteredCourses.map((c) => {
+                        const currentPlan = selectedPlans[c._id] || 'batch';
+                        return (
+                          <div key={c._id} className="flex items-center gap-2 bg-white rounded-lg p-2 border border-slate-100">
+                            {c.thumbnail && <img src={c.thumbnail} className="w-9 h-9 rounded object-cover shrink-0" alt="" />}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-xs truncate">{c.title}</div>
+                              <div className="text-[10px] text-slate-500">{c.category}</div>
+                            </div>
+                            <select
+                              value={currentPlan}
+                              onChange={(e) => setSelectedPlans(prev => ({ ...prev, [c._id]: e.target.value }))}
+                              className="text-xs border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none focus:border-brand-500 font-semibold"
+                            >
+                              <option value="batch">Ace Batch</option>
+                              <option value="pro">Ace Pro</option>
+                              <option value="infinity">Ace Infinity</option>
+                            </select>
+                            <button
+                              disabled={enrollBusy === c._id}
+                              onClick={() => enrollInCourse(c._id, currentPlan)}
+                              className="btn-primary text-[11px] px-2 py-1 shrink-0 disabled:opacity-50"
+                            >
+                              {enrollBusy === c._id ? <Loader2 size={11} className="animate-spin" /> : 'Allot'}
+                            </button>
                           </div>
-                          <button
-                            disabled={enrollBusy === c._id}
-                            onClick={() => enrollInCourse(c._id)}
-                            className="btn-primary text-[11px] px-2 py-1 shrink-0 disabled:opacity-50"
-                          >
-                            {enrollBusy === c._id ? <Loader2 size={11} className="animate-spin" /> : 'Allot'}
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -804,9 +817,14 @@ function StudentModal({ id, onClose, onChanged }) {
                         <div className="text-[11px] text-slate-500">
                           {e.course?.category} · Enrolled {new Date(e.createdAt).toLocaleDateString('en-AE')}
                         </div>
-                        {e.paymentId?.startsWith('ADMIN_ALLOT_') && (
-                          <span className="text-[10px] font-semibold text-brand-600">Admin allotted</span>
-                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <span className="chip bg-brand-50 text-brand-700 font-bold uppercase py-0.5 px-1.5 text-[9px] rounded-full">
+                            {e.planType || 'batch'}
+                          </span>
+                          {e.paymentId?.startsWith('ADMIN_ALLOT_') && (
+                            <span className="text-[10px] font-semibold text-brand-600">Admin allotted</span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className={`chip text-[10px] ${e.paid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client.js';
+import SupportChatWidget from './SupportChatWidget.jsx';
 import {
   Home,
   Video,
@@ -399,6 +400,7 @@ export default function StudentLayout() {
           </footer>
         </main>
       </div>
+      <SupportChatWidget />
     </div>
   );
 }

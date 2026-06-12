@@ -189,7 +189,7 @@ export default function CoinsWallet() {
               <span>Refer & Earn</span>
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Invite friends to LMS Chem! Share your unique referral code. You'll receive <b>5 Coins</b> (equivalent to 0.20 AED) as soon as they sign up and verify their email.
+              Invite friends to Ace2Examz! Share your unique referral code. You'll receive <b>5 Coins</b> (equivalent to 0.20 AED) as soon as they sign up and verify their email.
             </p>
             <div className="bg-white rounded-2xl p-3 border border-indigo-100 flex items-center justify-between gap-3 text-xs shadow-sm">
               <span className="font-mono font-black text-indigo-700 uppercase select-all tracking-wider">

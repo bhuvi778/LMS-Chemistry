@@ -15,6 +15,7 @@ import {
   adminEnrollTestSeries,
   adminRemoveTestSeriesEnrollment,
   allEnrollments,
+  adminExtendEnrollmentValidity,
   getLiveClasses,
   createLiveClass,
   updateLiveClass,
@@ -71,6 +72,7 @@ router.post('/students/:id/reset-streak', adminResetStreak);
 router.post('/students/:id/freeze-streak', adminFreezeStreak);
 
 router.get('/enrollments', allEnrollments);
+router.put('/enrollments/:id/extend', adminExtendEnrollmentValidity);
 
 router.get('/live-classes', getLiveClasses);
 router.post('/live-classes', createLiveClass);

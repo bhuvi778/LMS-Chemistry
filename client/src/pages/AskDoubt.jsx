@@ -20,9 +20,17 @@ export default function AskDoubt() {
   const [filter, setFilter] = useState('all');
   const [form, setForm] = useState({ course: '', subject: '', question: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [usage, setUsage] = useState({ planType: 'none', limit: 0, used: 0, remaining: 0 });
 
   const load = () => {
     api.get('/doubts/my').then((r) => setDoubts(r.data.doubts || [])).finally(() => setLoading(false));
+    api.get('/doubts/usage')
+      .then((res) => {
+        setUsage(res.data || { planType: 'none', limit: 0, used: 0, remaining: 0 });
+      })
+      .catch((err) => {
+        console.error('Failed to load doubt usage', err);
+      });
   };
 
   useEffect(() => {
@@ -49,10 +57,12 @@ export default function AskDoubt() {
 
   const filtered = filter === 'all' ? doubts : doubts.filter((d) => d.status === filter);
 
+  const quotaExceeded = usage.limit !== -1 && usage.remaining <= 0;
+
   return (
     <div>
       <section className="bg-gradient-soft py-14">
-        <div className="container-x flex items-start justify-between flex-wrap gap-4">
+        <div className="container-x flex items-start justify-between flex-wrap gap-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-brand-100 text-brand-700 grid place-items-center">
               <HelpCircle size={20} />
@@ -60,11 +70,39 @@ export default function AskDoubt() {
             <div>
               <h1 className="font-display text-3xl font-extrabold gradient-text">Ask a Doubt</h1>
               <p className="text-slate-500 text-sm">Get answers from our chemistry experts</p>
+              {usage && usage.planType !== 'none' && (
+                <div className="text-xs font-semibold mt-2 flex items-center gap-2 flex-wrap">
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                    usage.planType === 'infinity' ? 'bg-amber-100 text-amber-800 bg-amber-50 border border-amber-200' :
+                    usage.planType === 'pro' ? 'bg-violet-100 text-violet-800 border border-violet-200' :
+                    'bg-slate-100 text-slate-700 border border-slate-200'
+                  }`}>
+                    {usage.planType === 'infinity' ? 'Ace Infinity' : usage.planType === 'pro' ? 'Ace Pro' : 'Ace Batch'} Plan
+                  </span>
+                  <span className="text-slate-300 font-bold">•</span>
+                  <span className="text-slate-600">
+                    {usage.limit === -1 ? (
+                      <span className="text-emerald-600 font-bold">✓ Unlimited Daily Doubts</span>
+                    ) : (
+                      <span>Daily Doubts: <strong>{usage.used}</strong> / <strong>{usage.limit}</strong> used ({usage.remaining} left)</span>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           <button
-            onClick={() => setShowForm((v) => !v)}
-            className="btn-primary flex items-center gap-2"
+            onClick={() => {
+              if (quotaExceeded) {
+                toast.error(`Daily doubt limit reached! Your ${usage.planType === 'pro' ? 'Ace Pro' : 'Ace Batch'} plan only allows ${usage.limit} doubt(s) per day. Upgrade to a higher plan for more doubts!`);
+                return;
+              }
+              setShowForm((v) => !v);
+            }}
+            disabled={quotaExceeded}
+            className={`btn-primary flex items-center gap-2 ${
+              quotaExceeded ? 'opacity-50 cursor-not-allowed bg-slate-400 border-slate-400 hover:bg-slate-400' : ''
+            }`}
           >
             <Plus size={16} /> Ask New Doubt
           </button>

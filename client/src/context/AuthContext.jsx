@@ -18,6 +18,8 @@ export const AuthProvider = ({ children }) => {
   const [pending2FA, setPending2FA] = useState(null);
   // Email verification pending state: { tempToken, email }
   const [pendingVerification, setPendingVerification] = useState(null);
+  // OTP-Only Login pending state: { tempToken, email }
+  const [pendingOtpLogin, setPendingOtpLogin] = useState(null);
 
   // Persist user
   useEffect(() => {
@@ -27,7 +29,7 @@ export const AuthProvider = ({ children }) => {
 
   // Listen for forced logout from api interceptor (401)
   useEffect(() => {
-    const onLogout = () => { setUser(null); setPending2FA(null); setPendingVerification(null); };
+    const onLogout = () => { setUser(null); setPending2FA(null); setPendingVerification(null); setPendingOtpLogin(null); };
     window.addEventListener('auth:logout', onLogout);
     return () => window.removeEventListener('auth:logout', onLogout);
   }, []);
@@ -170,16 +172,49 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setPending2FA(null);
     setPendingVerification(null);
+    setPendingOtpLogin(null);
   };
+
+  const requestOtpLogin = async (email) => {
+    setLoading(true);
+    try {
+      const { data } = await api.post('/auth/login-otp-request', { email });
+      setPendingOtpLogin({ tempToken: data.tempToken, email: data.email });
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyOtpLogin = async (code) => {
+    if (!pendingOtpLogin) throw new Error('No pending OTP login session');
+    setLoading(true);
+    try {
+      const { data } = await api.post(
+        '/auth/login-otp-verify',
+        { code },
+        { headers: { Authorization: `Bearer ${pendingOtpLogin.tempToken}` } }
+      );
+      setPendingOtpLogin(null);
+      localStorage.setItem('token', data.token);
+      setUser(data);
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelOtpLogin = () => setPendingOtpLogin(null);
 
   return (
     <AuthContext.Provider
       value={{
         user, loading, bootstrapping,
-        pending2FA, pendingVerification,
+        pending2FA, pendingVerification, pendingOtpLogin,
         login, verifyOtp, cancelOtp, loginWithGoogle,
         register, verifyEmail, cancelVerification,
         forgotPassword, resetPassword,
+        requestOtpLogin, verifyOtpLogin, cancelOtpLogin,
         logout, setUser, updateProfile,
       }}
     >

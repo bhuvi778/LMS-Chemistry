@@ -5,6 +5,7 @@ import {
   toggle2FA, verify2FAEnable,
   verifyEmailSignup, forgotPassword, resetPassword,
   redeemCoins, streakPing, googleAuth, deleteMe, getCoinRedemptions,
+  sendLoginOtp, verifyLoginOtp,
 } from '../controllers/auth.controller.js';
 import { protect } from '../middleware/auth.js';
 
@@ -16,10 +17,12 @@ router.post('/login', login);
 router.post('/google', googleAuth);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
+router.post('/login-otp-request', sendLoginOtp);
 
 // OTP-protected (uses tempToken from login response)
 router.post('/verify-otp', protect, verifyOtp);
 router.post('/verify-email', protect, verifyEmailSignup);
+router.post('/login-otp-verify', protect, verifyLoginOtp);
 
 // Authenticated
 router.get('/me', protect, me);

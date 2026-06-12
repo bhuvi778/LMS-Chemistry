@@ -48,7 +48,7 @@ export const getSubjects = asyncHandler(async (req, res) => {
         student: req.user._id,
         course: courseId,
       });
-      isEnrolled = !!enroll;
+      isEnrolled = enroll && (!enroll.validUntil || new Date() <= new Date(enroll.validUntil));
     }
   }
 

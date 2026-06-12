@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import api from '../../api/client.js';
-import { Search, Mail, Phone, Calendar, BookOpen, CreditCard, CheckCircle2, Clock, LayoutGrid, List, ExternalLink } from 'lucide-react';
+import { Search, Mail, Phone, Calendar, BookOpen, CreditCard, CheckCircle2, Clock, LayoutGrid, List } from 'lucide-react';
 import Pagination, { usePaged } from '../../components/Pagination.jsx';
+import toast from 'react-hot-toast';
 
 const PAGE_SIZE = 12;
 
@@ -32,10 +33,24 @@ export default function AdminEnrollments() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [view, setView] = useState('grid'); // 'grid' | 'table'
   const [page, setPage] = useState(1);
+  const [extendingEnroll, setExtendingEnroll] = useState(null);
+  const [newValidityDate, setNewValidityDate] = useState('');
+  const [newPlanType, setNewPlanType] = useState('batch');
 
   useEffect(() => {
     api.get('/admin/enrollments').then((r) => setList(r.data));
   }, []);
+
+  useEffect(() => {
+    if (extendingEnroll) {
+      if (extendingEnroll.validUntil) {
+        setNewValidityDate(new Date(extendingEnroll.validUntil).toISOString().split('T')[0]);
+      } else {
+        setNewValidityDate('');
+      }
+      setNewPlanType(extendingEnroll.planType || 'batch');
+    }
+  }, [extendingEnroll]);
 
   const filtered = useMemo(() => {
     let result = list;
@@ -59,6 +74,26 @@ export default function AdminEnrollments() {
   const paged = usePaged(filtered, page, PAGE_SIZE);
 
   const totalRevenue = filtered.reduce((s, e) => s + (e.pricePaid || 0), 0);
+
+  const handleExtendValidity = async () => {
+    try {
+      const { data } = await api.put(`/admin/enrollments/${extendingEnroll._id}/extend`, {
+        validUntil: newValidityDate || null,
+        planType: newPlanType,
+      });
+      setList((prev) =>
+        prev.map((e) =>
+          e._id === extendingEnroll._id
+            ? { ...e, validUntil: data.enrollment.validUntil, planType: data.enrollment.planType }
+            : e
+        )
+      );
+      toast.success('Validity and Plan updated successfully!');
+      setExtendingEnroll(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to update validity');
+    }
+  };
 
   return (
     <div>
@@ -119,13 +154,13 @@ export default function AdminEnrollments() {
       ) : view === 'grid' ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paged.map((e) => (
-            <EnrollCard key={e._id} e={e} />
+            <EnrollCard key={e._id} e={e} onExtend={setExtendingEnroll} />
           ))}
         </div>
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-600">
+            <thead className="bg-slate-50 text-left text-slate-650">
               <tr>
                 <th className="p-4">Student</th>
                 <th className="p-4">Phone</th>
@@ -133,28 +168,42 @@ export default function AdminEnrollments() {
                 <th className="p-4">Paid</th>
                 <th className="p-4">Payment ID</th>
                 <th className="p-4">Status</th>
-                <th className="p-4">Date</th>
+                <th className="p-4">Validity</th>
+                <th className="p-4">Actions</th>
               </tr>
             </thead>
             <tbody>
               {paged.map((e) => (
                 <tr key={e._id} className="border-t border-slate-100">
                   <td className="p-4">
-                    <div className="font-semibold">{e.student?.name}</div>
+                    <div className="font-semibold text-slate-900">{e.student?.name}</div>
                     <div className="text-xs text-slate-500">{e.student?.email}</div>
                     <div className="text-xs text-brand-700 font-mono">{e.student?.studentId}</div>
                   </td>
-                  <td className="p-4">{e.student?.phone || '—'}</td>
+                  <td className="p-4 text-slate-600">{e.student?.phone || '—'}</td>
                   <td className="p-4">
-                    <div className="font-medium">{e.course?.title}</div>
-                    <span className="chip bg-brand-50 text-brand-700 text-[10px]">{e.course?.category}</span>
+                    <div className="font-medium text-slate-800">{e.course?.title}</div>
+                    <div className="flex gap-1.5 mt-0.5">
+                      <span className="chip bg-brand-50 text-brand-700 text-[10px]">{e.course?.category}</span>
+                      <span className="chip bg-indigo-50 text-indigo-700 text-[10px] uppercase">{e.planType || 'batch'}</span>
+                    </div>
                   </td>
-                  <td className="p-4 font-semibold">AED {e.pricePaid?.toLocaleString()}</td>
-                  <td className="p-4 font-mono text-xs">{e.paymentId || '—'}</td>
+                  <td className="p-4 font-semibold text-slate-900">AED {e.pricePaid?.toLocaleString()}</td>
+                  <td className="p-4 font-mono text-xs text-slate-500">{e.paymentId || '—'}</td>
                   <td className="p-4">
                     <StatusChip status={e.paymentStatus} />
                   </td>
-                  <td className="p-4 text-slate-500 text-xs">{fmt(e.createdAt)}</td>
+                  <td className="p-4 text-slate-600 text-xs">
+                    {e.validUntil ? new Date(e.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={() => setExtendingEnroll(e)}
+                      className="text-xs font-bold text-brand-600 hover:text-brand-800 hover:underline"
+                    >
+                      Extend Validity
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -163,6 +212,56 @@ export default function AdminEnrollments() {
       )}
 
       <Pagination page={page} pageSize={PAGE_SIZE} total={filtered.length} onChange={setPage} />
+
+      {/* Extend Validity Modal */}
+      {extendingEnroll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">Extend Enrollment Validity</h3>
+            <div className="space-y-1.5 text-xs text-slate-650 bg-slate-50 border border-slate-200/60 p-3.5 rounded-2xl mb-4">
+              <div>Student: <span className="font-semibold text-slate-850">{extendingEnroll.student?.name}</span></div>
+              <div>Course: <span className="font-semibold text-slate-850">{extendingEnroll.course?.title}</span></div>
+              <div>Current Plan: <span className="chip bg-brand-50 text-brand-700 font-bold uppercase py-0.5 px-1.5 text-[10px]">{extendingEnroll.planType || 'batch'}</span></div>
+              <div>Current Expiry: <span className="font-semibold text-slate-850">{extendingEnroll.validUntil ? new Date(extendingEnroll.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}</span></div>
+            </div>
+            <div className="mb-4">
+              <label className="text-xs font-bold text-slate-500 block mb-1">Plan Level (Upgrade/Downgrade)</label>
+              <select
+                value={newPlanType}
+                onChange={(e) => setNewPlanType(e.target.value)}
+                className="input text-sm w-full bg-white border border-slate-200"
+              >
+                <option value="batch">Ace Batch</option>
+                <option value="pro">Ace Pro</option>
+                <option value="infinity">Ace Infinity</option>
+              </select>
+            </div>
+            <div className="mb-5">
+              <label className="text-xs font-bold text-slate-500 block mb-1">New Expiry Date (Leave empty for Lifetime)</label>
+              <input
+                type="date"
+                value={newValidityDate}
+                onChange={(e) => setNewValidityDate(e.target.value)}
+                className="input text-sm w-full"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setExtendingEnroll(null); setNewValidityDate(''); }}
+                className="px-4 py-2 border border-slate-200 text-slate-600 font-semibold text-sm rounded-xl hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExtendValidity}
+                className="btn-primary text-sm px-4 py-2"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -182,7 +281,7 @@ function StatusChip({ status }) {
   );
 }
 
-function EnrollCard({ e }) {
+function EnrollCard({ e, onExtend }) {
   const s = e.student || {};
   const c = e.course || {};
   return (
@@ -193,7 +292,10 @@ function EnrollCard({ e }) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-2 left-3 right-3">
             <div className="text-white font-bold text-sm leading-tight line-clamp-1 drop-shadow">{c.title}</div>
-            {c.category && <span className="chip bg-white/90 text-brand-700 text-[10px] mt-1">{c.category}</span>}
+            <div className="flex gap-1 mt-1 flex-wrap">
+              {c.category && <span className="chip bg-white/95 text-brand-700 text-[10px]">{c.category}</span>}
+              <span className="chip bg-brand-600 text-white text-[10px] uppercase font-bold">{e.planType || 'batch'}</span>
+            </div>
           </div>
           <div className="absolute top-2 right-2"><StatusChip status={e.paymentStatus} /></div>
         </div>
@@ -255,6 +357,15 @@ function EnrollCard({ e }) {
           )}
           <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
             <Calendar size={10} /> {fmt(e.createdAt)}
+          </div>
+          <div className="text-[10px] text-slate-500 mt-1.5 pt-1.5 border-t border-slate-200/50 flex items-center justify-between">
+            <span>Expiry: {e.validUntil ? new Date(e.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}</span>
+            <button
+              onClick={() => onExtend(e)}
+              className="text-brand-600 hover:text-brand-800 font-bold hover:underline"
+            >
+              Extend
+            </button>
           </div>
         </div>
       </div>

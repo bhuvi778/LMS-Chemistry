@@ -7,6 +7,7 @@ const testSeriesEnrollmentSchema = new mongoose.Schema(
     pricePaid: { type: Number, required: true },
     paymentId: { type: String, default: '' },
     paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'paid' },
+    validUntil: { type: Date, default: null },
   },
   { timestamps: true }
 );

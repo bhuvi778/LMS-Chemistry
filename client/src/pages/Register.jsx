@@ -27,6 +27,9 @@ export default function Register() {
         toast.success('Verification code sent to your email');
       } else {
         toast.success(`Welcome, ${res.name}! Your Student ID: ${res.studentId}`);
+        if ('Notification' in window) {
+          Notification.requestPermission().catch(() => {});
+        }
         nav(res.role === 'admin' ? '/admin' : '/student/dashboard', { replace: true });
       }
     } catch (e) {
@@ -40,6 +43,9 @@ export default function Register() {
     try {
       const u = await verifyEmail(otp);
       toast.success(`Welcome, ${u.name}! Your Student ID: ${u.studentId}`);
+      if ('Notification' in window) {
+        Notification.requestPermission().catch(() => {});
+      }
       nav(u.role === 'admin' ? '/admin' : '/student/dashboard', { replace: true });
     } catch (err) {
       toast.error(err.message);
@@ -53,8 +59,8 @@ export default function Register() {
       <div className="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2">
         <div className="hidden lg:flex relative items-center justify-center bg-gradient-brand text-white p-12 order-2">
           <div className="max-w-md">
-            <div className="flex items-center gap-2 mb-6">
-              <Atom size={28} />
+            <div className="flex items-center gap-3 mb-6">
+              <img src="/Ace2exam_white (1).png" alt="Ace2Examz Logo" className="h-10 w-auto object-contain" />
               <span className="font-display font-extrabold text-2xl">Ace2Examz</span>
             </div>
             <h2 className="font-display text-4xl font-extrabold leading-tight">
@@ -112,8 +118,8 @@ export default function Register() {
     <div className="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2">
       <div className="hidden lg:flex relative items-center justify-center bg-gradient-brand text-white p-12 order-2">
         <div className="max-w-md">
-          <div className="flex items-center gap-2 mb-6">
-            <Atom size={28} />
+          <div className="flex items-center gap-3 mb-6">
+            <img src="/Ace2exam_white (1).png" alt="Ace2Examz Logo" className="h-10 w-auto object-contain" />
             <span className="font-display font-extrabold text-2xl">Ace2Examz</span>
           </div>
           <h2 className="font-display text-4xl font-extrabold leading-tight">
