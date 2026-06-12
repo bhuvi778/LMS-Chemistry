@@ -610,14 +610,20 @@ function ReviewsTab({ courseId, user }) {
 // ─── Test Series Tab ──────────────────────────────────────────────────────────
 function TestSeriesTab({ courseId, onViewPdf }) {
   const [series, setSeries] = useState([]);
+  const [standaloneTests, setStandaloneTests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null); // expanded series id
 
   useEffect(() => {
-    // Only fetch test series assigned to this course (not standalone tests)
     api.get(`/tests/course/${courseId}`)
-      .then((r) => setSeries(r.data?.testSeries || []))
-      .catch(() => setSeries([]))
+      .then((r) => {
+        setSeries(r.data?.testSeries || []);
+        setStandaloneTests(r.data?.standaloneTests || []);
+      })
+      .catch(() => {
+        setSeries([]);
+        setStandaloneTests([]);
+      })
       .finally(() => setLoading(false));
   }, [courseId]);
 
@@ -625,11 +631,11 @@ function TestSeriesTab({ courseId, onViewPdf }) {
     return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-brand-500" size={28} /></div>;
   }
 
-  if (series.length === 0) {
+  if (series.length === 0 && standaloneTests.length === 0) {
     return (
       <div className="card p-10 text-center text-slate-500">
         <ListChecks size={40} className="mx-auto mb-3 opacity-30" />
-        No Test Series assigned to this course yet.
+        No Test Series or Practice Tests assigned to this course yet.
       </div>
     );
   }
@@ -655,6 +661,83 @@ function TestSeriesTab({ courseId, onViewPdf }) {
 
   return (
     <div className="space-y-6">
+      {standaloneTests.length > 0 && (
+        <div className="card border border-slate-100 shadow-soft p-5 bg-white space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <ClipboardList className="text-brand-600" size={20} />
+            <h3 className="font-extrabold text-slate-900 text-base">Practice Tests</h3>
+          </div>
+          <div className="space-y-3">
+            {standaloneTests.map((t, idx) => {
+              const testId = t._id;
+              const testTitle = t.title || `Test ${idx + 1}`;
+              return (
+                <div key={testId || idx} className="p-4 rounded-xl border border-slate-100 bg-slate-50/45 hover:bg-slate-50 hover:border-brand-200 transition">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex-grow min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 font-bold uppercase tracking-wider">
+                          Practice Test
+                        </span>
+                        {t.difficulty && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold capitalize ${
+                            t.difficulty === 'advanced' ? 'bg-rose-100 text-rose-700' :
+                            t.difficulty === 'intermediate' ? 'bg-amber-100 text-amber-700' :
+                            'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {t.difficulty}
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-bold text-slate-800 text-sm leading-snug">{testTitle}</div>
+                      <div className="flex gap-3 text-[11px] text-slate-400 mt-1">
+                        {t.durationMins > 0 && <span>⏱ {t.durationMins} min</span>}
+                        {t.totalMarks > 0 && <span>• {t.totalMarks} marks</span>}
+                      </div>
+                    </div>
+                    {testId && (
+                      <Link
+                        to={`/take-test/${testId}?courseId=${courseId}`}
+                        className="btn-primary !py-2 !px-4 text-xs whitespace-nowrap shrink-0"
+                      >
+                        Start Test
+                      </Link>
+                    )}
+                  </div>
+
+                  {/* Test Files */}
+                  {(t.pdfUrl || t.solutionPdfUrl || t.videoSolutionUrl) && (
+                    <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100">
+                      {t.pdfUrl && (
+                        <button
+                          onClick={() => onViewPdf({ fileUrl: t.pdfUrl, title: `${testTitle} Question Paper` })}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-900 bg-brand-50 rounded-lg px-3 py-1.5 hover:bg-brand-100 transition"
+                        >
+                          <FileText size={12} /> Question Paper
+                        </button>
+                      )}
+                      {t.solutionPdfUrl && (
+                        <button
+                          onClick={() => onViewPdf({ fileUrl: t.solutionPdfUrl, title: `${testTitle} Answer Key` })}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 rounded-lg px-3 py-1.5 hover:bg-emerald-100 transition"
+                        >
+                          <FileText size={12} /> Answer Key
+                        </button>
+                      )}
+                      {t.videoSolutionUrl && (
+                        <a href={t.videoSolutionUrl} target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 hover:text-violet-900 bg-violet-50 rounded-lg px-3 py-1.5 hover:bg-violet-100 transition">
+                          <PlayCircle size={12} /> Video Solution
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {series.map((s) => {
         const isOpen = expanded === s._id;
         const testCount = s.tests?.length || 0;

@@ -163,7 +163,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   let appliedCoupon = '';
 
   if (couponCode) {
-    const result = applyCoupon(item, couponCode);
+    const result = applyCoupon(item, couponCode, originalAmount);
     if (!result.valid) { res.status(400); throw new Error('Invalid or inactive coupon code'); }
     discountAmount = result.discountAmount;
     finalAmount = Math.round((originalAmount - discountAmount) * 100) / 100;

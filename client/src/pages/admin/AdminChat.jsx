@@ -49,7 +49,7 @@ export default function AdminChat() {
     const socket = io(socketUrl, {
       path: '/socket.io',
       auth: { token: token || '' },
-      transports: ['websocket', 'polling'],
+      transports: ['polling'],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1500,
@@ -203,7 +203,7 @@ export default function AdminChat() {
                     <div className="flex justify-between items-start">
                       <span className="font-bold text-slate-800 text-xs truncate">{c.student.name}</span>
                       <span className="text-[9px] text-slate-400 whitespace-nowrap">
-                        {fmtTime(c.lastMessage.createdAt)}
+                        {c.lastMessage._id ? fmtTime(c.lastMessage.createdAt) : ''}
                       </span>
                     </div>
                     <div className="text-[10px] text-slate-400 truncate mt-0.5">{c.student.email}</div>

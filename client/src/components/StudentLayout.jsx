@@ -70,6 +70,7 @@ const navSections = [
     icon: Shield,
     items: [
       { to: '/student/feed', label: 'Feed', icon: Rss },
+      { to: '/student/support', label: 'Chat Support', icon: MessageSquare },
       { to: '/student/contact', label: 'Contact Us', icon: Phone },
       { to: '/student/privacy-policy', label: 'Privacy Policy', icon: Shield },
     ]

@@ -29,62 +29,47 @@ export const getChatHistory = asyncHandler(async (req, res) => {
 // @route   GET /api/chats/admin/conversations
 // @access  Admin only
 export const getAdminConversations = asyncHandler(async (req, res) => {
-  const conversations = await ChatMessage.aggregate([
-    // Project the student identifier
-    {
-      $project: {
-        sender: 1,
-        recipient: 1,
-        text: 1,
-        read: 1,
-        createdAt: 1,
-        studentId: {
-          $cond: {
-            if: { $eq: [{ $ifNull: ["$recipient", null] }, null] },
-            then: "$sender",
-            else: "$recipient"
-          }
-        }
-      }
-    },
-    // Sort ascending by createdAt so that $last returns the latest message in the group
-    { $sort: { createdAt: 1 } },
-    // Group by studentId
-    {
-      $group: {
-        _id: "$studentId",
-        lastMessage: { $last: "$$ROOT" },
-        unreadCount: {
-          $sum: {
-            $cond: {
-              if: {
-                $and: [
-                  { $eq: [{ $ifNull: ["$recipient", null] }, null] },
-                  { $eq: ["$read", false] }
-                ]
-              },
-              then: 1,
-              else: 0
-            }
-          }
-        }
-      }
-    },
-    // Sort by last message time
-    { $sort: { "lastMessage.createdAt": -1 } }
-  ]);
+  // Fetch all students
+  const students = await User.find({ role: 'student' })
+    .select('name email avatar studentId createdAt')
+    .sort({ name: 1 })
+    .lean();
 
-  // Populate user information manually for the grouped results
+  // Load the latest message and unread count for each student
   const populated = await Promise.all(
-    conversations.map(async (c) => {
-      const user = await User.findById(c._id).select('name email avatar studentId');
+    students.map(async (student) => {
+      const lastMessage = await ChatMessage.findOne({
+        $or: [
+          { sender: student._id, recipient: null },
+          { recipient: student._id }
+        ]
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+      const unreadCount = await ChatMessage.countDocuments({
+        sender: student._id,
+        recipient: null,
+        read: false
+      });
+
       return {
-        student: user || { name: 'Unknown Student', email: '' },
-        lastMessage: c.lastMessage,
-        unreadCount: c.unreadCount,
+        student,
+        lastMessage: lastMessage || { text: 'No messages yet', createdAt: student.createdAt || new Date() },
+        unreadCount
       };
     })
   );
+
+  // Sort: students with active chats first, then by last message time
+  populated.sort((a, b) => {
+    const aHasMsg = a.lastMessage._id ? 1 : 0;
+    const bHasMsg = b.lastMessage._id ? 1 : 0;
+    if (aHasMsg !== bHasMsg) {
+      return bHasMsg - aHasMsg;
+    }
+    return new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt);
+  });
 
   res.json(populated);
 });

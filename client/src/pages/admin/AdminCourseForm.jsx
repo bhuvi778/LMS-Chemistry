@@ -38,7 +38,9 @@ const empty = {
   isCombo: false,
   isFree: false,
   comboDescription: '',
+  comboCourses: [],
   allowUpgrade: false,
+  allowExtendValidity: false,
   upsell: { enabled: false, title: '', courseId: '' },
   seo: { metaTitle: '', metaDescription: '' },
   timetable: [],
@@ -96,6 +98,12 @@ export default function AdminCourseForm() {
           d.syllabus = d.syllabus.map((s) => ({ title: s, description: '' }));
         }
         if (d.isFree === undefined) d.isFree = false;
+        if (!d.comboCourses) {
+          d.comboCourses = [];
+        } else if (Array.isArray(d.comboCourses)) {
+          d.comboCourses = d.comboCourses.map((cc) => (typeof cc === 'object' && cc !== null ? cc._id : cc));
+        }
+        if (d.allowExtendValidity === undefined) d.allowExtendValidity = false;
         
         // Ensure plans are initialized
         if (!d.plans) {
@@ -1093,14 +1101,47 @@ export default function AdminCourseForm() {
               <span className="font-semibold text-sm">Make this a Combo course</span>
             </label>
             {form.isCombo && (
-              <div>
-                <label className="label text-xs">Combo Description</label>
-                <input className="input text-sm" placeholder="e.g. Includes JEE Main + Advanced batches" value={form.comboDescription || ''} onChange={(e) => set('comboDescription', e.target.value)} />
+              <div className="space-y-3 pl-4 border-l-2 border-brand-200">
+                <div>
+                  <label className="label text-xs">Combo Description</label>
+                  <input className="input text-sm" placeholder="e.g. Includes JEE Main + Advanced batches" value={form.comboDescription || ''} onChange={(e) => set('comboDescription', e.target.value)} />
+                </div>
+                <div>
+                  <label className="label text-xs font-bold block mb-1.5 text-slate-600">Select Courses Included in Combo</label>
+                  <div className="max-h-[180px] overflow-y-auto border border-slate-200 rounded-lg p-2.5 space-y-1.5 bg-slate-50/50">
+                    {allCourses.filter((c) => c._id !== id && !c.isCombo).map((c) => {
+                      const selected = (form.comboCourses || []).includes(c._id);
+                      return (
+                        <label key={c._id} className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-slate-700 hover:text-slate-900">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setForm((f) => ({
+                                ...f,
+                                comboCourses: checked
+                                  ? [...(f.comboCourses || []), c._id]
+                                  : (f.comboCourses || []).filter((cid) => cid !== c._id)
+                              }));
+                            }}
+                            className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                          />
+                          {c.title}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={form.allowUpgrade || false} onChange={(e) => set('allowUpgrade', e.target.checked)} />
               <span className="font-semibold text-sm">Allow upgrade from other courses</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={form.allowExtendValidity || false} onChange={(e) => set('allowExtendValidity', e.target.checked)} />
+              <span className="font-semibold text-sm">Allow extend validity</span>
             </label>
           </div>
 

@@ -48,7 +48,7 @@ export default function SupportChatWidget() {
     const socket = io(socketUrl, {
       path: '/socket.io',
       auth: { token },
-      transports: ['websocket', 'polling'],
+      transports: ['polling'],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1500,

@@ -502,11 +502,11 @@ export default function CourseDetail() {
     if (!course) return { price: 0, mrp: 0 };
     let price = 0;
     let mrp = 0;
-    if (course.plans && course.plans[selectedPlan]) {
-      price = course.plans[selectedPlan].price || 0;
-      mrp = course.plans[selectedPlan].mrp || course.plans[selectedPlan].price || 0;
+    if (course.plans && course.plans[selectedPlan] && course.plans[selectedPlan].price > 0) {
+      price = course.plans[selectedPlan].price;
+      mrp = course.plans[selectedPlan].mrp || course.plans[selectedPlan].price;
     } else {
-      // Fallback if plans object is not yet loaded/configured
+      // Fallback if plans object is not yet loaded/configured or price is missing/0
       price = course.price || 0;
       mrp = course.mrp || price;
       if (selectedPlan === 'pro') {
@@ -1297,15 +1297,18 @@ export default function CourseDetail() {
                     )}
 
                     {/* Login prompt for unauthenticated */}
-                    {!user && course.price > 0 && (
-                      <button
-                        onClick={enroll}
-                        className="btn-primary w-full mt-3 justify-center text-base py-3 gap-2"
-                      >
-                        <Zap size={16} />
-                        Pay AED {course.price?.toLocaleString()}
-                      </button>
-                    )}
+                    {!user && course.price > 0 && (() => {
+                      const planInfo = getPlanPriceAndMrp();
+                      return (
+                        <button
+                          onClick={enroll}
+                          className="btn-primary w-full mt-3 justify-center text-base py-3 gap-2"
+                        >
+                          <Zap size={16} />
+                          Pay AED {planInfo.price?.toLocaleString()}
+                        </button>
+                      );
+                    })()}
                     {enrolled && (
                       <Link to={`/student/learn/${course._id}`} className="text-center block text-xs font-bold text-brand-650 hover:underline mt-3">
                         ← Skip &amp; Continue Learning
@@ -1378,6 +1381,40 @@ export default function CourseDetail() {
                   <p className="text-slate-700 text-base leading-relaxed">{course.shortDescription}</p>
                 )}
               </div>
+
+              {course.isCombo && course.comboCourses?.length > 0 && (
+                <div className="mb-10 bg-slate-50 border border-slate-200 rounded-2xl p-6 sm:p-8">
+                  <h3 className="font-display text-lg font-extrabold text-slate-800 flex items-center gap-2 mb-2">
+                    <span>🎁</span> Included Batches & Courses ({course.comboCourses.length})
+                  </h3>
+                  <p className="text-xs text-slate-500 mb-6 font-semibold">
+                    This combo package grants you complete access to all of the following premium courses:
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {course.comboCourses.map((cc) => (
+                      <Link
+                        key={cc._id}
+                        to={`/courses/${cc.slug || cc._id}`}
+                        className="bg-white rounded-2xl border border-slate-200 p-4 flex gap-4 hover:shadow-md transition-all group"
+                      >
+                        <img
+                          src={cc.thumbnail}
+                          alt={cc.title}
+                          className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100"
+                        />
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <h4 className="font-bold text-slate-800 text-sm leading-snug group-hover:text-brand-600 transition-colors line-clamp-2">
+                            {cc.title}
+                          </h4>
+                          <span className="text-[10px] font-bold text-brand-600 hover:underline inline-flex items-center gap-0.5 mt-2">
+                            View Course Details →
+                          </span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
                 {[
                   { icon: Video,       label: 'Video Classes', value: 'Full HD',                                        color: 'text-brand-600',   bg: 'bg-brand-50'   },

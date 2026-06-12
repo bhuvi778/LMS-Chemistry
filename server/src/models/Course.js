@@ -121,7 +121,9 @@ const courseSchema = new mongoose.Schema(
     // Additional settings
     isCombo: { type: Boolean, default: false },
     comboDescription: { type: String, default: '' },
+    comboCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
     allowUpgrade: { type: Boolean, default: false },
+    allowExtendValidity: { type: Boolean, default: false },
     telegramJoinLink: { type: String, default: '' },
     // Upsell
     upsell: {

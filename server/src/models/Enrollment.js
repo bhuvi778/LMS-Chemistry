@@ -18,4 +18,44 @@ const enrollmentSchema = new mongoose.Schema(
 
 enrollmentSchema.index({ student: 1, course: 1 }, { unique: true });
 
+enrollmentSchema.post('save', async function (doc, next) {
+  if (doc.paymentStatus === 'paid') {
+    try {
+      const Course = mongoose.model('Course');
+      const courseObj = await Course.findById(doc.course);
+      if (courseObj && courseObj.isCombo && courseObj.comboCourses?.length > 0) {
+        const Enrollment = mongoose.model('Enrollment');
+        for (const childCourseId of courseObj.comboCourses) {
+          const existing = await Enrollment.findOne({
+            student: doc.student,
+            course: childCourseId,
+          });
+          if (!existing) {
+            await Enrollment.create({
+              student: doc.student,
+              course: childCourseId,
+              planType: doc.planType,
+              pricePaid: 0,
+              paymentId: doc.paymentId + '_COMBO',
+              paymentStatus: 'paid',
+              validUntil: doc.validUntil,
+            });
+            await Course.findByIdAndUpdate(childCourseId, {
+              $inc: { studentsEnrolled: 1 },
+            });
+          } else if (existing.paymentStatus !== 'paid' || existing.planType !== doc.planType) {
+            existing.paymentStatus = 'paid';
+            existing.planType = doc.planType;
+            existing.validUntil = doc.validUntil;
+            await existing.save();
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to auto-enroll combo child courses:', err);
+    }
+  }
+  next();
+});
+
 export default mongoose.model('Enrollment', enrollmentSchema);

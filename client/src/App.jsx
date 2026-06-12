@@ -87,6 +87,7 @@ import StudentFeed from './pages/student/Feed.jsx';
 import StudentContact from './pages/student/Contact.jsx';
 import StudentPrivacyPolicy from './pages/student/PrivacyPolicy.jsx';
 import AskPrepiify from './pages/student/AskPrepiify.jsx';
+import SupportChat from './pages/student/SupportChat.jsx';
 
 
 export default function App() {
@@ -165,6 +166,7 @@ export default function App() {
           <Route path="contact" element={<StudentContact />} />
           <Route path="privacy-policy" element={<StudentPrivacyPolicy />} />
           <Route path="doubts" element={<AskDoubt />} />
+          <Route path="support" element={<SupportChat />} />
           <Route path="learn/:courseId" element={<LearnCourse />} />
         </Route>
 

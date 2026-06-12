@@ -30,9 +30,10 @@ export const getCourse = asyncHandler(async (req, res) => {
   const param = req.params.id;
   // Support lookup by MongoDB ObjectId OR slug
   const isObjectId = /^[a-f\d]{24}$/i.test(param);
-  const course = isObjectId
-    ? await Course.findById(param)
-    : await Course.findOne({ slug: param });
+  const query = isObjectId
+    ? Course.findById(param)
+    : Course.findOne({ slug: param });
+  const course = await query.populate('comboCourses', 'title slug thumbnail price mrp plans isFree courseType');
   if (!course) {
     res.status(404);
     throw new Error('Course not found');

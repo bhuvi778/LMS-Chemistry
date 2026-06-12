@@ -125,7 +125,7 @@ export default function LiveRoom() {
       }
 
       const token = localStorage.getItem('token');
-      const socket = io({ auth: { token }, path: '/socket.io' });
+      const socket = io({ auth: { token }, path: '/socket.io', transports: ['polling'] });
       socketRef.current = socket;
 
       socket.on('connect_error', (err) => {

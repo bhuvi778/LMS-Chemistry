@@ -8,6 +8,7 @@ export default function Courses() {
   const [params, setParams] = useSearchParams();
   const [categories, setCategories] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [comboCourses, setComboCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const category = params.get('category') || 'ALL';
   const typeFilter = params.get('type') || 'ALL';
@@ -16,6 +17,9 @@ export default function Courses() {
 
   useEffect(() => {
     api.get('/categories').then((r) => setCategories(r.data.map((c) => c.name || c)));
+    api.get('/courses').then((r) => {
+      setComboCourses(r.data.filter((c) => c.isCombo === true));
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -48,8 +52,6 @@ export default function Courses() {
     if (subCat && !(c.subCategories || []).includes(subCat)) return false;
     return true;
   });
-
-  const comboCourses = courses.filter((c) => c.isCombo === true);
 
   const TYPE_FILTERS = [
     { k: 'ALL', l: 'All Types' },
@@ -154,21 +156,25 @@ export default function Courses() {
           )}
 
           {/* Combo Packages Section */}
-          {!loading && comboCourses.length > 0 && (
-            <div className="mt-16 border-t border-slate-100 pt-12">
-              <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">
-                📦 Combo Packages
-              </h2>
-              <p className="text-slate-550 mb-6 text-sm font-semibold">
-                Get multiple courses together at highly discounted bundle prices.
-              </p>
+          <div className="mt-16 border-t border-slate-100 pt-12">
+            <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">
+              📦 Combo Courses
+            </h2>
+            <p className="text-slate-500 mb-6 text-sm">
+              Get multiple courses together at highly discounted bundle prices.
+            </p>
+            {comboCourses.length === 0 ? (
+              <div className="bg-slate-50 rounded-2xl border border-slate-100 p-8 text-center text-slate-400 text-sm font-medium">
+                No Combo Courses available at the moment. You can create them from the Admin Panel!
+              </div>
+            ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {comboCourses.map((c) => (
                   <CourseCard key={c._id} course={c} />
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </section>
     </div>
