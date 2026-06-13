@@ -37,6 +37,7 @@ const chapterSchema = new mongoose.Schema(
     classNotes: [contentItemSchema],     // PDF notes / handwritten notes
     tests: [testItemSchema],             // MCQ chapter tests
     dpps: [testItemSchema],              // Daily Practice Problem sets
+    pyqs: [testItemSchema],              // Previous Year Questions
     dppPdfs: [contentItemSchema],        // DPP problem PDFs
     dppVideos: [contentItemSchema],      // DPP solution videos
     studyMaterials: [contentItemSchema], // Additional resources

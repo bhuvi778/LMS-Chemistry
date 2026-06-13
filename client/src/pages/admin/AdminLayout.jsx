@@ -247,6 +247,7 @@ export default function AdminLayout() {
       <aside
         className={`fixed lg:sticky top-0 h-screen w-64 bg-slate-900 text-slate-200 flex flex-col z-40 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
+        style={{ zoom: '1.1' }}
       >
         {sidebarNav}
       </aside>

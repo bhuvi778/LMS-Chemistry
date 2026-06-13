@@ -312,7 +312,7 @@ export default function StudentLayout() {
       </header>
 
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:block w-64 sticky top-0 h-screen shrink-0 shadow-sm z-20">
+      <aside className="hidden md:block w-64 sticky top-0 h-screen shrink-0 shadow-sm z-20" style={{ zoom: '1.1' }}>
         {sidebarContent}
       </aside>
 
@@ -322,7 +322,7 @@ export default function StudentLayout() {
           {/* Overlay */}
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setMobileOpen(false)} />
           {/* Sidebar content */}
-          <div className="relative flex flex-col w-64 max-w-xs h-full bg-slate-900 animate-slide-in">
+          <div className="relative flex flex-col w-64 max-w-xs h-full bg-slate-900 animate-slide-in" style={{ zoom: '1.1' }}>
             {sidebarContent}
           </div>
         </div>
@@ -331,7 +331,7 @@ export default function StudentLayout() {
       {/* Content Area & Global Header */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Global Content Header (Desktop Only) */}
-        <header className="hidden md:flex h-16 bg-white border-b border-slate-100 px-8 items-center justify-between sticky top-0 z-10">
+        <header className="hidden md:flex h-16 bg-white border-b border-slate-100 px-8 items-center justify-between sticky top-0 z-30">
           <div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Workspace</span>
             <h2 className="text-xs font-bold text-slate-700 mt-0.5 capitalize">

@@ -2,8 +2,19 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { BookOpen, Clock, Download, Loader2, ArrowRight, Globe } from 'lucide-react';
+import { BookOpen, Clock, Download, Loader2, ArrowRight, Globe, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 export default function StudentCourses() {
   const { user } = useAuth();
@@ -11,6 +22,82 @@ export default function StudentCourses() {
   const [enrollments, setEnrollments] = useState([]);
   const [allCourses, setAllCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [extensionModal, setExtensionModal] = useState(null);
+  const [extendingBusy, setExtendingBusy] = useState(false);
+
+  const handleExtendValidity = async (e) => {
+    const course = e.course;
+    if (!course) return;
+    setExtendingBusy(true);
+    try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        toast.error('Failed to load payment gateway. Please check your internet connection.');
+        setExtendingBusy(false);
+        return;
+      }
+      
+      const { data: orderData } = await api.post('/payment/create-order', {
+        courseId: course._id,
+        isExtension: true,
+      });
+      
+      if (orderData.free) {
+        toast.success('Validity extended successfully! 🎉');
+        setExtensionModal(null);
+        // reload data
+        const enrollRes = await api.get('/enroll/me');
+        setEnrollments(enrollRes.data);
+        return;
+      }
+      
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'Ace2Examz',
+        description: `Validity Extension - ${orderData.itemName}`,
+        image: orderData.itemThumbnail || '',
+        order_id: orderData.orderId,
+        prefill: orderData.prefill,
+        theme: { color: '#4f46e5' },
+        modal: {
+          ondismiss: () => {
+            toast('Payment cancelled', { icon: '⚠️' });
+            setExtendingBusy(false);
+          },
+        },
+        handler: async (response) => {
+          try {
+            await api.post('/payment/verify', {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+              courseId: course._id,
+            });
+            toast.success('Validity extended successfully! 🎉');
+            setExtensionModal(null);
+            const enrollRes = await api.get('/enroll/me');
+            setEnrollments(enrollRes.data);
+          } catch (e) {
+            toast.error(e.message || 'Payment verification failed. Please contact support.');
+          } finally {
+            setExtendingBusy(false);
+          }
+        },
+      };
+      
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (response) => {
+        toast.error(`Payment failed: ${response.error?.description || 'Unknown error'}`);
+        setExtendingBusy(false);
+      });
+      rzp.open();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to initiate extension payment');
+      setExtendingBusy(false);
+    }
+  };
 
   const getValidityText = (c) => {
     if (!c) return '';
@@ -144,7 +231,7 @@ export default function StudentCourses() {
                     </h3>
                     <div className="flex items-center gap-4 text-xs text-slate-500">
                       <span className="flex items-center gap-1">
-                        <Clock size={12} /> {getValidityText(e.course)}
+                        <Clock size={12} /> {e.validUntil ? `Expires: ${new Date(e.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}` : getValidityText(e.course)}
                       </span>
                       <span>•</span>
                       <span>Paid AED {e.pricePaid?.toLocaleString()}</span>
@@ -177,6 +264,14 @@ export default function StudentCourses() {
                     >
                       Upgrade Plan (Current: {e.planType === 'pro' ? 'Pro' : 'Batch'})
                     </Link>
+                  )}
+                  {e.course?.allowExtendValidity && (
+                    <button
+                      onClick={() => setExtensionModal(e)}
+                      className="w-full flex items-center justify-center gap-1.5 text-xs text-emerald-700 border border-emerald-200 rounded-2xl hover:bg-emerald-50 transition py-2 font-bold"
+                    >
+                      <Clock size={12} /> Extend Validity (AED {e.course.extendValidityPrice || 0})
+                    </button>
                   )}
                   {e.paymentId && e.paymentId !== 'FREE' && !e.paymentId?.startsWith('FREE_') && (
                     <button
@@ -254,6 +349,65 @@ export default function StudentCourses() {
             })}
           </div>
         )
+      )}
+
+      {extensionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 border border-slate-100 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-start">
+              <h3 className="text-lg font-extrabold text-slate-800">Extend Course Validity</h3>
+              <button
+                onClick={() => setExtensionModal(null)}
+                className="p-1.5 rounded-full hover:bg-slate-105 text-slate-400 hover:text-slate-650 transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Course</span>
+                <span className="text-sm font-bold text-slate-700">{extensionModal.course?.title}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-brand-50 rounded-2xl border border-brand-100/50">
+                  <span className="text-[10px] font-bold text-brand-600 uppercase tracking-wider block">Extension Price</span>
+                  <span className="text-base font-black text-brand-700">AED {extensionModal.course?.extendValidityPrice || 0}</span>
+                </div>
+                <div className="p-3 bg-violet-50 rounded-2xl border border-violet-100/50">
+                  <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wider block">Duration</span>
+                  <span className="text-base font-black text-violet-700 capitalize">
+                    {extensionModal.course?.extendValidityDurationValue} {extensionModal.course?.extendValidityDurationUnit}
+                  </span>
+                </div>
+              </div>
+
+              {extensionModal.validUntil && (
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 flex justify-between">
+                  <span>Current Expiry:</span>
+                  <span className="font-bold text-slate-700">
+                    {new Date(extensionModal.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => handleExtendValidity(extensionModal)}
+              disabled={extendingBusy}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-brand text-white font-bold py-3 rounded-2xl text-sm shadow-soft hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {extendingBusy ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} /> Processing...
+                </>
+              ) : (
+                <>Pay and Extend Now</>
+              )}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

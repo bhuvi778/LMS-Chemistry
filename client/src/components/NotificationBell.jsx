@@ -143,8 +143,13 @@ export default function NotificationBell({ darkMode = false }) {
                         <div className="font-semibold text-sm text-slate-800 leading-snug">{n.title}</div>
                         {!n.read && <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 mt-1.5" />}
                       </div>
-                      {n.message && (
+                       {n.message && (
                         <div className="text-xs text-slate-500 mt-0.5 line-clamp-3 whitespace-pre-wrap">{n.message}</div>
+                      )}
+                      {n.image && (
+                        <div className="mt-2 rounded-lg overflow-hidden border border-slate-100 max-h-24">
+                          <img src={n.image} alt="Notification Banner" className="w-full h-auto object-cover max-h-24" />
+                        </div>
                       )}
                       {(n.showBuyButton || n.showCallButton) && (
                         <div className="flex gap-2 mt-2">

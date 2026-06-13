@@ -39,8 +39,12 @@ const empty = {
   isFree: false,
   comboDescription: '',
   comboCourses: [],
+  comboTestSeries: [],
   allowUpgrade: false,
   allowExtendValidity: false,
+  extendValidityPrice: 0,
+  extendValidityDurationValue: 1,
+  extendValidityDurationUnit: 'months',
   upsell: { enabled: false, title: '', courseId: '' },
   seo: { metaTitle: '', metaDescription: '' },
   timetable: [],
@@ -56,14 +60,17 @@ export default function AdminCourseForm() {
   const duplicateFrom = searchParams.get('duplicateFrom');
   const [categories, setCategories] = useState([]);
   const [allCourses, setAllCourses] = useState([]);
+  const [allTestSeries, setAllTestSeries] = useState([]);
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
   const [educatorImgUploading, setEducatorImgUploading] = useState(false);
+  const [syllabusPdfUploading, setSyllabusPdfUploading] = useState({});
   const edit = !!id;
 
   useEffect(() => {
     api.get('/categories').then((r) => setCategories(r.data));
     api.get('/courses?includeUnpublished=true').then((r) => setAllCourses(r.data)).catch(() => {});
+    api.get('/tests/admin/series').then((r) => setAllTestSeries(r.data)).catch(() => {});
     
     const targetId = id || duplicateFrom;
     if (targetId) {
@@ -103,7 +110,17 @@ export default function AdminCourseForm() {
         } else if (Array.isArray(d.comboCourses)) {
           d.comboCourses = d.comboCourses.map((cc) => (typeof cc === 'object' && cc !== null ? cc._id : cc));
         }
+        if (!d.comboTestSeries) {
+          d.comboTestSeries = [];
+        } else if (Array.isArray(d.comboTestSeries)) {
+          d.comboTestSeries = d.comboTestSeries.map((ts) => (typeof ts === 'object' && ts !== null ? ts._id : ts));
+        }
+        if (d.isCombo === undefined) d.isCombo = false;
+        if (d.allowUpgrade === undefined) d.allowUpgrade = false;
         if (d.allowExtendValidity === undefined) d.allowExtendValidity = false;
+        if (d.extendValidityPrice === undefined) d.extendValidityPrice = 0;
+        if (d.extendValidityDurationValue === undefined) d.extendValidityDurationValue = 1;
+        if (d.extendValidityDurationUnit === undefined) d.extendValidityDurationUnit = 'months';
         
         // Ensure plans are initialized
         if (!d.plans) {
@@ -164,10 +181,9 @@ export default function AdminCourseForm() {
     });
   const removeFaq = (i) => setForm((f) => ({ ...f, faqs: f.faqs.filter((_, idx) => idx !== i) }));
 
-  // Syllabus helpers
   const addSyllabus = () => setForm((f) => ({
     ...f,
-    syllabus: [...(f.syllabus || []), { title: '', description: '' }],
+    syllabus: [...(f.syllabus || []), { title: '', description: '', pdfUrl: '' }],
   }));
   const updateSyllabus = (i, field, val) =>
     setForm((f) => {
@@ -397,6 +413,41 @@ export default function AdminCourseForm() {
                   value={item.description}
                   onChange={(e) => updateSyllabus(i, 'description', e.target.value)}
                 />
+                <div className="space-y-1 mt-2 text-left">
+                  <label className="text-xs font-bold text-slate-500 block">Syllabus Topic PDF / Attachment (Optional)</label>
+                  <div className="flex gap-2">
+                    <input
+                      className="input text-sm flex-1"
+                      placeholder="Paste PDF/Doc URL (or upload)..."
+                      value={item.pdfUrl || ''}
+                      onChange={(e) => updateSyllabus(i, 'pdfUrl', e.target.value)}
+                    />
+                    <label className={`btn-outline cursor-pointer shrink-0 flex items-center gap-1 text-xs ${syllabusPdfUploading[i] ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {syllabusPdfUploading[i] ? <Loader2 size={13} className="animate-spin" /> : <span>📁 Upload PDF</span>}
+                      <input type="file" accept=".pdf,.doc,.docx,.zip,.txt,image/*" className="sr-only" disabled={syllabusPdfUploading[i]}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (file.size > 100 * 1024 * 1024) { toast.error('File too large. Max 100 MB.'); return; }
+                          setSyllabusPdfUploading(prev => ({ ...prev, [i]: true }));
+                          try {
+                            const fd = new FormData();
+                            fd.append('file', file);
+                            const { data } = await api.post('/upload/pdf', fd, {
+                              headers: { 'Content-Type': 'multipart/form-data' },
+                            });
+                            updateSyllabus(i, 'pdfUrl', data.url);
+                            toast.success('Syllabus PDF uploaded successfully');
+                          } catch {
+                            toast.error('Upload failed. Paste a URL instead.');
+                          } finally {
+                            setSyllabusPdfUploading(prev => ({ ...prev, [i]: false }));
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -1133,6 +1184,33 @@ export default function AdminCourseForm() {
                     })}
                   </div>
                 </div>
+                <div>
+                  <label className="label text-xs font-bold block mb-1.5 text-slate-600">Select Test Series Included in Combo</label>
+                  <div className="max-h-[180px] overflow-y-auto border border-slate-200 rounded-lg p-2.5 space-y-1.5 bg-slate-50/50">
+                    {allTestSeries.map((ts) => {
+                      const selected = (form.comboTestSeries || []).includes(ts._id);
+                      return (
+                        <label key={ts._id} className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-slate-700 hover:text-slate-900">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setForm((f) => ({
+                                ...f,
+                                comboTestSeries: checked
+                                  ? [...(f.comboTestSeries || []), ts._id]
+                                  : (f.comboTestSeries || []).filter((tsid) => tsid !== ts._id)
+                              }));
+                            }}
+                            className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                          />
+                          {ts.title}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
             <label className="flex items-center gap-2">
@@ -1143,6 +1221,45 @@ export default function AdminCourseForm() {
               <input type="checkbox" checked={form.allowExtendValidity || false} onChange={(e) => set('allowExtendValidity', e.target.checked)} />
               <span className="font-semibold text-sm">Allow extend validity</span>
             </label>
+            {form.allowExtendValidity && (
+              <div className="space-y-3 pl-4 border-l-2 border-brand-200">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label text-xs">Extension Price (AED)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="input text-sm"
+                      placeholder="e.g. 99"
+                      value={form.extendValidityPrice || 0}
+                      onChange={(e) => set('extendValidityPrice', Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <label className="label text-xs">Extension Duration</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        className="input text-sm flex-1"
+                        placeholder="e.g. 6"
+                        value={form.extendValidityDurationValue || 1}
+                        onChange={(e) => set('extendValidityDurationValue', Number(e.target.value))}
+                      />
+                      <select
+                        className="input text-sm flex-1"
+                        value={form.extendValidityDurationUnit || 'months'}
+                        onChange={(e) => set('extendValidityDurationUnit', e.target.value)}
+                      >
+                        <option value="days">Days</option>
+                        <option value="months">Months</option>
+                        <option value="years">Years</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Upsell */}

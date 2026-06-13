@@ -35,6 +35,9 @@ const paymentSchema = new mongoose.Schema(
     // Coin redemption
     coinsRedeemed: { type: Number, default: 0 },
     coinDiscount: { type: Number, default: 0 },
+
+    // Extension
+    isExtension: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

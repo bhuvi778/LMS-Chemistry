@@ -506,27 +506,17 @@ export default function AdminTestSeriesForm() {
         )}
       </div>
 
-      {/* Syllabus Section */}
+      {/* Schedule Section */}
       <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 space-y-4">
-        <h2 className="font-semibold text-slate-700">Test Syllabus</h2>
+        <h2 className="font-semibold text-slate-700">Test Schedule</h2>
         <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1 block">SYLLABUS (Written / Text)</label>
-          <textarea
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400 resize-none"
-            rows={5}
-            placeholder="Write the full syllabus here — topics, chapters, units covered..."
-            value={form.syllabusText || ''}
-            onChange={(e) => set('syllabusText', e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-2 block">SYLLABUS PDF (Upload)</label>
+          <label className="text-xs font-semibold text-slate-500 mb-2 block">SCHEDULE PDF (Upload)</label>
           <div className="flex items-center gap-3">
             <label className={`flex items-center gap-2 cursor-pointer px-4 py-2.5 rounded-xl border-2 border-dashed text-sm font-semibold transition ${
               syllabusUploading ? 'opacity-50 pointer-events-none border-slate-200 text-slate-400' : 'border-brand-300 text-brand-700 hover:bg-brand-50'
             }`}>
               {syllabusUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-              {syllabusUploading ? 'Uploading…' : form.syllabusFileUrl ? 'Replace PDF' : 'Upload Syllabus PDF'}
+              {syllabusUploading ? 'Uploading…' : form.syllabusFileUrl ? 'Replace PDF' : 'Upload Schedule PDF'}
               <input
                 type="file"
                 accept="application/pdf"
@@ -541,7 +531,7 @@ export default function AdminTestSeriesForm() {
                     fd.append('file', file);
                     const { data } = await api.post('/upload/pdf', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
                     set('syllabusFileUrl', data.url);
-                    toast.success('Syllabus PDF uploaded');
+                    toast.success('Schedule PDF uploaded');
                   } catch {
                     toast.error('Upload failed');
                   } finally {

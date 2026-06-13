@@ -478,11 +478,15 @@ export const me = asyncHandler(async (req, res) => {
 
 export const redeemCoins = asyncHandler(async (req, res) => {
   const { cost, title } = req.body;
-  if (!cost || cost <= 0) {
+  if (!cost || cost < 250) {
     res.status(400);
-    throw new Error('Invalid cost');
+    throw new Error('Minimum 250 Coins required to redeem');
   }
   const user = await User.findById(req.user._id);
+  if (user.coins < 250) {
+    res.status(400);
+    throw new Error('You need at least 250 Coins to redeem');
+  }
   if (user.coins < cost) {
     res.status(400);
     throw new Error('Insufficient coins');

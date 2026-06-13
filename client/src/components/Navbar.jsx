@@ -1,6 +1,6 @@
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Atom, Menu, X, LogOut, LayoutDashboard, ShieldCheck, UserCircle, BookOpen, Trophy, Info, Home, User, Clock, ClipboardList, BookMarked, HelpCircle, ChevronDown, Rss, Mail } from 'lucide-react';
+import { Atom, Menu, X, LogOut, LayoutDashboard, ShieldCheck, UserCircle, BookOpen, Trophy, Info, Home, User, Clock, ClipboardList, BookMarked, HelpCircle, ChevronDown, Rss, Mail, Crown } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import NotificationBell from './NotificationBell.jsx';
 
@@ -163,7 +163,20 @@ export default function Navbar() {
               </Link>
             </>
           ) : (
-            <div className="relative flex items-center gap-1" ref={profileMenuRef}>
+            <div className="relative flex items-center gap-2" ref={profileMenuRef}>
+              {user.role !== 'admin' && (
+                <Link
+                  to="/student/courses"
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                    isHome && !scrolled
+                      ? 'bg-amber-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30'
+                      : 'bg-amber-50 border border-amber-200 text-amber-750 hover:bg-amber-100'
+                  }`}
+                >
+                  <Crown size={12} className="text-amber-500 animate-pulse" />
+                  Upgrade
+                </Link>
+              )}
               <NotificationBell darkMode={isHome && !scrolled} />
               <button
                 onClick={() => setMenu((v) => !v)}
@@ -306,6 +319,15 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
+                  {user.role !== 'admin' && (
+                    <Link
+                      to="/student/courses"
+                      onClick={() => setOpen(false)}
+                      className="w-full inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold py-2.5 rounded-2xl text-sm shadow-soft transition-all mb-1"
+                    >
+                      <Crown size={16} /> Upgrade Plan
+                    </Link>
+                  )}
                   <Link
                     to="/student/profile"
                     className="btn-outline flex-1 min-w-[45%]"

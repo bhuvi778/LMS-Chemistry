@@ -200,7 +200,7 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
     if (exists) {
       if (request.planType && request.planType !== exists.planType) {
         exists.planType = request.planType;
-        exists.pricePaid = request.totalAmount;
+        exists.pricePaid = (exists.pricePaid || 0) + request.totalAmount;
         exists.paymentId = 'BANK_' + request._id;
         await exists.save();
       }

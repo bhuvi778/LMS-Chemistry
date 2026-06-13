@@ -197,9 +197,19 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-                  <Link to={`/student/learn/${e.course?._id}`} className="shrink-0 px-3 py-1.5 bg-brand-50 text-brand-700 text-xs font-bold rounded-xl hover:bg-brand-100 transition">
-                    Continue
-                  </Link>
+                  <div className="flex flex-col gap-1.5 shrink-0">
+                    <Link to={`/student/learn/${e.course?._id}`} className="px-3 py-1.5 bg-brand-50 text-brand-700 text-xs font-bold rounded-xl hover:bg-brand-100 transition text-center whitespace-nowrap">
+                      Continue
+                    </Link>
+                    {e.planType !== 'infinity' && (
+                      <Link
+                        to={`/courses/${e.course?.slug || e.course?._id}`}
+                        className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-extrabold rounded-xl transition text-center whitespace-nowrap"
+                      >
+                        Upgrade
+                      </Link>
+                    )}
+                  </div>
                 </div>
               ))}
               {enrollments.length > 4 && (
@@ -311,6 +321,11 @@ export default function Dashboard() {
                       <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">
                         {n.message}
                       </p>
+                    )}
+                    {n.image && (
+                      <div className="mt-2 rounded-xl overflow-hidden border border-slate-100 max-h-36">
+                        <img src={n.image} alt="Notification Banner" className="w-full h-auto object-cover max-h-36" />
+                      </div>
                     )}
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-[10px] text-slate-400 font-semibold">{fmtTime(n.createdAt)}</span>

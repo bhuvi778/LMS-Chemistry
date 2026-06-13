@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import api from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import toast from 'react-hot-toast';
@@ -21,7 +22,8 @@ import {
   CreditCard,
   Building2,
   Share2,
-  Coins
+  Coins,
+  FileText
 } from 'lucide-react';
 import BankTransferModal from '../components/BankTransferModal.jsx';
 
@@ -51,6 +53,7 @@ export default function TestSeriesDetail() {
   const [loading, setLoading] = useState(true);
   const [enrolled, setEnrolled] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [openPdf, setOpenPdf] = useState(null);
 
   // Tab state
   const [activeMain, setActiveMain] = useState(null);
@@ -197,7 +200,7 @@ export default function TestSeriesDetail() {
       toast.error(e.message || 'Could not initiate payment. Please try again.');
       setBusy(false);
     }
-  }, [user, series, couponApplied, id, nav]);
+  }, [user, series, couponApplied, id, nav, redeemCoins]);
 
   const tests = useMemo(() => {
     if (!series) return [];
@@ -582,6 +585,31 @@ export default function TestSeriesDetail() {
           </div>
         )}
 
+        {/* Test Series Schedule Section */}
+        {series.syllabusFileUrl && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+            <h2 className="font-bold text-slate-800 mb-3 flex items-center gap-2 text-base">
+              <FileText size={18} className="text-brand-600" />
+              Test Series Schedule
+            </h2>
+            {canAccess || user?.role === 'admin' ? (
+              <button
+                onClick={() => setOpenPdf({ fileUrl: series.syllabusFileUrl, title: `${series.title} Schedule` })}
+                className="inline-flex items-center gap-2 text-xs font-bold text-brand-700 hover:text-brand-900 bg-brand-50 border border-brand-200 rounded-xl px-4 py-2 hover:shadow transition"
+              >
+                <FileText size={14} /> View Schedule PDF
+              </button>
+            ) : (
+              <button
+                onClick={() => toast.error('Schedule PDF is locked. Please enroll in the test series to unlock it.')}
+                className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 transition cursor-not-allowed"
+              >
+                <FileText size={14} /> 🔒 View Schedule PDF (Locked)
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Tests List with 2-level tabs */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {/* Main type tabs */}
@@ -759,6 +787,127 @@ export default function TestSeriesDetail() {
           redeemCoins={redeemCoins}
         />
       )}
+      {/* PDF Viewer Modal */}
+      {openPdf && <PdfModal pdf={openPdf} onClose={() => setOpenPdf(null)} />}
     </div>
+  );
+}
+
+// ─── Resolve PDF embed URL ────────────────────────────────────────────────────
+function resolveEmbedUrl(rawUrl) {
+  if (!rawUrl) return null;
+
+  // Make it absolute if it starts with /
+  let absUrl = rawUrl;
+  if (rawUrl.startsWith('/')) {
+    absUrl = window.location.origin + rawUrl;
+  }
+
+  // Google Drive: /file/d/<ID>/view  →  /file/d/<ID>/preview
+  const driveFile = absUrl.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+  if (driveFile) {
+    return `https://drive.google.com/file/d/${driveFile[1]}/preview`;
+  }
+
+  // Google Drive open?id=<ID>
+  const driveOpen = absUrl.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  if (driveOpen) {
+    return `https://drive.google.com/file/d/${driveOpen[1]}/preview`;
+  }
+
+  // Google Docs/Sheets/Slides  →  embed
+  const docsMatch = absUrl.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([^/?#]+)/);
+  if (docsMatch) {
+    return `https://docs.google.com/${docsMatch[1]}/d/${docsMatch[2]}/preview`;
+  }
+
+  // Use Google Docs viewer to embed PDF inline in iframe
+  if (absUrl.toLowerCase().includes('.pdf')) {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return rawUrl;
+    }
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(absUrl)}&embedded=true`;
+  }
+
+  return rawUrl;
+}
+
+// ─── PDF Modal ────────────────────────────────────────────────────────────────
+function PdfModal({ pdf, onClose }) {
+  const embedUrl = resolveEmbedUrl(pdf.fileUrl);
+
+  // For local uploads, verify the file exists via HEAD request
+  // For external URLs (Google Drive etc.) skip the check — they always respond
+  const isLocal = embedUrl && (embedUrl.startsWith('/') || embedUrl.startsWith(window.location.origin));
+
+  const [status, setStatus] = useState(isLocal ? 'checking' : 'ok');
+
+  useEffect(() => {
+    if (!isLocal) return;
+    if (!embedUrl) { setStatus('error'); return; }
+    let cancelled = false;
+    fetch(embedUrl, { method: 'HEAD' })
+      .then((res) => { if (!cancelled) setStatus(res.ok ? 'ok' : 'error'); })
+      .catch(() => { if (!cancelled) setStatus('error'); });
+    return () => { cancelled = true; };
+  }, [embedUrl, isLocal]);
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-4xl bg-white rounded-2xl overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+          <h3 className="font-bold text-slate-900 text-sm line-clamp-1 pr-4">{pdf.title}</h3>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 grid place-items-center transition shrink-0"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {status === 'checking' && (
+          <div className="flex items-center justify-center py-20 text-slate-400">
+            <Loader2 size={32} className="animate-spin text-brand-600" />
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+            <FileText size={48} className="mb-3 opacity-30" />
+            <p className="text-base font-semibold text-slate-600">File not found</p>
+            <p className="text-sm mt-1">This PDF is not available right now.</p>
+          </div>
+        )}
+
+        {status === 'ok' && (
+          <iframe
+            className="w-full rounded-b-2xl"
+            style={{ height: '80vh' }}
+            src={embedUrl}
+            title={pdf.title}
+            allow="fullscreen"
+          />
+        )}
+      </div>
+    </div>,
+    document.body
   );
 }

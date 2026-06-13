@@ -26,6 +26,7 @@ const syllabusItemSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
     description: { type: String, default: '' },
+    pdfUrl: { type: String, default: '' },
   },
   { _id: true }
 );
@@ -122,8 +123,12 @@ const courseSchema = new mongoose.Schema(
     isCombo: { type: Boolean, default: false },
     comboDescription: { type: String, default: '' },
     comboCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+    comboTestSeries: [{ type: mongoose.Schema.Types.ObjectId, ref: 'TestSeries' }],
     allowUpgrade: { type: Boolean, default: false },
     allowExtendValidity: { type: Boolean, default: false },
+    extendValidityPrice: { type: Number, default: 0 },
+    extendValidityDurationValue: { type: Number, default: 1 },
+    extendValidityDurationUnit: { type: String, enum: ['days', 'months', 'years'], default: 'months' },
     telegramJoinLink: { type: String, default: '' },
     // Upsell
     upsell: {
@@ -193,7 +198,7 @@ courseSchema.pre('save', function (next) {
       '-' +
       Math.random().toString(36).slice(2, 7);
   }
-  if (!this.plans || !this.plans.batch || !this.plans.batch.price) {
+  if (!this.plans || !this.plans.batch) {
     const basePrice = this.price || 0;
     const baseMrp = this.mrp || 0;
     this.plans = {

@@ -77,12 +77,17 @@ export default function CoinsWallet() {
   const aedEquivalent = (currentBalance / 25).toFixed(2);
 
   const rewards = [
-    { title: 'Inorganic Exception cheat sheet', cost: 200, label: 'Cheatsheet Pack' },
-    { title: 'Ace Mock Test Series key code', cost: 500, label: 'Exam Access' },
-    { title: 'JEE Chemistry Question Set', cost: 300, label: 'Practice Set' }
+    { title: '10 AED Discount Voucher', cost: 250, label: 'Discount Voucher' },
+    { title: '20 AED Discount Voucher', cost: 500, label: 'Discount Voucher' },
+    { title: '30 AED Discount Voucher', cost: 750, label: 'Discount Voucher' },
+    { title: '50 AED Discount Voucher', cost: 1250, label: 'Discount Voucher' }
   ];
 
   const handleRedeem = async (reward) => {
+    if (currentBalance < 250) {
+      toast.error('You need at least 250 Coins to redeem any reward.');
+      return;
+    }
     if (currentBalance < reward.cost) {
       toast.error('Insufficient Coins! Keep studying to earn more.');
       return;
@@ -94,7 +99,7 @@ export default function CoinsWallet() {
       const redList = await api.get('/auth/coin-redemptions');
       setRedemptions(redList.data || []);
       
-      toast.success(`Successfully redeemed: ${reward.title}! Check your email or account inventory.`);
+      toast.success(`Successfully redeemed: ${reward.title}! Check your email for your coupon code.`);
     } catch (e) {
       toast.error(e.response?.data?.message || 'Failed to redeem reward. Please try again.');
     }
@@ -213,6 +218,11 @@ export default function CoinsWallet() {
               <Gift size={18} className="text-yellow-600" />
               <span>Redeem Rewards</span>
             </h3>
+            {currentBalance < 250 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl text-xs font-semibold">
+                ⚠️ You need a minimum balance of 250 Coins to start redeeming vouchers.
+              </div>
+            )}
             <div className="space-y-3">
               {rewards.map((reward, i) => (
                 <div key={i} className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
@@ -231,41 +241,24 @@ export default function CoinsWallet() {
                       <span className="px-3.5 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-xl border border-emerald-100 text-center">
                         ✓ Redeemed
                       </span>
-                      {reward.label === 'Cheatsheet Pack' && (
-                        <a
-                          href="/uploads/pdfs/Inorganic_Exception_Cheat_Sheet.pdf"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-[10px] rounded-xl text-center shadow-sm flex items-center justify-center"
-                        >
-                          Download PDF
-                        </a>
-                      )}
-                      {reward.label === 'Exam Access' && (
-                        <button
-                          onClick={() => {
-                            toast.success('Your Exam Access Key Code: ACE-MOCK-TEST-KEY-8947', { duration: 6000 });
-                          }}
-                          className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-[10px] rounded-xl text-center shadow-sm"
-                        >
-                          View Key Code
-                        </button>
-                      )}
-                      {reward.label === 'Practice Set' && (
-                        <a
-                          href="/uploads/pdfs/JEE_Chemistry_Question_Set.pdf"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-[10px] rounded-xl text-center shadow-sm flex items-center justify-center"
-                        >
-                          Download PDF
-                        </a>
-                      )}
+                      <button
+                        onClick={() => {
+                          toast.success(`Your Voucher Coupon Code: ACE-AED-${reward.cost / 25}-OFFER`, { duration: 6000 });
+                        }}
+                        className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-[10px] rounded-xl text-center shadow-sm"
+                      >
+                        View Code
+                      </button>
                     </div>
                   ) : (
                     <button
                       onClick={() => handleRedeem(reward)}
-                      className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] rounded-xl self-start sm:self-center transition shadow-sm"
+                      disabled={currentBalance < reward.cost || currentBalance < 250}
+                      className={`px-3.5 py-1.5 font-bold text-[10px] rounded-xl self-start sm:self-center transition shadow-sm ${
+                        (currentBalance < reward.cost || currentBalance < 250)
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                          : 'bg-slate-900 hover:bg-slate-800 text-white'
+                      }`}
                     >
                       Redeem
                     </button>

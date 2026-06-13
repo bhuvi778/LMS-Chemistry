@@ -24,6 +24,7 @@ import {
   ExternalLink,
   Layers,
   BookMarked,
+  BookOpen,
   BarChart2,
   Download,
   ChevronRight,
@@ -995,6 +996,7 @@ const CONTENT_TYPES_ADMIN = [
   { key: 'classNotes',     label: 'Class Notes',     icon: FileText,      hasVideo: false, hasPdf: true  },
   { key: 'tests',          label: 'Tests',           icon: ClipboardList, hasVideo: false, hasPdf: false, isTest: true },
   { key: 'dpps',           label: 'DPPs',            icon: BarChart2,     hasVideo: false, hasPdf: false, isTest: true },
+  { key: 'pyqs',           label: 'PYQs',            icon: BookOpen,      hasVideo: false, hasPdf: false, isTest: true },
   { key: 'dppPdfs',        label: 'DPP PDFs',        icon: Download,      hasVideo: false, hasPdf: true  },
   { key: 'dppVideos',      label: 'DPP Videos',      icon: Video,         hasVideo: true,  hasPdf: false },
   { key: 'studyMaterials', label: 'Study Materials', icon: BookMarked,    hasVideo: false, hasPdf: true  },
@@ -1237,6 +1239,7 @@ function ChapterEditor({ chapter, subjectId, courseId, onSaved, onDeleted }) {
     classNotes: chapter.classNotes || [],
     tests: chapter.tests || [],
     dpps: chapter.dpps || [],
+    pyqs: chapter.pyqs || [],
     dppPdfs: chapter.dppPdfs || [],
     dppVideos: chapter.dppVideos || [],
     studyMaterials: chapter.studyMaterials || [],
@@ -1251,6 +1254,7 @@ function ChapterEditor({ chapter, subjectId, courseId, onSaved, onDeleted }) {
       classNotes: chapter.classNotes || [],
       tests: chapter.tests || [],
       dpps: chapter.dpps || [],
+      pyqs: chapter.pyqs || [],
       dppPdfs: chapter.dppPdfs || [],
       dppVideos: chapter.dppVideos || [],
       studyMaterials: chapter.studyMaterials || [],
@@ -1291,6 +1295,7 @@ function ChapterEditor({ chapter, subjectId, courseId, onSaved, onDeleted }) {
   if (chapter.classNotes?.length) counts.push(`${chapter.classNotes.length} Notes`);
   if (chapter.tests?.length) counts.push(`${chapter.tests.length} Tests`);
   if (chapter.dpps?.length) counts.push(`${chapter.dpps.length} DPPs`);
+  if (chapter.pyqs?.length) counts.push(`${chapter.pyqs.length} PYQs`);
   if (chapter.dppPdfs?.length) counts.push(`${chapter.dppPdfs.length} DPP PDFs`);
   if (chapter.dppVideos?.length) counts.push(`${chapter.dppVideos.length} DPP Videos`);
   if (chapter.studyMaterials?.length) counts.push(`${chapter.studyMaterials.length} Study Materials`);

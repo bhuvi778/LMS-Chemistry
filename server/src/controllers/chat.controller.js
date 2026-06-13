@@ -107,3 +107,31 @@ export const markAdminRead = asyncHandler(async (req, res) => {
   );
   res.json({ success: true });
 });
+
+// @desc    Clear logged-in user's chat history with support (Student)
+// @route   DELETE /api/chats/clear
+// @access  Private (Student)
+export const clearChatHistory = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  await ChatMessage.deleteMany({
+    $or: [
+      { sender: userId, recipient: null },
+      { recipient: userId }
+    ]
+  });
+  res.json({ success: true, message: 'Chat history cleared' });
+});
+
+// @desc    Clear chat history with a specific student (Admin)
+// @route   DELETE /api/chats/admin/clear/:studentId
+// @access  Admin only
+export const clearAdminChatHistory = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  await ChatMessage.deleteMany({
+    $or: [
+      { sender: studentId, recipient: null },
+      { recipient: studentId }
+    ]
+  });
+  res.json({ success: true, message: 'Chat history cleared by admin' });
+});

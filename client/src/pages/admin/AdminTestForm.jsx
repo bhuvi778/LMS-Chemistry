@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 import SunEditor from 'suneditor-react';
@@ -135,8 +135,8 @@ function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
             <label className="text-xs font-semibold text-slate-500 mb-1 block font-bold">QUESTION TEXT</label>
             <div className="border border-slate-200 rounded-lg overflow-hidden">
               <SunEditor
-                key={`q-${idx}`}
-                setContents={q.question || ''}
+                key={`q-${q._tempId || q._id}`}
+                defaultValue={q.question || ''}
                 onChange={(c) => onChange(idx, 'question', c)}
                 setOptions={RICH_TEXT_OPTS}
               />
@@ -191,8 +191,8 @@ function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
                       </button>
                       <div className="flex-1 border border-slate-200 rounded-lg overflow-hidden">
                         <SunEditor
-                          key={`opt-${idx}-${oi}`}
-                          setContents={opt.text || ''}
+                          key={`opt-${q._tempId || q._id}-${oi}`}
+                          defaultValue={opt.text || ''}
                           onChange={(c) => {
                             const opts = [...q.options];
                             opts[oi] = { ...opts[oi], text: c };
@@ -258,8 +258,8 @@ function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
             <label className="text-xs font-semibold text-slate-500 mb-1 block font-bold">EXPLANATION (optional)</label>
             <div className="border border-slate-200 rounded-lg overflow-hidden">
               <SunEditor
-                key={`exp-${idx}`}
-                setContents={q.explanation || ''}
+                key={`exp-${q._tempId || q._id}`}
+                defaultValue={q.explanation || ''}
                 onChange={(c) => onChange(idx, 'explanation', c)}
                 setOptions={{ ...RICH_TEXT_OPTS, height: 100 }}
               />
@@ -282,6 +282,8 @@ const formatDateTimeLocal = (dateVal) => {
 export default function AdminTestForm() {
   const { id } = useParams();
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
+  const duplicateFrom = searchParams.get('duplicateFrom');
   const isEdit = !!id && id !== 'new';
   const pdfRef = useRef(null);
   const solPdfRef = useRef(null);
@@ -329,8 +331,9 @@ export default function AdminTestForm() {
   }, []);
 
   useEffect(() => {
-    if (isEdit) {
-      api.get(`/tests/admin/tests/${id}`)
+    const targetId = isEdit ? id : duplicateFrom;
+    if (targetId) {
+      api.get(`/tests/admin/tests/${targetId}`)
         .then(({ data }) => {
           // Normalize questions
           const questions = (data.questions || []).map((q) => ({
@@ -344,7 +347,7 @@ export default function AdminTestForm() {
               typeof o === 'string' ? { text: o } : o
             ),
           }));
-          setForm({
+          const normalized = {
             ...data,
             questions,
             isActive: data.isActive !== false,
@@ -360,11 +363,21 @@ export default function AdminTestForm() {
             liveStartDate: data.liveStartDate ? formatDateTimeLocal(data.liveStartDate) : '',
             liveEndDate: data.liveEndDate ? formatDateTimeLocal(data.liveEndDate) : '',
             sections: data.sections || [],
-          });
+          };
+
+          if (duplicateFrom) {
+            delete normalized._id;
+            delete normalized.slug;
+            delete normalized.createdAt;
+            delete normalized.updatedAt;
+            normalized.title = `${normalized.title} (Copy)`;
+          }
+
+          setForm(normalized);
         })
         .catch((err) => toast.error(err.message));
     }
-  }, [id, isEdit]);
+  }, [id, isEdit, duplicateFrom]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -479,7 +492,7 @@ export default function AdminTestForm() {
           <ArrowLeft size={18} />
         </Link>
         <div className="flex-1">
-          <h1 className="text-xl font-bold text-slate-800">{isEdit ? 'Edit Test' : 'New Test'}</h1>
+          <h1 className="text-xl font-bold text-slate-800">{isEdit ? 'Edit Test' : duplicateFrom ? 'Duplicate Test' : 'New Test'}</h1>
           <p className="text-sm text-slate-500">Create once, assign to multiple courses or test series</p>
         </div>
         <button

@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { io } from 'socket.io-client';
 import api from '../api/client.js';
-import { MessageCircle, X, Send, AlertCircle, User, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, AlertCircle, User, Loader2, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { playNotificationSound } from '../utils/audio.js';
 
 export default function SupportChatWidget() {
   const { user } = useAuth();
@@ -32,6 +34,18 @@ export default function SupportChatWidget() {
       setHistoryLoading(false);
     }
   }, []);
+
+  const handleClearChat = async () => {
+    if (!window.confirm('Are you sure you want to clear your chat history? This cannot be undone.')) return;
+    try {
+      await api.delete('/chats/clear');
+      setMessages([]);
+      toast.success('Chat history cleared');
+    } catch (err) {
+      console.error('Failed to clear chat:', err);
+      toast.error('Failed to clear chat history');
+    }
+  };
 
   // Socket connection
   useEffect(() => {
@@ -111,8 +125,11 @@ export default function SupportChatWidget() {
       // Increment unread if chat is closed and message is from support (not us)
       const senderId = String(msg.sender?._id || msg.sender || '');
       const myId = String(user._id);
-      if (!open && senderId !== myId) {
-        setUnread((v) => v + 1);
+      if (senderId !== myId) {
+        playNotificationSound();
+        if (!open) {
+          setUnread((v) => v + 1);
+        }
       }
     });
 
@@ -206,12 +223,23 @@ export default function SupportChatWidget() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="p-1.5 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition"
-            >
-              <X size={18} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleClearChat}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-white/85 hover:text-white transition"
+                title="Clear Chat History"
+              >
+                <Trash2 size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
           {/* Error Banner */}

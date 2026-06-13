@@ -33,7 +33,9 @@ export const getCourse = asyncHandler(async (req, res) => {
   const query = isObjectId
     ? Course.findById(param)
     : Course.findOne({ slug: param });
-  const course = await query.populate('comboCourses', 'title slug thumbnail price mrp plans isFree courseType');
+  const course = await query
+    .populate('comboCourses', 'title slug thumbnail price mrp plans isFree courseType')
+    .populate('comboTestSeries', 'title slug thumbnail price mrp isFree');
   if (!course) {
     res.status(404);
     throw new Error('Course not found');
@@ -46,11 +48,13 @@ export const getCourse = asyncHandler(async (req, res) => {
 });
 
 export const createCourse = asyncHandler(async (req, res) => {
+  console.log('createCourse payload:', req.body);
   const course = await Course.create(req.body);
   res.status(201).json(course);
 });
 
 export const updateCourse = asyncHandler(async (req, res) => {
+  console.log('updateCourse payload:', req.body);
   const course = await Course.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true,

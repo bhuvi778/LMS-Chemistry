@@ -4,6 +4,7 @@ import CoursePdf from '../models/CoursePdf.js';
 import CourseTest from '../models/CourseTest.js';
 import Enrollment from '../models/Enrollment.js';
 import LiveClass from '../models/LiveClass.js';
+import Test from '../models/Test.js';
 
 // ─── Student: get full learning content for an enrolled course ───────────────
 
@@ -129,8 +130,10 @@ export const adminDeletePdf = asyncHandler(async (req, res) => {
 // ─── Admin: Tests ─────────────────────────────────────────────────────────────
 
 export const adminGetTests = asyncHandler(async (req, res) => {
-  const tests = await CourseTest.find({ course: req.params.courseId }).sort({ order: 1 });
-  res.json(tests);
+  const courseTests = await CourseTest.find({ course: req.params.courseId }).sort({ order: 1 }).lean();
+  const globalTests = await Test.find({ isActive: true }).sort({ createdAt: -1 }).lean();
+  const combined = [...courseTests, ...globalTests];
+  res.json(combined);
 });
 
 export const adminCreateTest = asyncHandler(async (req, res) => {

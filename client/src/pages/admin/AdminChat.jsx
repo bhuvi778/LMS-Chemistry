@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import api from '../../api/client.js';
 import { io } from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { Search, Send, User, MessageSquare, Loader2, Sparkles } from 'lucide-react';
+import { Search, Send, User, MessageSquare, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { playNotificationSound } from '../../utils/audio.js';
 
 export default function AdminChat() {
   const { user } = useAuth();
@@ -18,6 +19,20 @@ export default function AdminChat() {
   const socketRef = useRef(null);
   const chatEndRef = useRef(null);
   const selectedStudentRef = useRef(null);
+
+  const handleClearChat = async () => {
+    if (!selectedStudent) return;
+    if (!window.confirm(`Are you sure you want to clear chat history with ${selectedStudent.name}? This will delete all messages permanently.`)) return;
+    try {
+      await api.delete(`/chats/admin/clear/${selectedStudent._id}`);
+      setMessages([]);
+      toast.success('Chat history cleared by admin');
+      loadConversations(true);
+    } catch (err) {
+      console.error('Failed to clear chat:', err);
+      toast.error('Failed to clear chat history');
+    }
+  };
 
   // Sync ref to use inside event listeners
   useEffect(() => {
@@ -70,6 +85,12 @@ export default function AdminChat() {
       const isForActiveRoom =
         activeStudent &&
         (msg.sender === activeStudent._id || msg.recipient === activeStudent._id);
+
+      const senderId = String(msg.sender?._id || msg.sender || '');
+      const myId = String(user?._id || '');
+      if (senderId !== myId) {
+        playNotificationSound();
+      }
 
       if (isForActiveRoom) {
         setMessages((prev) => {
@@ -240,6 +261,14 @@ export default function AdminChat() {
                   <p className="text-[10px] text-slate-400">{selectedStudent.email}</p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={handleClearChat}
+                className="px-3 py-1.5 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl border border-rose-100 hover:bg-rose-100 transition flex items-center gap-1 shrink-0 shadow-sm"
+                title="Clear Chat History"
+              >
+                <Trash2 size={13} /> Clear Chat
+              </button>
             </div>
 
             {/* Messages Listing */}

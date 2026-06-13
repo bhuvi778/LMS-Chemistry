@@ -2,8 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { io } from 'socket.io-client';
 import api from '../../api/client.js';
-import { MessageSquare, Send, AlertCircle, User, Loader2, RefreshCw } from 'lucide-react';
+import { MessageSquare, Send, AlertCircle, User, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { playNotificationSound } from '../../utils/audio.js';
 
 export default function SupportChat() {
   const { user } = useAuth();
@@ -16,6 +17,18 @@ export default function SupportChat() {
   const socketRef = useRef(null);
   const chatEndRef = useRef(null);
   const historyFetchedRef = useRef(false);
+
+  const handleClearChat = async () => {
+    if (!window.confirm('Are you sure you want to clear your chat history? This cannot be undone.')) return;
+    try {
+      await api.delete('/chats/clear');
+      setMessages([]);
+      toast.success('Chat history cleared');
+    } catch (err) {
+      console.error('Failed to clear chat:', err);
+      toast.error('Failed to clear chat history');
+    }
+  };
 
   // Load chat history
   const loadHistory = useCallback(async () => {
@@ -90,6 +103,12 @@ export default function SupportChat() {
     });
 
     socket.on('chat:message', (msg) => {
+      const senderId = String(msg.sender?._id || msg.sender || '');
+      const myId = String(user?._id || '');
+      if (senderId !== myId) {
+        playNotificationSound();
+      }
+
       setMessages((prev) => {
         // Dedup by _id
         if (msg._id && prev.some((m) => m._id && m._id.toString() === msg._id.toString())) {
@@ -169,6 +188,13 @@ export default function SupportChat() {
             title="Refresh Chat History"
           >
             <RefreshCw size={15} />
+          </button>
+          <button
+            onClick={handleClearChat}
+            className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl bg-white border border-rose-100 shadow-sm transition"
+            title="Clear Chat History"
+          >
+            <Trash2 size={15} />
           </button>
         </div>
       </div>

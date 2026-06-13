@@ -102,16 +102,27 @@ export const createOrder = asyncHandler(async (req, res) => {
     item = await Course.findById(courseId);
     if (!item) { res.status(404); throw new Error('Course not found'); }
     const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
-    if (existing) {
-      const planOrder = { batch: 1, pro: 2, infinity: 3 };
-      if (planOrder[planType] <= planOrder[existing.planType]) {
+    if (req.body.isExtension) {
+      if (!item.allowExtendValidity) {
         res.status(400);
-        throw new Error(`You are already enrolled in the ${existing.planType.toUpperCase()} plan. Downgrade or same-plan upgrade is not allowed.`);
+        throw new Error('Validity extension is not allowed for this course');
+      }
+      if (!existing) {
+        res.status(400);
+        throw new Error('You must be enrolled in this course to extend its validity');
+      }
+    } else {
+      if (existing) {
+        const planOrder = { batch: 1, pro: 2, infinity: 3 };
+        if (planOrder[planType] <= planOrder[existing.planType]) {
+          res.status(400);
+          throw new Error(`You are already enrolled in the ${existing.planType.toUpperCase()} plan. Downgrade or same-plan upgrade is not allowed.`);
+        }
       }
     }
 
     // Seat limit check for Ace Infinity
-    if (planType === 'infinity') {
+    if (!req.body.isExtension && planType === 'infinity') {
       const seatsLimit = item.plans?.infinity?.seatsLimit || 15;
       const seatsReserved = item.plans?.infinity?.seatsReserved || 0;
       const enrolledInfinityCount = await Enrollment.countDocuments({
@@ -134,7 +145,9 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   // Coupon support (courses and test series)
   let originalAmount = item.price;
-  if (isCourse && item.plans && item.plans[planType]) {
+  if (req.body.isExtension) {
+    originalAmount = item.extendValidityPrice || 0;
+  } else if (isCourse && item.plans && item.plans[planType]) {
     const pConfig = item.plans[planType];
     if (!pConfig.enabled) {
       res.status(400);
@@ -151,7 +164,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
 
   // Adjust price if upgrading
-  if (isCourse) {
+  if (isCourse && !req.body.isExtension) {
     const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
     if (existing) {
       originalAmount = Math.max(0, originalAmount - (existing.pricePaid || 0));
@@ -190,7 +203,27 @@ export const createOrder = asyncHandler(async (req, res) => {
     let enrollment;
     if (isCourse) {
       const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
-      if (existing) {
+      if (req.body.isExtension) {
+        if (!existing) {
+          res.status(400);
+          throw new Error('Enrollment not found for validity extension');
+        }
+        const val = item.extendValidityDurationValue || 1;
+        const unit = item.extendValidityDurationUnit || 'months';
+        let baseDate = new Date();
+        if (existing.validUntil && new Date(existing.validUntil) > new Date()) {
+          baseDate = new Date(existing.validUntil);
+        }
+        if (unit === 'days') baseDate.setDate(baseDate.getDate() + val);
+        else if (unit === 'months') baseDate.setMonth(baseDate.getMonth() + val);
+        else if (unit === 'years') baseDate.setFullYear(baseDate.getFullYear() + val);
+
+        existing.validUntil = baseDate;
+        existing.pricePaid = (existing.pricePaid || 0) + finalAmount;
+        existing.paymentId = 'FREE_EXTENSION_' + Date.now();
+        await existing.save();
+        enrollment = existing;
+      } else if (existing) {
         existing.planType = planType;
         existing.pricePaid = (existing.pricePaid || 0) + finalAmount;
         existing.paymentId = 'FREE_UPGRADE_' + Date.now();
@@ -280,6 +313,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     coinsRedeemed,
     coinDiscount,
     status: 'created',
+    isExtension: !!req.body.isExtension,
   });
 
   res.status(201).json({
@@ -345,7 +379,27 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   if (courseId) {
     const course = await Course.findById(courseId);
     const already = await Enrollment.findOne({ student: req.user._id, course: courseId });
-    if (already) {
+    if (payment.isExtension) {
+      if (!already) {
+        res.status(400);
+        throw new Error('Enrollment not found for validity extension');
+      }
+      const val = course.extendValidityDurationValue || 1;
+      const unit = course.extendValidityDurationUnit || 'months';
+      let baseDate = new Date();
+      if (already.validUntil && new Date(already.validUntil) > new Date()) {
+        baseDate = new Date(already.validUntil);
+      }
+      if (unit === 'days') baseDate.setDate(baseDate.getDate() + val);
+      else if (unit === 'months') baseDate.setMonth(baseDate.getMonth() + val);
+      else if (unit === 'years') baseDate.setFullYear(baseDate.getFullYear() + val);
+
+      already.validUntil = baseDate;
+      already.pricePaid = (already.pricePaid || 0) + payment.amount;
+      already.paymentId = razorpayPaymentId;
+      await already.save();
+      enrollment = already;
+    } else if (already) {
       if (payment.planType && payment.planType !== already.planType) {
         already.planType = payment.planType;
         already.pricePaid = (already.pricePaid || 0) + payment.amount;

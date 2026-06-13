@@ -3,6 +3,83 @@ import { useParams, Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import api from '../api/client.js';
 import toast from 'react-hot-toast';
+import SecureYTPlayer from '../components/SecureYTPlayer.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+
+function SecureVideoPlayer({ url, title }) {
+  const { user } = useAuth();
+
+  const watermarkText = user 
+    ? `${user.name} | ${user.email} | ${user.phone || ''}` 
+    : 'Guest User | Ace2Examz Preview';
+
+  const renderWatermark = () => (
+    <div className="absolute inset-0 z-20 pointer-events-none select-none flex flex-col justify-around items-center overflow-hidden opacity-[0.12]">
+      <div className="w-full flex justify-around rotate-[-15deg] whitespace-nowrap text-white font-medium text-xs sm:text-sm">
+        <span>{watermarkText}</span>
+        <span className="hidden sm:inline">{watermarkText}</span>
+      </div>
+      <div className="w-full flex justify-around rotate-[-15deg] whitespace-nowrap text-white font-medium text-xs sm:text-sm">
+        <span className="hidden sm:inline">{watermarkText}</span>
+        <span>{watermarkText}</span>
+      </div>
+      <div className="w-full flex justify-around rotate-[-15deg] whitespace-nowrap text-white font-medium text-xs sm:text-sm">
+        <span>{watermarkText}</span>
+        <span className="hidden sm:inline">{watermarkText}</span>
+      </div>
+    </div>
+  );
+
+  if (!url) return (
+    <div className="aspect-video bg-slate-900 rounded-xl flex items-center justify-center text-slate-400">
+      <div className="text-center">
+        <Video size={48} className="mx-auto mb-2 opacity-40" />
+        <p className="text-sm">No video available</p>
+      </div>
+    </div>
+  );
+
+  let playerContent = null;
+
+  const ytMatch = url.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/))([A-Za-z0-9_-]{11})/
+  );
+  if (ytMatch) {
+    playerContent = (
+      <SecureYTPlayer url={url} title={title} />
+    );
+  } else if (url.includes('mediadelivery.net') || url.includes('bunny.net') || url.includes('bunny')) {
+    playerContent = (
+      <iframe
+        className="w-full h-full"
+        src={url}
+        title={title}
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+        allowFullScreen
+      />
+    );
+  } else {
+    playerContent = (
+      <video
+        className="w-full h-full object-contain"
+        controls
+        controlsList="nodownload"
+        onContextMenu={(e) => e.preventDefault()}
+        src={url}
+        title={title}
+      >
+        Your browser does not support video playback.
+      </video>
+    );
+  }
+
+  return (
+    <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-black select-none">
+      {playerContent}
+      {renderWatermark()}
+    </div>
+  );
+}
 import {
   CheckCircle,
   XCircle,
@@ -194,30 +271,8 @@ function QuestionReview({ question, answer }) {
           )}
           {question.videoSolutionUrl && (
             <div className="mt-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 shadow-inner">
-              <strong className="text-xs font-bold text-slate-655 uppercase block mb-1">Question Video Solution:</strong>
-              <div className="aspect-video w-full rounded-lg overflow-hidden bg-slate-900">
-                {question.videoSolutionUrl.includes('youtube.com') || question.videoSolutionUrl.includes('youtu.be') ? (
-                  <iframe
-                    className="w-full h-full"
-                    src={
-                      question.videoSolutionUrl.includes('youtube.com/embed/')
-                        ? question.videoSolutionUrl
-                        : `https://www.youtube.com/embed/${
-                            question.videoSolutionUrl.split('v=')[1]?.split('&')[0] ||
-                            question.videoSolutionUrl.split('/').pop()
-                          }`
-                    }
-                    title="Question Video Solution"
-                    allowFullScreen
-                  />
-                ) : (
-                  <video
-                    className="w-full h-full object-contain"
-                    controls
-                    src={question.videoSolutionUrl}
-                  />
-                )}
-              </div>
+              <strong className="text-xs font-bold text-slate-600 uppercase block mb-1">Question Video Solution:</strong>
+              <SecureVideoPlayer url={question.videoSolutionUrl} title="Question Video Solution" />
             </div>
           )}
         </div>
@@ -408,29 +463,7 @@ export default function TestResult() {
             <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-base">
               <Video size={18} className="text-brand-600" /> Test Video Solution Walkthrough
             </h2>
-            <div className="aspect-video w-full rounded-xl overflow-hidden bg-slate-900 border border-slate-100 shadow-inner">
-              {test.videoSolutionUrl.includes('youtube.com') || test.videoSolutionUrl.includes('youtu.be') ? (
-                <iframe
-                  className="w-full h-full"
-                  src={
-                    test.videoSolutionUrl.includes('youtube.com/embed/')
-                      ? test.videoSolutionUrl
-                      : `https://www.youtube.com/embed/${
-                          test.videoSolutionUrl.split('v=')[1]?.split('&')[0] ||
-                          test.videoSolutionUrl.split('/').pop()
-                        }`
-                  }
-                  title="Test Video Solution"
-                  allowFullScreen
-                />
-              ) : (
-                <video
-                  className="w-full h-full object-contain"
-                  controls
-                  src={test.videoSolutionUrl}
-                />
-              )}
-            </div>
+            <SecureVideoPlayer url={test.videoSolutionUrl} title="Test Video Solution" />
           </div>
         )}
 
@@ -514,7 +547,7 @@ export default function TestResult() {
           {/* Certificate Header */}
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
             <h1 style={{ fontSize: '32px', margin: '0 0 5px 0', textTransform: 'uppercase', color: '#1e3a8a', letterSpacing: '1px' }}>
-              Ace2Examz LMS Academy
+              Ace2Examz
             </h1>
             <p style={{ fontSize: '14px', margin: '0', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold' }}>
               Official Examination Report Card

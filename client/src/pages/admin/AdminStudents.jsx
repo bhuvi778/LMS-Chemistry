@@ -402,10 +402,9 @@ function StudentModal({ id, onClose, onChanged }) {
   const filteredCourses = useMemo(() => {
     const s = courseSearch.toLowerCase();
     return allCourses.filter(
-      (c) => !enrolledIds.has(String(c._id)) &&
-        (c.title?.toLowerCase().includes(s) || c.category?.toLowerCase().includes(s))
+      (c) => (c.title?.toLowerCase().includes(s) || c.category?.toLowerCase().includes(s))
     );
-  }, [allCourses, enrolledIds, courseSearch]);
+  }, [allCourses, courseSearch]);
 
   const openEnroll = () => {
     if (!allCourses.length) {
@@ -770,18 +769,22 @@ function StudentModal({ id, onClose, onChanged }) {
                   </div>
                   {filteredCourses.length === 0 ? (
                     <div className="text-xs text-slate-400 italic text-center py-2">
-                      {allCourses.length === 0 ? 'Loading…' : 'No unenrolled courses found'}
+                      {allCourses.length === 0 ? 'Loading…' : 'No courses found'}
                     </div>
                   ) : (
                     <div className="space-y-1 max-h-48 overflow-y-auto">
                       {filteredCourses.map((c) => {
-                        const currentPlan = selectedPlans[c._id] || 'batch';
+                        const isEnrolled = enrolledIds.has(String(c._id));
+                        const enrollment = data?.enrollments?.find(e => String(e.course?._id || e.course) === String(c._id));
+                        const currentPlan = selectedPlans[c._id] || enrollment?.planType || 'batch';
                         return (
                           <div key={c._id} className="flex items-center gap-2 bg-white rounded-lg p-2 border border-slate-100">
                             {c.thumbnail && <img src={c.thumbnail} className="w-9 h-9 rounded object-cover shrink-0" alt="" />}
                             <div className="flex-1 min-w-0">
                               <div className="font-semibold text-xs truncate">{c.title}</div>
-                              <div className="text-[10px] text-slate-500">{c.category}</div>
+                              <div className="text-[10px] text-slate-500">
+                                {c.category} {isEnrolled && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded ml-1">Enrolled</span>}
+                              </div>
                             </div>
                             <select
                               value={currentPlan}
@@ -795,9 +798,19 @@ function StudentModal({ id, onClose, onChanged }) {
                             <button
                               disabled={enrollBusy === c._id}
                               onClick={() => enrollInCourse(c._id, currentPlan)}
-                              className="btn-primary text-[11px] px-2 py-1 shrink-0 disabled:opacity-50"
+                              className={`text-[11px] px-2.5 py-1 shrink-0 rounded font-bold transition ${
+                                isEnrolled 
+                                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                                  : 'bg-brand-600 hover:bg-brand-700 text-white'
+                              } disabled:opacity-50`}
                             >
-                              {enrollBusy === c._id ? <Loader2 size={11} className="animate-spin" /> : 'Allot'}
+                              {enrollBusy === c._id ? (
+                                <Loader2 size={11} className="animate-spin" />
+                              ) : isEnrolled ? (
+                                'Upgrade'
+                              ) : (
+                                'Allot'
+                              )}
                             </button>
                           </div>
                         );
@@ -818,9 +831,33 @@ function StudentModal({ id, onClose, onChanged }) {
                           {e.course?.category} · Enrolled {new Date(e.createdAt).toLocaleDateString('en-AE')}
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                          <span className="chip bg-brand-50 text-brand-700 font-bold uppercase py-0.5 px-1.5 text-[9px] rounded-full">
-                            {e.planType || 'batch'}
-                          </span>
+                          <select
+                            value={e.planType || 'batch'}
+                            onChange={async (event) => {
+                              const newPlan = event.target.value;
+                              if (confirm(`Change plan for "${e.course?.title || 'this course'}" to ${newPlan.toUpperCase()}?`)) {
+                                setEnrollBusy(String(e.course?._id || e.course));
+                                try {
+                                  await api.put(`/admin/enrollments/${e._id}/extend`, {
+                                    planType: newPlan,
+                                    validUntil: e.validUntil || null
+                                  });
+                                  toast.success('Plan updated/upgraded successfully!');
+                                  load();
+                                } catch (err) {
+                                  toast.error(err.response?.data?.message || 'Failed to update plan');
+                                } finally {
+                                  setEnrollBusy('');
+                                }
+                              }
+                            }}
+                            disabled={enrollBusy === String(e.course?._id || e.course)}
+                            className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 bg-white font-bold uppercase text-brand-700 focus:outline-none focus:border-brand-500 cursor-pointer"
+                          >
+                            <option value="batch">batch</option>
+                            <option value="pro">pro</option>
+                            <option value="infinity">infinity</option>
+                          </select>
                           {e.paymentId?.startsWith('ADMIN_ALLOT_') && (
                             <span className="text-[10px] font-semibold text-brand-600">Admin allotted</span>
                           )}

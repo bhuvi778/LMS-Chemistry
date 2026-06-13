@@ -89,6 +89,7 @@ const CONTENT_TYPES = [
   { key: 'classNotes',     label: 'Class Notes',     icon: FileText,     color: 'text-emerald-600', bg: 'bg-emerald-50' },
   { key: 'tests',          label: 'Tests',           icon: ClipboardList,color: 'text-amber-600',   bg: 'bg-amber-50'   },
   { key: 'dpps',           label: 'DPPs',            icon: BarChart2,    color: 'text-violet-600',  bg: 'bg-violet-50'  },
+  { key: 'pyqs',           label: 'PYQs',            icon: BookOpen,     color: 'text-indigo-600',  bg: 'bg-indigo-50'  },
   { key: 'dppPdfs',        label: 'DPP PDFs',        icon: Download,     color: 'text-rose-600',    bg: 'bg-rose-50'    },
   { key: 'dppVideos',      label: 'DPP Videos',      icon: Video,        color: 'text-sky-600',     bg: 'bg-sky-50'     },
   { key: 'studyMaterials', label: 'Study Materials', icon: BookMarked,   color: 'text-orange-600',  bg: 'bg-orange-50'  },
@@ -488,6 +489,7 @@ export default function CourseDetail() {
   const [payMode, setPayMode] = useState('razorpay'); // 'razorpay' | 'bank'
   const [showBankModal, setShowBankModal] = useState(false);
   const [feeBreakdown, setFeeBreakdown] = useState(null); // { baseAmount, gatewayFee, gstAmount, totalAmount }
+  const [openPdf, setOpenPdf] = useState(null);
 
   // Coupon state
   const [couponInput, setCouponInput] = useState('');
@@ -679,8 +681,8 @@ export default function CourseDetail() {
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'Ace2Examz',
-        description: orderData.courseName,
-        image: orderData.courseThumbnail || '',
+        description: orderData.itemName,
+        image: orderData.itemThumbnail || '',
         order_id: orderData.orderId,
         prefill: orderData.prefill,
         theme: { color: '#4f46e5' },
@@ -721,7 +723,7 @@ export default function CourseDetail() {
       toast.error(e.message || 'Could not initiate payment. Please try again.');
       setBusy(false);
     }
-  }, [user, course, couponApplied, id, nav]);
+  }, [user, course, couponApplied, id, nav, redeemCoins, selectedPlan]);
 
   if (!course) {
     return (
@@ -885,6 +887,10 @@ export default function CourseDetail() {
                   const isDowngradeOrSame = enrollment && planOrder[p.k] <= planOrder[enrollment.planType];
                   const isSelected = selectedPlan === p.k;
                   
+                  const displayPrice = enrollment && !isDowngradeOrSame
+                    ? Math.max(0, planPrice - (enrollment.pricePaid || 0))
+                    : planPrice;
+
                   return (
                     <button
                       key={p.k}
@@ -905,7 +911,7 @@ export default function CourseDetail() {
                     >
                       <span className="text-xs sm:text-sm leading-none whitespace-nowrap">{p.l}</span>
                       <span className="text-xs mt-1 text-slate-500 font-bold">
-                        {isDowngradeOrSame ? 'Owned' : `AED ${planPrice}`}
+                        {isDowngradeOrSame ? 'Owned' : enrollment ? `Upgrade: AED ${displayPrice}` : `AED ${displayPrice}`}
                       </span>
                     </button>
                   );
@@ -918,7 +924,7 @@ export default function CourseDetail() {
                   batch: [
                     { text: '📚 Complete Chemistry Syllabus', included: true },
                     { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
-                    { text: '🧪 Standard Online Practice Tests', included: true },
+                    { text: '🧪 Online Practice Test', included: true },
                     { text: '💬 1 Doubt Query Per Day', included: true },
                     { text: '🎥 Interactive Live Classes', included: false },
                     { text: '👑 1-on-1 Personal Mentorship', included: false },
@@ -927,7 +933,7 @@ export default function CourseDetail() {
                   pro: [
                     { text: '📚 Complete Chemistry Syllabus', included: true },
                     { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
-                    { text: '🧪 Standard Online Practice Tests', included: true },
+                    { text: '🧪 Online Practice Test', included: true },
                     { text: '💬 3 Doubt Queries Per Day', included: true },
                     { text: '🎥 Interactive Live Classes', included: true },
                     { text: '👑 1-on-1 Personal Mentorship', included: false },
@@ -936,7 +942,7 @@ export default function CourseDetail() {
                   infinity: [
                     { text: '📚 Complete Chemistry Syllabus', included: true },
                     { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
-                    { text: '🧪 Standard Online Practice Tests', included: true },
+                    { text: '🧪 Online Practice Test', included: true },
                     { text: '💬 Unlimited Doubt Queries', included: true },
                     { text: '🎥 Interactive Live Classes', included: true },
                     { text: '👑 1-on-1 Personal Mentorship', included: true },
@@ -1379,37 +1385,72 @@ export default function CourseDetail() {
                 )}
               </div>
 
-              {course.isCombo && course.comboCourses?.length > 0 && (
+              {course.isCombo && ((course.comboCourses && course.comboCourses.length > 0) || (course.comboTestSeries && course.comboTestSeries.length > 0)) && (
                 <div className="mb-10 bg-slate-50 border border-slate-200 rounded-2xl p-6 sm:p-8">
                   <h3 className="font-display text-lg font-extrabold text-slate-800 flex items-center gap-2 mb-2">
-                    <span>🎁</span> Included Batches & Courses ({course.comboCourses.length})
+                    <span>🎁</span> Included Batches, Courses & Test Series
                   </h3>
                   <p className="text-xs text-slate-500 mb-6 font-semibold">
-                    This combo package grants you complete access to all of the following premium courses:
+                    This combo package grants you complete access to all of the following premium content:
                   </p>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {course.comboCourses.map((cc) => (
-                      <Link
-                        key={cc._id}
-                        to={`/courses/${cc.slug || cc._id}`}
-                        className="bg-white rounded-2xl border border-slate-200 p-4 flex gap-4 hover:shadow-md transition-all group"
-                      >
-                        <img
-                          src={cc.thumbnail}
-                          alt={cc.title}
-                          className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100"
-                        />
-                        <div className="flex-1 min-w-0 flex flex-col justify-between">
-                          <h4 className="font-bold text-slate-800 text-sm leading-snug group-hover:text-brand-600 transition-colors line-clamp-2">
-                            {cc.title}
-                          </h4>
-                          <span className="text-[10px] font-bold text-brand-600 hover:underline inline-flex items-center gap-0.5 mt-2">
-                            View Course Details →
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
+
+                  {course.comboCourses && course.comboCourses.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="font-bold text-slate-700 text-sm mb-3">🎓 Included Batches & Courses ({course.comboCourses.length})</h4>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {course.comboCourses.map((cc) => (
+                          <Link
+                            key={cc._id}
+                            to={`/courses/${cc.slug || cc._id}`}
+                            className="bg-white rounded-2xl border border-slate-200 p-4 flex gap-4 hover:shadow-md transition-all group"
+                          >
+                            <img
+                              src={cc.thumbnail}
+                              alt={cc.title}
+                              className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100"
+                            />
+                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                              <h4 className="font-bold text-slate-800 text-sm leading-snug group-hover:text-brand-600 transition-colors line-clamp-2">
+                                {cc.title}
+                              </h4>
+                              <span className="text-[10px] font-bold text-brand-600 hover:underline inline-flex items-center gap-0.5 mt-2">
+                                View Course Details →
+                              </span>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {course.comboTestSeries && course.comboTestSeries.length > 0 && (
+                    <div>
+                      <h4 className="font-bold text-slate-700 text-sm mb-3">📝 Included Test Series ({course.comboTestSeries.length})</h4>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {course.comboTestSeries.map((ts) => (
+                          <Link
+                            key={ts._id}
+                            to={`/test-series/${ts.slug || ts._id}`}
+                            className="bg-white rounded-2xl border border-slate-200 p-4 flex gap-4 hover:shadow-md transition-all group"
+                          >
+                            <img
+                              src={ts.thumbnail}
+                              alt={ts.title}
+                              className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100"
+                            />
+                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                              <h4 className="font-bold text-slate-800 text-sm leading-snug group-hover:text-brand-600 transition-colors line-clamp-2">
+                                {ts.title}
+                              </h4>
+                              <span className="text-[10px] font-bold text-brand-600 hover:underline inline-flex items-center gap-0.5 mt-2">
+                                View Test Series Details →
+                              </span>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
@@ -1455,7 +1496,7 @@ export default function CourseDetail() {
                         <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
                       </tr>
                       <tr>
-                        <td className="p-3 text-xs font-semibold text-slate-800">Chapter Tests & DPPs</td>
+                        <td className="p-3 text-xs font-semibold text-slate-800">Mock Test & DPPs</td>
                         <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
                         <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
                         <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
@@ -1566,6 +1607,25 @@ export default function CourseDetail() {
                           <p className="text-sm text-slate-500 mt-1.5 leading-relaxed whitespace-pre-line">
                             {item.description}
                           </p>
+                        )}
+                        {typeof item !== 'string' && item.pdfUrl && (
+                          <div className="mt-2.5">
+                            {enrolled || user?.role === 'admin' ? (
+                              <button
+                                onClick={() => setOpenPdf({ fileUrl: item.pdfUrl, title: item.title || 'Syllabus PDF' })}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 px-2.5 py-1.5 rounded-lg transition"
+                              >
+                                <span>📄 View Syllabus PDF</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => toast.error('Syllabus PDF is locked. Please enroll in the course to unlock it.')}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-lg transition cursor-not-allowed"
+                              >
+                                <span>🔒 View Syllabus PDF (Locked)</span>
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1945,6 +2005,127 @@ export default function CourseDetail() {
           redeemCoins={redeemCoins}
         />
       )}
+      {openPdf && <PdfModal pdf={openPdf} onClose={() => setOpenPdf(null)} />}
     </div>
   );
 }
+
+// ─── Resolve PDF embed URL ────────────────────────────────────────────────────
+function resolveEmbedUrl(rawUrl) {
+  if (!rawUrl) return null;
+
+  // Make it absolute if it starts with /
+  let absUrl = rawUrl;
+  if (rawUrl.startsWith('/')) {
+    absUrl = window.location.origin + rawUrl;
+  }
+
+  // Google Drive: /file/d/<ID>/view  →  /file/d/<ID>/preview
+  const driveFile = absUrl.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+  if (driveFile) {
+    return `https://drive.google.com/file/d/${driveFile[1]}/preview`;
+  }
+
+  // Google Drive open?id=<ID>
+  const driveOpen = absUrl.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  if (driveOpen) {
+    return `https://drive.google.com/file/d/${driveOpen[1]}/preview`;
+  }
+
+  // Google Docs/Sheets/Slides  →  embed
+  const docsMatch = absUrl.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([^/?#]+)/);
+  if (docsMatch) {
+    return `https://docs.google.com/${docsMatch[1]}/d/${docsMatch[2]}/preview`;
+  }
+
+  // Use Google Docs viewer to embed PDF inline in iframe
+  if (absUrl.toLowerCase().includes('.pdf')) {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return rawUrl;
+    }
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(absUrl)}&embedded=true`;
+  }
+
+  return rawUrl;
+}
+
+// ─── PDF Modal ────────────────────────────────────────────────────────────────
+function PdfModal({ pdf, onClose }) {
+  const embedUrl = resolveEmbedUrl(pdf.fileUrl);
+
+  // For local uploads, verify the file exists via HEAD request
+  // For external URLs (Google Drive etc.) skip the check — they always respond
+  const isLocal = embedUrl && (embedUrl.startsWith('/') || embedUrl.startsWith(window.location.origin));
+
+  const [status, setStatus] = useState(isLocal ? 'checking' : 'ok');
+
+  useEffect(() => {
+    if (!isLocal) return;
+    if (!embedUrl) { setStatus('error'); return; }
+    let cancelled = false;
+    fetch(embedUrl, { method: 'HEAD' })
+      .then((res) => { if (!cancelled) setStatus(res.ok ? 'ok' : 'error'); })
+      .catch(() => { if (!cancelled) setStatus('error'); });
+    return () => { cancelled = true; };
+  }, [embedUrl, isLocal]);
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-4xl bg-white rounded-2xl overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+          <h3 className="font-bold text-slate-900 text-sm line-clamp-1 pr-4">{pdf.title}</h3>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 grid place-items-center transition shrink-0"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {status === 'checking' && (
+          <div className="flex items-center justify-center py-20 text-slate-400">
+            <Loader2 size={32} className="animate-spin text-brand-600" />
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+            <FileText size={48} className="mb-3 opacity-30" />
+            <p className="text-base font-semibold text-slate-600">File not found</p>
+            <p className="text-sm mt-1">This PDF is not available right now.</p>
+          </div>
+        )}
+
+        {status === 'ok' && (
+          <iframe
+            className="w-full rounded-b-2xl"
+            style={{ height: '80vh' }}
+            src={embedUrl}
+            title={pdf.title}
+            allow="fullscreen"
+          />
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+

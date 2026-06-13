@@ -608,7 +608,7 @@ function ReviewsTab({ courseId, user }) {
 }
 
 // ─── Test Series Tab ──────────────────────────────────────────────────────────
-function TestSeriesTab({ courseId, onViewPdf }) {
+function TestSeriesTab({ courseId, onViewPdf, onPlayVideo }) {
   const [series, setSeries] = useState([]);
   const [standaloneTests, setStandaloneTests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -725,10 +725,12 @@ function TestSeriesTab({ courseId, onViewPdf }) {
                         </button>
                       )}
                       {t.videoSolutionUrl && (
-                        <a href={t.videoSolutionUrl} target="_blank" rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 hover:text-violet-900 bg-violet-50 rounded-lg px-3 py-1.5 hover:bg-violet-100 transition">
+                        <button
+                          onClick={() => onPlayVideo(t.videoSolutionUrl, `${testTitle} Video Solution`)}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 hover:text-violet-900 bg-violet-50 rounded-lg px-3 py-1.5 hover:bg-violet-100 transition"
+                        >
                           <PlayCircle size={12} /> Video Solution
-                        </a>
+                        </button>
                       )}
                     </div>
                   )}
@@ -864,10 +866,12 @@ function TestSeriesTab({ courseId, onViewPdf }) {
                                     </button>
                                   )}
                                   {t.videoSolutionUrl && (
-                                    <a href={t.videoSolutionUrl} target="_blank" rel="noreferrer"
-                                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 hover:text-violet-900 bg-violet-50 rounded-lg px-3 py-1.5 hover:bg-violet-100 transition">
+                                    <button
+                                      onClick={() => onPlayVideo(t.videoSolutionUrl, `${testTitle} Video Solution`)}
+                                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 hover:text-violet-900 bg-violet-50 rounded-lg px-3 py-1.5 hover:bg-violet-100 transition"
+                                    >
                                       <PlayCircle size={12} /> Video Solution
-                                    </a>
+                                    </button>
                                   )}
                                 </div>
                               )}
@@ -937,30 +941,7 @@ function AboutTab({ course }) {
         </div>
       )}
 
-      {course.syllabus?.length > 0 && (
-        <div>
-          <h3 className="font-bold text-slate-900 mb-3">Syllabus</h3>
-          <div className="grid sm:grid-cols-2 gap-2">
-            {course.syllabus.map((s, i) => (
-              <div key={i} className="card p-3 flex items-start gap-3 text-sm">
-                <div className="w-7 h-7 rounded-lg bg-brand-50 text-brand-700 grid place-items-center font-bold text-xs shrink-0 mt-0.5">
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="font-semibold text-slate-800">
-                    {typeof s === 'string' ? s : s?.title || ''}
-                  </span>
-                  {typeof s !== 'string' && s?.description && (
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed whitespace-pre-line">
-                      {s.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       <div className="card p-5 grid sm:grid-cols-2 gap-3 text-sm">
         <div>
@@ -1245,7 +1226,8 @@ function SubjectsTab({ subjects, myAttempts, courseId, onPlayVideo, onViewPdf })
             const studyMaterialCount = ch.studyMaterials?.length || 0;
             const testsCount = ch.tests?.length || 0;
             const dppsCount = (ch.dpps?.length || 0) + (ch.dppPdfs?.length || 0) + (ch.dppVideos?.length || 0);
-            const totalItems = videoCount + classNotesCount + studyMaterialCount + testsCount + dppsCount;
+            const pyqsCount = ch.pyqs?.length || 0;
+            const totalItems = videoCount + classNotesCount + studyMaterialCount + testsCount + dppsCount + pyqsCount;
 
             return (
               <div key={ch._id} className="card overflow-hidden border border-slate-100 shadow-soft">
@@ -1267,6 +1249,7 @@ function SubjectsTab({ subjects, myAttempts, courseId, onPlayVideo, onViewPdf })
                       {studyMaterialCount > 0 && <span>📚 {studyMaterialCount} Study Material</span>}
                       {testsCount > 0 && <span>📝 {testsCount} Tests</span>}
                       {dppsCount > 0 && <span>📄 {dppsCount} DPPs</span>}
+                      {pyqsCount > 0 && <span>❓ {pyqsCount} PYQs</span>}
                       {totalItems === 0 && <span>No content items yet</span>}
                     </div>
                   </div>
@@ -1368,7 +1351,7 @@ function SubjectsTab({ subjects, myAttempts, courseId, onPlayVideo, onViewPdf })
                     {ch.tests?.length > 0 && (
                       <div>
                         <h5 className="font-bold text-slate-700 text-xs uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                          <ClipboardList size={14} className="text-violet-600" /> Chapter Tests
+                          <ClipboardList size={14} className="text-violet-600" /> Mock Test
                         </h5>
                         <div className="grid sm:grid-cols-2 gap-3">
                           {ch.tests.map((item, idx) => {
@@ -1535,6 +1518,70 @@ function SubjectsTab({ subjects, myAttempts, courseId, onPlayVideo, onViewPdf })
                               ))}
                             </div>
                           )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 📚 Previous Year Questions (PYQs) */}
+                    {pyqsCount > 0 && (
+                      <div className="mt-4">
+                        <h5 className="font-bold text-slate-700 text-xs uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                          <BookOpen size={14} className="text-amber-600" /> Previous Year Questions (PYQ)
+                        </h5>
+                        <div className="grid sm:grid-cols-2 gap-3">
+                          {ch.pyqs?.map((item, idx) => {
+                            const attempt = getAttempt(item.testId);
+                            return (
+                              <div key={item._id || idx} className="p-3.5 rounded-xl border border-slate-100 bg-white hover:border-amber-200 transition flex flex-col justify-between">
+                                <div className="flex items-start gap-3 mb-3">
+                                  <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                                    <BookOpen size={18} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-slate-800 text-sm truncate">{item.title}</div>
+                                    <div className="flex gap-2 text-[10px] text-slate-400 mt-0.5">
+                                      <span>⏱️ {item.durationMins} min</span>
+                                      <span>•</span>
+                                      <span>❓ {item.questionCount} Qs</span>
+                                    </div>
+                                    {item.description && <p className="text-xs text-slate-500 mt-1 line-clamp-1">{item.description}</p>}
+                                  </div>
+                                </div>
+                                {attempt ? (
+                                  <div className="space-y-2">
+                                    <div className={`text-xs font-bold py-1.5 px-3 rounded-lg text-center ${
+                                      attempt.percentage >= 75 ? 'bg-emerald-50 text-emerald-700' :
+                                      attempt.percentage >= 50 ? 'bg-amber-50 text-amber-700' :
+                                      'bg-rose-50 text-rose-700'
+                                    }`}>
+                                      Score: {attempt.percentage?.toFixed(1)}% ({attempt.scored}/{attempt.totalMarks} marks)
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Link
+                                        to={`/test-result/${attempt._id}`}
+                                        className="btn-outline flex-1 !py-1.5 text-[11px] text-center justify-center font-bold"
+                                      >
+                                        Result
+                                      </Link>
+                                      <Link
+                                        to={`/take-test/${item.testId}?courseId=${courseId}`}
+                                        className="btn-primary flex-1 !py-1.5 text-[11px] justify-center font-bold"
+                                      >
+                                        Retake
+                                      </Link>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <Link
+                                    to={`/take-test/${item.testId}?courseId=${courseId}`}
+                                    className="btn-primary w-full justify-center !py-1.5 text-[11px] font-bold text-center block"
+                                  >
+                                    Start PYQ Test
+                                  </Link>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -1847,7 +1894,13 @@ export default function LearnCourse() {
             <LiveClassesTab liveClasses={liveClasses} />
           )
         )}
-        {tab === 'test-series' && <TestSeriesTab courseId={courseId} onViewPdf={(pdf) => setOpenPdf(pdf)} />}
+        {tab === 'test-series' && (
+          <TestSeriesTab
+            courseId={courseId}
+            onViewPdf={(pdf) => setOpenPdf(pdf)}
+            onPlayVideo={(url, title) => setActiveVideo({ url, title })}
+          />
+        )}
         {tab === 'ebooks' && <EbooksTab courseId={courseId} onViewPdf={(pdf) => setOpenPdf(pdf)} />}
         {tab === 'timetable' && (
           <div className="max-w-2xl bg-white rounded-2xl border border-slate-100 shadow-sm p-6 sm:p-8">
@@ -1900,6 +1953,16 @@ export default function LearnCourse() {
                         <p className="text-sm text-slate-500 mt-1.5 leading-relaxed whitespace-pre-line">
                           {item.description}
                         </p>
+                      )}
+                      {typeof item !== 'string' && item.pdfUrl && (
+                        <div className="mt-3">
+                          <button
+                            onClick={() => setOpenPdf({ fileUrl: item.pdfUrl, title: item.title || 'Syllabus PDF' })}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-650 hover:text-brand-800 bg-white border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl hover:bg-slate-50 transition"
+                          >
+                            <span>📄 View Syllabus PDF</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

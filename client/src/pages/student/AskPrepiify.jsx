@@ -6,15 +6,20 @@ import api from '../../api/client.js';
 export default function AskPrepiify() {
   const [loading, setLoading] = useState(true);
   const [usage, setUsage] = useState({ planType: 'none', limit: 0, used: 0, remaining: 0 });
+  const [enrollments, setEnrollments] = useState([]);
 
   useEffect(() => {
-    // Fetch doubt usage status
-    api.get('/doubts/usage')
-      .then((res) => {
-        setUsage(res.data || { planType: 'none', limit: 0, used: 0, remaining: 0 });
+    // Fetch doubt usage status and enrollments
+    Promise.all([
+      api.get('/doubts/usage').then((res) => res.data),
+      api.get('/enroll/me').then((res) => res.data).catch(() => [])
+    ])
+      .then(([usageData, enrollData]) => {
+        setUsage(usageData || { planType: 'none', limit: 0, used: 0, remaining: 0 });
+        setEnrollments(enrollData || []);
       })
       .catch((err) => {
-        console.error('Failed to load doubt usage', err);
+        console.error('Failed to load doubt usage or enrollments', err);
       })
       .finally(() => {
         setLoading(false);
@@ -175,12 +180,26 @@ export default function AskPrepiify() {
               </li>
             </ul>
           </div>
-          <Link
-            to="/student/courses"
-            className="btn-primary w-full mt-6 text-xs font-bold py-3.5 justify-center gap-1.5"
-          >
-            Upgrade Prep Plan <ArrowUpRight size={14} />
-          </Link>
+          {enrollments.filter(e => e.planType !== 'infinity').length > 0 ? (
+            <div className="w-full mt-6 space-y-2">
+              {enrollments.filter(e => e.planType !== 'infinity').map((e) => (
+                <Link
+                  key={e._id}
+                  to={`/courses/${e.course?.slug || e.course?._id}`}
+                  className="btn-primary w-full text-xs font-bold py-3.5 justify-center gap-1.5"
+                >
+                  Upgrade {e.course?.title || 'Prep Plan'} <ArrowUpRight size={14} />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Link
+              to="/student/courses"
+              className="btn-primary w-full mt-6 text-xs font-bold py-3.5 justify-center gap-1.5"
+            >
+              Upgrade Prep Plan <ArrowUpRight size={14} />
+            </Link>
+          )}
         </div>
       </div>
     );

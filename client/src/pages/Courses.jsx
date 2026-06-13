@@ -17,9 +17,6 @@ export default function Courses() {
 
   useEffect(() => {
     api.get('/categories').then((r) => setCategories(r.data.map((c) => c.name || c)));
-    api.get('/courses').then((r) => {
-      setComboCourses(r.data.filter((c) => c.isCombo === true));
-    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -29,7 +26,10 @@ export default function Courses() {
     if (q) qs.set('q', q);
     api
       .get(`/courses?${qs}`)
-      .then((r) => setCourses(r.data))
+      .then((r) => {
+        setCourses(r.data);
+        setComboCourses(r.data.filter((c) => c.isCombo === true));
+      })
       .finally(() => setLoading(false));
   }, [category, q]);
 
@@ -91,8 +91,8 @@ export default function Courses() {
                 key={t.k}
                 onClick={() => setParam('type', t.k === 'ALL' ? '' : t.k)}
                 className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition ${typeFilter === t.k
-                    ? 'bg-slate-900 text-white shadow-soft'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'
+                  ? 'bg-slate-900 text-white shadow-soft'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'
                   }`}
               >
                 {t.l}
@@ -107,8 +107,8 @@ export default function Courses() {
                 key={k}
                 onClick={() => setParam('category', k === 'ALL' ? '' : k)}
                 className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition ${category === k
-                    ? 'bg-gradient-brand text-white shadow-soft'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:border-brand-300'
+                  ? 'bg-gradient-brand text-white shadow-soft'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:border-brand-300'
                   }`}
               >
                 {k}
@@ -122,8 +122,8 @@ export default function Courses() {
               <button
                 onClick={() => setParam('sub', '')}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${!subCat
-                    ? 'bg-violet-600 text-white shadow-soft'
-                    : 'bg-white border border-violet-200 text-violet-700 hover:border-violet-400'
+                  ? 'bg-violet-600 text-white shadow-soft'
+                  : 'bg-white border border-violet-200 text-violet-700 hover:border-violet-400'
                   }`}
               >
                 All Classes
@@ -133,8 +133,8 @@ export default function Courses() {
                   key={s}
                   onClick={() => setParam('sub', s === subCat ? '' : s)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${subCat === s
-                      ? 'bg-violet-600 text-white shadow-soft'
-                      : 'bg-white border border-violet-200 text-violet-700 hover:border-violet-400'
+                    ? 'bg-violet-600 text-white shadow-soft'
+                    : 'bg-white border border-violet-200 text-violet-700 hover:border-violet-400'
                     }`}
                 >
                   {s}
@@ -160,12 +160,9 @@ export default function Courses() {
             <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">
               📦 Combo Courses
             </h2>
-            <p className="text-slate-500 mb-6 text-sm">
-              Get multiple courses together at highly discounted bundle prices.
-            </p>
             {comboCourses.length === 0 ? (
               <div className="bg-slate-50 rounded-2xl border border-slate-100 p-8 text-center text-slate-400 text-sm font-medium">
-                No Combo Courses available at the moment. You can create them from the Admin Panel!
+                No Combo Courses available at the moment.
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">

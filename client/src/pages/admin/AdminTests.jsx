@@ -17,6 +17,7 @@ import {
   BookOpen,
   ChevronRight,
   BarChart2,
+  Copy,
 } from 'lucide-react';
 
 const DIFFICULTY_COLORS = {
@@ -205,6 +206,13 @@ export default function AdminTests() {
                         title="Edit"
                       >
                         <Edit size={15} />
+                      </Link>
+                      <Link
+                        to={`/admin/tests/new?duplicateFrom=${t._id}`}
+                        className="p-2 rounded-lg hover:bg-violet-50 text-slate-500 hover:text-violet-600"
+                        title="Duplicate"
+                      >
+                        <Copy size={15} />
                       </Link>
                       <button
                         onClick={() => toggle(t)}
