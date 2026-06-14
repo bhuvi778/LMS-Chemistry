@@ -1040,7 +1040,7 @@ function LiveClassesTab({ liveClasses }) {
         <div className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-4 ${activeSubTab === 'past' ? 'opacity-75' : ''}`}>
           {activeClasses.map((lc) => {
             const isLive = lc.status === 'live';
-            const isPast = lc.status === 'ended' || new Date(lc.scheduledAt) < now;
+            const isPast = lc.status === 'ended';
             return (
               <div key={lc._id} className="card overflow-hidden">
                 <div className={`p-4 text-white ${isLive
@@ -1048,19 +1048,26 @@ function LiveClassesTab({ liveClasses }) {
                   : isPast
                   ? 'bg-gradient-to-br from-slate-400 to-slate-500'
                   : 'bg-gradient-to-br from-brand-500 to-violet-600'}`}>
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center justify-between gap-2 mb-1">
                     {isLive ? (
-                      <span className="flex items-center gap-1.5 text-xs font-bold">
+                      <span className="flex items-center gap-1.5 text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full">
                         <span className="w-2 h-2 rounded-full bg-white animate-ping inline-block" />
                         LIVE NOW
                       </span>
                     ) : isPast ? (
-                      <span className="text-xs opacity-70 font-semibold uppercase">Ended</span>
+                      <span className="text-[10px] opacity-70 font-bold uppercase bg-white/10 px-2 py-0.5 rounded-full">Ended</span>
                     ) : (
-                      <span className="text-xs opacity-70 font-semibold uppercase">Upcoming</span>
+                      <span className="text-[10px] opacity-70 font-bold uppercase bg-white/10 px-2 py-0.5 rounded-full">Upcoming</span>
                     )}
+                    <span className="text-[9px] font-extrabold bg-white/25 text-white px-2 py-0.5 rounded-full uppercase shrink-0">
+                      {lc.platform === 'internal' ? 'WebRTC' : 
+                       lc.platform === 'agora_call' ? 'Agora Call' : 
+                       lc.platform === 'agora_stream' ? 'Agora Stream' : 
+                       lc.platform === 'youtube' ? 'YouTube Live' : 
+                       lc.platform || (lc.useInternalRoom ? 'WebRTC' : 'External')}
+                    </span>
                   </div>
-                  <h3 className="font-bold text-base leading-snug">{lc.title}</h3>
+                  <h3 className="font-bold text-base leading-snug mt-1">{lc.title}</h3>
                   <p className="text-xs opacity-80 mt-0.5">By {lc.instructor}</p>
                 </div>
                 <div className="p-4 space-y-2">
@@ -1080,7 +1087,7 @@ function LiveClassesTab({ liveClasses }) {
                   )}
                   {!isPast && (
                     <div className="pt-2">
-                      {lc.useInternalRoom ? (
+                      {['internal', 'agora_call', 'agora_stream', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet')) ? (
                         <Link
                           to={`/live/${lc._id}`}
                           className={`btn-primary w-full justify-center !py-2 text-sm ${isLive ? '!bg-rose-600 hover:!bg-rose-700' : ''}`}
@@ -1088,9 +1095,9 @@ function LiveClassesTab({ liveClasses }) {
                           <Video size={14} />
                           {isLive ? 'Join Now' : 'Open Room'}
                         </Link>
-                      ) : lc.meetLink ? (
+                      ) : (lc.meetLink || lc.meetingUrl) ? (
                         <a
-                          href={lc.meetLink}
+                          href={lc.meetLink || lc.meetingUrl}
                           target="_blank"
                           rel="noreferrer"
                           className="btn-primary w-full justify-center !py-2 text-sm"

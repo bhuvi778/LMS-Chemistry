@@ -11,6 +11,8 @@ const empty = {
   course: '',
   instructor: 'Ace2Examz Faculty',
   meetLink: '',
+  meetingUrl: '',
+  platform: 'internal',
   scheduledAt: '',
   durationMins: 60,
   isActive: true,
@@ -52,7 +54,18 @@ export default function AdminLiveClasses() {
     try {
       const payload = { ...editing };
       if (!payload.course) payload.course = null;
-      if (payload.useInternalRoom) payload.meetLink = '';
+      if (!payload.platform) {
+        payload.platform = payload.useInternalRoom ? 'internal' : 'meet';
+      }
+      if (['zoom', 'meet', 'youtube'].includes(payload.platform)) {
+        payload.useInternalRoom = false;
+        payload.meetLink = payload.meetingUrl || payload.meetLink;
+        payload.meetingUrl = payload.meetLink;
+      } else {
+        payload.useInternalRoom = true;
+        payload.meetLink = '';
+        payload.meetingUrl = '';
+      }
       if (editing._id) {
         await api.put(`/admin/live-classes/${editing._id}`, payload);
         toast.success('Live class updated');
@@ -131,32 +144,52 @@ export default function AdminLiveClasses() {
                 </div>
               </div>
               <div>
-                <label className="label flex items-center justify-between">
-                  <span>Streaming Mode</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => set('useInternalRoom', true)}
-                    className={`p-3 rounded-xl border-2 text-left transition ${editing.useInternalRoom ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
-                    <div className="font-semibold text-sm flex items-center gap-1.5"><Video size={14} className="text-brand-600" /> Self-hosted (WebRTC)</div>
-                    <div className="text-[10px] text-slate-500">Runs on ace2examz.com — no Zoom/Meet needed</div>
-                  </button>
-                  <button type="button" onClick={() => set('useInternalRoom', false)}
-                    className={`p-3 rounded-xl border-2 text-left transition ${!editing.useInternalRoom ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
-                    <div className="font-semibold text-sm flex items-center gap-1.5"><LinkIcon size={14} className="text-slate-600" /> External Link</div>
-                    <div className="text-[10px] text-slate-500">Zoom / Meet / etc.</div>
-                  </button>
-                </div>
+                <label className="label">Streaming Platform</label>
+                <select className="input" value={editing.platform || (editing.useInternalRoom ? 'internal' : 'meet')} onChange={(e) => {
+                  const val = e.target.value;
+                  set('platform', val);
+                  if (['zoom', 'meet', 'youtube'].includes(val)) {
+                    set('useInternalRoom', false);
+                  } else {
+                    set('useInternalRoom', true);
+                  }
+                }}>
+                  <option value="internal">In-App Room (WebRTC)</option>
+                  <option value="agora_call">Agora Video Call (All Participants)</option>
+                  <option value="agora_stream">Agora Interactive Live Stream (Broadcaster Mode)</option>
+                  <option value="youtube">YouTube Live (Embed / Broadcast)</option>
+                  <option value="zoom">Zoom</option>
+                  <option value="meet">Google Meet</option>
+                </select>
               </div>
-              {editing.useInternalRoom ? (
+
+              {['zoom', 'meet', 'youtube'].includes(editing.platform || (editing.useInternalRoom ? 'internal' : 'meet')) ? (
+                <div>
+                  <label className="label">
+                    {editing.platform === 'zoom' ? 'Zoom Meeting Link *' :
+                     editing.platform === 'meet' ? 'Google Meet Link *' : 'YouTube Live URL / Video ID *'}
+                  </label>
+                  <input required type="text" className="input" value={editing.meetingUrl || editing.meetLink || ''} onChange={(e) => {
+                    set('meetingUrl', e.target.value);
+                    set('meetLink', e.target.value);
+                  }} placeholder={
+                    editing.platform === 'zoom' ? 'https://zoom.us/j/…' :
+                    editing.platform === 'meet' ? 'https://meet.google.com/…' :
+                    'https://youtube.com/live/... or Video ID'
+                  } />
+                </div>
+              ) : (editing.platform === 'internal' || !editing.platform) ? (
                 <div>
                   <label className="label flex items-center gap-1"><Lock size={12} /> Room Passcode (optional)</label>
-                  <input className="input" value={editing.roomPasscode} onChange={(e) => set('roomPasscode', e.target.value)} placeholder="Leave blank for no passcode" maxLength={20} />
+                  <input className="input" value={editing.roomPasscode || ''} onChange={(e) => set('roomPasscode', e.target.value)} placeholder="Leave blank for no passcode" maxLength={20} />
                   <p className="text-[11px] text-slate-500 mt-1">Enrolled students don't need a passcode by default.</p>
                 </div>
               ) : (
-                <div>
-                  <label className="label">Meet / Zoom Link *</label>
-                  <input required={!editing.useInternalRoom} type="url" className="input" value={editing.meetLink} onChange={(e) => set('meetLink', e.target.value)} placeholder="https://meet.google.com/…" />
+                <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-3 text-sm text-teal-800">
+                  <strong>Agora RTC Session:</strong> Dynamic secure tokens will be generated. 
+                  {editing.platform === 'agora_call'
+                    ? ' Students and instructors will be able to share their video and audio (Video Calling).'
+                    : ' Only the instructor/broadcaster can stream. Students can watch with ultra-low latency.'}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
@@ -231,6 +264,8 @@ export default function AdminLiveClasses() {
 }
 
 function ClassCard({ lc, onEdit, onDelete, past }) {
+  const isEmbedRoom = ['internal', 'agora_call', 'agora_stream', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet'));
+  
   return (
     <div className={`card overflow-hidden flex flex-col ${past ? 'border-slate-100' : 'border-rose-100'}`}>
       <div className={`p-4 ${past ? 'bg-slate-50' : 'bg-gradient-to-br from-rose-50 to-pink-50'}`}>
@@ -241,7 +276,17 @@ function ClassCard({ lc, onEdit, onDelete, past }) {
             </div>
             <div className="min-w-0">
               <div className="font-bold text-sm text-slate-900 leading-tight truncate max-w-[180px]">{lc.title}</div>
-              {lc.courseName && <div className="text-[10px] text-slate-500 truncate">{lc.courseName}</div>}
+              <div className="flex gap-1.5 items-center mt-1">
+                {lc.courseName && <span className="text-[10px] text-slate-500 truncate max-w-[100px]">{lc.courseName}</span>}
+                {lc.courseName && <span className="text-[9px] text-slate-300">•</span>}
+                <span className="text-[9px] font-extrabold bg-brand-50 border border-brand-100 text-brand-700 px-1 py-0.5 rounded uppercase shrink-0">
+                  {lc.platform === 'internal' ? 'WebRTC' : 
+                   lc.platform === 'agora_call' ? 'Agora Call' : 
+                   lc.platform === 'agora_stream' ? 'Agora Stream' : 
+                   lc.platform === 'youtube' ? 'YouTube Live' : 
+                   lc.platform || (lc.useInternalRoom ? 'WebRTC' : 'External')}
+                </span>
+              </div>
             </div>
           </div>
           {!past && (
@@ -263,13 +308,13 @@ function ClassCard({ lc, onEdit, onDelete, past }) {
         </div>
       </div>
       <div className="px-4 pb-4 flex gap-2">
-        {lc.useInternalRoom ? (
+        {isEmbedRoom ? (
           <RouterLink to={`/live/${lc._id}`} className="btn-primary flex-1 justify-center text-xs py-1.5">
             <Video size={12} /> {lc.status === 'live' ? 'Rejoin Live' : 'Open Room'}
           </RouterLink>
         ) : (
-          <a href={lc.meetLink} target="_blank" rel="noreferrer" className="btn-outline flex-1 justify-center text-xs py-1.5">
-            <ExternalLink size={12} /> Join
+          <a href={lc.meetLink || lc.meetingUrl} target="_blank" rel="noreferrer" className="btn-outline flex-1 justify-center text-xs py-1.5">
+            <ExternalLink size={12} /> Join External
           </a>
         )}
         <button onClick={onEdit} className="p-2 rounded-lg hover:bg-brand-50 text-brand-600"><Edit size={14} /></button>

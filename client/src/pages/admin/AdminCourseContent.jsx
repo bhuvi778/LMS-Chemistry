@@ -796,7 +796,14 @@ function LiveClassesTab({ courseId }) {
   };
 
   const platformLabel = (p) =>
-    ({ internal: 'In-App Room', zoom: 'Zoom', meet: 'Google Meet', youtube: 'YouTube Live' })[p] || p;
+    ({
+      internal: 'In-App Room (WebRTC)',
+      zoom: 'Zoom',
+      meet: 'Google Meet',
+      youtube: 'YouTube Live',
+      agora_call: 'Agora Video Call',
+      agora_stream: 'Agora Stream'
+    })[p] || p;
 
   const save = async (e) => {
     e.preventDefault();
@@ -881,20 +888,22 @@ function LiveClassesTab({ courseId }) {
                 <select className="input" value={editing.platform || 'internal'}
                   onChange={(e) => setEditing((f) => ({ ...f, platform: e.target.value }))}>
                   <option value="internal">In-App Room (WebRTC)</option>
+                  <option value="agora_call">Agora Video Call (All Participants)</option>
+                  <option value="agora_stream">Agora Interactive Live Stream (Broadcaster Mode)</option>
+                  <option value="youtube">YouTube Live (Embed / Broadcast)</option>
                   <option value="zoom">Zoom</option>
                   <option value="meet">Google Meet</option>
-                  <option value="youtube">YouTube Live</option>
                 </select>
               </div>
             </div>
 
-            {editing.platform !== 'internal' && (
+            {['zoom', 'meet', 'youtube'].includes(editing.platform) && (
               <div>
                 <label className="label">
-                  {editing.platform === 'zoom' ? 'Zoom Meeting Link' :
-                   editing.platform === 'meet' ? 'Google Meet Link' : 'YouTube Live URL'}
+                  {editing.platform === 'zoom' ? 'Zoom Meeting Link *' :
+                   editing.platform === 'meet' ? 'Google Meet Link *' : 'YouTube Live URL / Video ID *'}
                 </label>
-                <input className="input" value={editing.meetingUrl || ''}
+                <input required className="input" value={editing.meetingUrl || ''}
                   onChange={(e) => setEditing((f) => ({ ...f, meetingUrl: e.target.value }))}
                   placeholder={
                     editing.platform === 'zoom' ? 'https://zoom.us/j/…' :
@@ -907,6 +916,15 @@ function LiveClassesTab({ courseId }) {
             {editing.platform === 'internal' && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700">
                 An in-app WebRTC room will be automatically created. Students will see a "Join Room" button during the scheduled time.
+              </div>
+            )}
+
+            {['agora_call', 'agora_stream'].includes(editing.platform) && (
+              <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-3 text-sm text-teal-800">
+                <strong>Agora RTC Session:</strong> Dynamic secure tokens will be generated.
+                {editing.platform === 'agora_call'
+                  ? ' Students and instructors will be able to share their video and audio (Video Calling).'
+                  : ' Only the instructor/broadcaster can stream. Students can watch with ultra-low latency.'}
               </div>
             )}
 
