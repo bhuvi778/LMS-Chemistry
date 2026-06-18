@@ -520,9 +520,24 @@ export default function CourseDetail() {
       }
     }
     if (enrolled && enrollment) {
-      const paid = enrollment.pricePaid || 0;
-      price = Math.max(0, price - paid);
-      mrp = Math.max(0, mrp - paid);
+      const oldPrice = enrollment.pricePaid || 0;
+      let credit = 0;
+      if (enrollment.validUntil) {
+        const startDate = enrollment.createdAt ? new Date(enrollment.createdAt) : new Date();
+        const totalMs = new Date(enrollment.validUntil) - startDate;
+        let totalDays = Math.ceil(totalMs / (1000 * 60 * 60 * 24));
+        if (totalDays <= 0) totalDays = 365;
+
+        const remainingMs = new Date(enrollment.validUntil) - new Date();
+        const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
+
+        credit = oldPrice * (remainingDays / totalDays);
+      } else {
+        credit = oldPrice;
+      }
+      credit = Math.round(credit * 100) / 100;
+      price = Math.max(0, Math.round((price - credit) * 100) / 100);
+      mrp = Math.max(0, Math.round((mrp - credit) * 100) / 100);
     }
     return { price, mrp };
   };
@@ -887,9 +902,26 @@ export default function CourseDetail() {
                   const isDowngradeOrSame = enrollment && planOrder[p.k] <= planOrder[enrollment.planType];
                   const isSelected = selectedPlan === p.k;
                   
-                  const displayPrice = enrollment && !isDowngradeOrSame
-                    ? Math.max(0, planPrice - (enrollment.pricePaid || 0))
-                    : planPrice;
+                  let displayPrice = planPrice;
+                  if (enrollment && !isDowngradeOrSame) {
+                    const oldPrice = enrollment.pricePaid || 0;
+                    let credit = 0;
+                    if (enrollment.validUntil) {
+                      const startDate = enrollment.createdAt ? new Date(enrollment.createdAt) : new Date();
+                      const totalMs = new Date(enrollment.validUntil) - startDate;
+                      let totalDays = Math.ceil(totalMs / (1000 * 60 * 60 * 24));
+                      if (totalDays <= 0) totalDays = 365;
+
+                      const remainingMs = new Date(enrollment.validUntil) - new Date();
+                      const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
+
+                      credit = oldPrice * (remainingDays / totalDays);
+                    } else {
+                      credit = oldPrice;
+                    }
+                    credit = Math.round(credit * 100) / 100;
+                    displayPrice = Math.max(0, Math.round((planPrice - credit) * 100) / 100);
+                  }
 
                   return (
                     <button

@@ -65,6 +65,26 @@ export const submitBankTransfer = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error(`You are already enrolled in the ${existing.planType.toUpperCase()} plan. Downgrade or same-plan upgrade is not allowed.`);
       }
+
+      const course = await Course.findById(courseId);
+      if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+      }
+
+      let newPlanPrice = course.price;
+      if (course.plans && course.plans[planType] && course.plans[planType].price > 0) {
+        newPlanPrice = course.plans[planType].price;
+      } else {
+        if (planType === 'pro') newPlanPrice = Math.round(course.price * 1.25);
+        else if (planType === 'infinity') newPlanPrice = Math.round(course.price * 1.5);
+      }
+
+      const oldPrice = existing.pricePaid || 0;
+      if (newPlanPrice <= oldPrice) {
+        res.status(400);
+        throw new Error(`Upgrade not allowed. The new plan price (${newPlanPrice} AED) must be greater than your current plan price (${oldPrice} AED).`);
+      }
     }
   }
 
@@ -202,6 +222,8 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
         exists.planType = request.planType;
         exists.pricePaid = (exists.pricePaid || 0) + request.totalAmount;
         exists.paymentId = 'BANK_' + request._id;
+        // Reset validity to full duration of new plan
+        exists.validUntil = courseObj ? calculateValidityEndDate(courseObj.validity) : null;
         await exists.save();
       }
     } else {

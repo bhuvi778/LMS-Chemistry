@@ -7,21 +7,33 @@ export default function Streak() {
   const { user, setUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(user);
+  const [attempts, setAttempts] = useState([]);
 
-  // Ping streak on mount
+  // Fetch streak ping & attempts on mount
   useEffect(() => {
-    const ping = async () => {
+    const fetchData = async () => {
       try {
-        const { data } = await api.post('/auth/streak-ping');
-        setCurrentUser(data);
-        if (setUser) setUser(data);
-      } catch {
+        const [streakRes, attemptsRes] = await Promise.all([
+          api.post('/auth/streak-ping'),
+          api.get('/tests/attempts/me')
+        ]);
+        setCurrentUser(streakRes.data);
+        if (setUser) setUser(streakRes.data);
+        setAttempts(attemptsRes.data || []);
+      } catch (err) {
+        console.error(err);
         setCurrentUser(user);
+        try {
+          const attemptsRes = await api.get('/tests/attempts/me');
+          setAttempts(attemptsRes.data || []);
+        } catch (e) {
+          console.error(e);
+        }
       } finally {
         setLoading(false);
       }
     };
-    ping();
+    fetchData();
   }, []);
 
   const u = currentUser || user || {};
@@ -31,7 +43,15 @@ export default function Streak() {
 
   const todayStr = new Date().toISOString().split('T')[0];
   const activeDays = u.activeDays || [];
-  const solvedToday = activeDays.includes(todayStr);
+  
+  const attendedToday = activeDays.includes(todayStr);
+  const attemptedToday = attempts.some(a => {
+    if (!a.submittedAt) return false;
+    const attemptDate = new Date(a.submittedAt).toISOString().split('T')[0];
+    return attemptDate === todayStr;
+  });
+
+  const todayProgressPercent = (attendedToday ? 50 : 0) + (attemptedToday ? 50 : 0);
 
   // Days of the week for header
   const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -62,13 +82,13 @@ export default function Streak() {
   const dailyTasks = [
     {
       name: 'Maintain Daily Attendance',
-      status: solvedToday ? 'completed' : 'in-progress',
-      progress: solvedToday ? '1/1 Day Done' : '0/1 Day Done'
+      status: attendedToday ? 'completed' : 'in-progress',
+      progress: attendedToday ? '1/1 Day Done' : '0/1 Day Done'
     },
     {
       name: 'Solve Practice Questions',
-      status: solvedToday ? 'completed' : 'pending',
-      progress: solvedToday ? 'Active Today' : 'Pending activity'
+      status: attemptedToday ? 'completed' : 'pending',
+      progress: attemptedToday ? 'Active Today' : 'Pending activity'
     }
   ];
 
@@ -118,9 +138,15 @@ export default function Streak() {
           <div className="space-y-1">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Today's Progress</span>
             <div className="text-3xl font-extrabold font-display text-slate-800">
-              {solvedToday ? '100%' : '0%'}
+              {todayProgressPercent}%
             </div>
-            <p className="text-[11px] text-slate-400">{solvedToday ? 'Daily activity recorded! ✅' : 'No activity logged today yet'}</p>
+            <p className="text-[11px] text-slate-400">
+              {todayProgressPercent === 100
+                ? 'Daily activity recorded! ✅'
+                : todayProgressPercent === 50
+                ? 'Only attendance logged today'
+                : 'No activity logged today yet'}
+            </p>
           </div>
           <Zap size={40} className="text-yellow-500 shrink-0" />
         </div>

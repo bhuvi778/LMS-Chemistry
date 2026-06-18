@@ -12,11 +12,62 @@ export default function NotificationBell({ darkMode = false }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
+  const isFirstLoadRef = useRef(true);
+  const prevUnreadRef = useRef(0);
+
+  const playChime = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      // Tone 1: D5 (587.33 Hz)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+      gain1.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start();
+      osc1.stop(ctx.currentTime + 0.15);
+
+      // Tone 2: A5 (880.00 Hz) slightly delayed
+      setTimeout(() => {
+        try {
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(880.00, ctx.currentTime);
+          gain2.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.start();
+          osc2.stop(ctx.currentTime + 0.25);
+        } catch (e) {
+          console.error(e);
+        }
+      }, 120);
+    } catch (err) {
+      console.error('Failed to play notification sound:', err);
+    }
+  };
+
   const load = () => {
     if (!user) return;
     api.get('/notifications').then(({ data }) => {
       setList(data.list || []);
-      setUnread(data.unread || 0);
+      const newUnread = data.unread || 0;
+      setUnread(newUnread);
+
+      if (isFirstLoadRef.current) {
+        isFirstLoadRef.current = false;
+      } else if (newUnread > prevUnreadRef.current) {
+        playChime();
+      }
+      prevUnreadRef.current = newUnread;
     }).catch(() => {});
   };
 

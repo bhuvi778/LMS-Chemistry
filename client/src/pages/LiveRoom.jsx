@@ -8,7 +8,9 @@ import AgoraRTC from 'agora-rtc-sdk-ng';
 import {
   Video, VideoOff, Mic, MicOff, Monitor, MonitorOff, PhoneOff,
   Users, MessageCircle, Send, Loader2, ArrowLeft, ExternalLink,
+  Volume2, VolumeX, Maximize, Minimize,
 } from 'lucide-react';
+import SecureYTPlayer from '../components/SecureYTPlayer.jsx';
 
 const ICE_SERVERS = {
   iceServers: [
@@ -90,6 +92,49 @@ export default function LiveRoom() {
   const localAudioTrackRef = useRef(null);
   const localVideoTrackRef = useRef(null);
   const screenTrackRef = useRef(null);
+
+  // Agora player controls state & refs
+  const [streamMuted, setStreamMuted] = useState(false);
+  const streamMutedRef = useRef(streamMuted);
+  const streamContainerRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    streamMutedRef.current = streamMuted;
+  }, [streamMuted]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === streamContainerRef.current);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleStreamMute = () => {
+    const nextMuted = !streamMuted;
+    setStreamMuted(nextMuted);
+    remoteUsers.forEach((u) => {
+      if (u.audioTrack) {
+        try {
+          u.audioTrack.setVolume(nextMuted ? 0 : 100);
+        } catch (e) {
+          console.error('Error setting volume:', e);
+        }
+      }
+    });
+  };
+
+  const toggleFullscreen = () => {
+    if (!streamContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      streamContainerRef.current.requestFullscreen().catch((err) => {
+        console.error('Error enabling fullscreen:', err);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
 
   const [, forceRender] = useState(0);
   const rerender = () => forceRender((v) => v + 1);
@@ -181,7 +226,14 @@ export default function LiveRoom() {
           });
         }
         if (mediaType === 'audio') {
-          user.audioTrack?.play();
+          if (user.audioTrack) {
+            try {
+              user.audioTrack.play();
+              user.audioTrack.setVolume(streamMutedRef.current ? 0 : 100);
+            } catch (e) {
+              console.error('Error auto-playing remote audio:', e);
+            }
+          }
         }
       });
 
@@ -590,14 +642,7 @@ export default function LiveRoom() {
           {/* YouTube Embed Player */}
           {platform === 'youtube' && (
             <div className="w-full h-full max-w-4xl aspect-video rounded-2xl overflow-hidden shadow-2xl bg-black border border-slate-700">
-              <iframe
-                src={getYouTubeEmbedUrl(meta.meetingUrl || meta.meetLink)}
-                title="YouTube Live Stream"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="w-full h-full"
-              />
+              <SecureYTPlayer url={meta.meetingUrl || meta.meetLink} title={meta.title} />
             </div>
           )}
 
@@ -680,7 +725,10 @@ export default function LiveRoom() {
                   </div>
                 </div>
               ) : (
-                <div className="relative w-full max-w-4xl aspect-video rounded-2xl overflow-hidden bg-slate-900 shadow-2xl border border-slate-700">
+                <div
+                  ref={streamContainerRef}
+                  className="relative w-full max-w-4xl aspect-video rounded-2xl overflow-hidden bg-slate-900 shadow-2xl border border-slate-700 group/agora"
+                >
                   {remoteUsers.length > 0 && remoteUsers[0].hasVideo && remoteUsers[0].videoTrack ? (
                     <AgoraVideoPlayer videoTrack={remoteUsers[0].videoTrack} className="w-full h-full object-cover" />
                   ) : (
@@ -689,10 +737,43 @@ export default function LiveRoom() {
                       <div className="text-sm font-semibold">Waiting for teacher to start broadcasting…</div>
                     </div>
                   )}
-                  <div className="absolute bottom-4 left-4 bg-rose-600 px-3 py-1.5 rounded-lg text-white text-xs font-bold tracking-wide flex items-center gap-1">
+
+                  {/* Top Live Badge */}
+                  <div className="absolute top-4 left-4 bg-rose-600 px-3 py-1.5 rounded-lg text-white text-xs font-bold tracking-wide flex items-center gap-1 z-10">
                     <span className="w-2 h-2 rounded-full bg-white animate-ping" />
                     LIVE
                   </div>
+
+                  {/* Hover Controls Overlay */}
+                  {remoteUsers.length > 0 && (
+                    <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-black/90 to-transparent z-20 flex items-center justify-between px-4 pb-3 opacity-0 group-hover/agora:opacity-100 transition-opacity duration-300">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={toggleStreamMute}
+                          className="text-white hover:text-brand-400 transition"
+                          title={streamMuted ? 'Unmute' : 'Mute'}
+                        >
+                          {streamMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                        </button>
+                        <span className="text-xs text-slate-300 font-semibold">
+                          Host Broadcast
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="px-2 py-0.5 bg-white/10 border border-white/5 rounded text-[9px] text-slate-300 font-bold uppercase tracking-wider">
+                          Agora RTC
+                        </span>
+                        <button
+                          onClick={toggleFullscreen}
+                          className="text-white hover:text-brand-400 transition"
+                          title="Fullscreen"
+                        >
+                          {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

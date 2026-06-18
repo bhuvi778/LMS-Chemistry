@@ -74,6 +74,42 @@ const applyCoupon = (item, couponCode, basePrice) => {
   return { valid: true, discountAmount };
 };
 
+/** Helper to calculate prorated upgrade credit & new amount */
+const calculateUpgradeDetails = (newPlanPrice, existingEnrollment) => {
+  if (!existingEnrollment) return { credit: 0, upgradeFee: newPlanPrice };
+
+  const oldPrice = existingEnrollment.pricePaid || 0;
+  
+  // Rule: if new_plan_price <= old_plan_price: upgrade not allowed
+  if (newPlanPrice <= oldPrice) {
+    throw new Error(`Upgrade not allowed. The new plan price (${newPlanPrice} AED) must be greater than your current plan price (${oldPrice} AED).`);
+  }
+
+  let credit = 0;
+  if (existingEnrollment.validUntil) {
+    const startDate = existingEnrollment.createdAt || new Date();
+    const totalMs = new Date(existingEnrollment.validUntil) - new Date(startDate);
+    let totalDays = Math.ceil(totalMs / (1000 * 60 * 60 * 24));
+    if (totalDays <= 0) totalDays = 365;
+
+    const remainingMs = new Date(existingEnrollment.validUntil) - new Date();
+    const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
+
+    credit = oldPrice * (remainingDays / totalDays);
+  } else {
+    // If lifetime (validUntil is null), credit is equal to the full pricePaid
+    credit = oldPrice;
+  }
+
+  // Round credit to 2 decimal places
+  credit = Math.round(credit * 100) / 100;
+  
+  // Upgrade Fee = NP - Credit
+  const upgradeFee = Math.max(0, Math.round((newPlanPrice - credit) * 100) / 100);
+
+  return { credit, upgradeFee };
+};
+
 // ─── POST /api/payment/create-order ──────────────────────────────────────────
 export const createOrder = asyncHandler(async (req, res) => {
   const { courseId, testSeriesId, couponCode, redeemCoins } = req.body;
@@ -167,7 +203,8 @@ export const createOrder = asyncHandler(async (req, res) => {
   if (isCourse && !req.body.isExtension) {
     const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
     if (existing) {
-      originalAmount = Math.max(0, originalAmount - (existing.pricePaid || 0));
+      const details = calculateUpgradeDetails(originalAmount, existing);
+      originalAmount = details.upgradeFee;
     }
   }
 
@@ -227,6 +264,7 @@ export const createOrder = asyncHandler(async (req, res) => {
         existing.planType = planType;
         existing.pricePaid = (existing.pricePaid || 0) + finalAmount;
         existing.paymentId = 'FREE_UPGRADE_' + Date.now();
+        existing.validUntil = calculateValidityEndDate(item.validity);
         await existing.save();
         enrollment = existing;
       } else {
@@ -404,6 +442,8 @@ export const verifyPayment = asyncHandler(async (req, res) => {
         already.planType = payment.planType;
         already.pricePaid = (already.pricePaid || 0) + payment.amount;
         already.paymentId = razorpayPaymentId;
+        // Reset validity to full duration of new plan
+        already.validUntil = course ? calculateValidityEndDate(course.validity) : null;
         await already.save();
       }
       enrollment = already;
@@ -537,7 +577,8 @@ export const validateCoupon = asyncHandler(async (req, res) => {
 
     const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
     if (existing) {
-      originalAmount = Math.max(0, originalAmount - (existing.pricePaid || 0));
+      const details = calculateUpgradeDetails(originalAmount, existing);
+      originalAmount = details.upgradeFee;
     }
   }
 

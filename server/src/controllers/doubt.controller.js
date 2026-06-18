@@ -200,3 +200,23 @@ export const getDoubtUsage = asyncHandler(async (req, res) => {
     remaining: limit === Infinity ? -1 : remaining
   });
 });
+
+// ─── Student: close/resolve a doubt ──────────────────────────────────────────
+export const closeDoubt = asyncHandler(async (req, res) => {
+  const doubt = await Doubt.findById(req.params.id);
+  if (!doubt) {
+    res.status(404);
+    throw new Error('Doubt not found');
+  }
+
+  // Ensure owner or admin
+  if (doubt.student.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    res.status(403);
+    throw new Error('Not authorized to close this doubt');
+  }
+
+  doubt.status = 'closed';
+  await doubt.save();
+
+  res.json(doubt);
+});

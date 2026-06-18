@@ -401,29 +401,30 @@ export default function Feed() {
                             {comment.userName?.charAt(0).toUpperCase() || 'G'}
                           </div>
                           <div className="flex-1 bg-slate-50 rounded-2xl px-3 py-2 text-xs relative">
-                            <div className="flex justify-between items-center mb-1">
+                            <div className="flex justify-between items-center mb-1 gap-2">
                               <span className="font-bold text-slate-700">{comment.userName}</span>
-                              <span className="text-[10px] text-slate-400">
-                                {new Date(comment.createdAt).toLocaleDateString('en-AE', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: true,
-                                })}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-slate-400">
+                                  {new Date(comment.createdAt).toLocaleDateString('en-AE', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: true,
+                                  })}
+                                </span>
+                                {(isCommentOwner || isAdmin) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCommentDelete(selectedItem._id, comment._id)}
+                                    className="text-rose-500 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity font-semibold cursor-pointer"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <p className="text-slate-605 whitespace-pre-wrap">{comment.content}</p>
-
-                            {(isCommentOwner || isAdmin) && (
-                              <button
-                                type="button"
-                                onClick={() => handleCommentDelete(selectedItem._id, comment._id)}
-                                className="absolute right-3 top-2 text-rose-500 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity font-semibold"
-                              >
-                                Delete
-                              </button>
-                            )}
                           </div>
                         </div>
                       );

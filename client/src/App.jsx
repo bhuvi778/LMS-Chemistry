@@ -88,6 +88,7 @@ import StudentContact from './pages/student/Contact.jsx';
 import StudentPrivacyPolicy from './pages/student/PrivacyPolicy.jsx';
 import AskPrepiify from './pages/student/AskPrepiify.jsx';
 import SupportChat from './pages/student/SupportChat.jsx';
+import StudentLiveClasses from './pages/student/LiveClasses.jsx';
 
 
 export default function App() {
@@ -154,6 +155,7 @@ export default function App() {
           <Route path="courses" element={<StudentCourses />} />
           <Route path="practice" element={<TestPortal />} />
           <Route path="library" element={<Ebooks />} />
+          <Route path="live-classes" element={<StudentLiveClasses />} />
           <Route path="boosters" element={<Boosters />} />
           <Route path="streak" element={<Streak />} />
           <Route path="wallet" element={<CoinsWallet />} />

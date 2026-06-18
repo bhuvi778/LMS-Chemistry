@@ -27,6 +27,7 @@ import {
   HelpCircle,
   MessageSquare,
   Clock,
+  BookOpen,
 } from 'lucide-react';
 
 const navSections = [
@@ -43,7 +44,8 @@ const navSections = [
     title: 'LEARN',
     icon: Library,
     items: [
-      { to: '/student/courses', label: 'Courses', icon: Video },
+      { to: '/student/courses', label: 'Courses', icon: BookOpen },
+      { to: '/student/live-classes', label: 'Live Classes', icon: Video },
       { to: '/student/practice', label: 'Practice', icon: ListChecks },
       { to: '/student/library', label: 'Library', icon: Library },
       { to: '/student/doubts', label: 'Ask Doubts', icon: HelpCircle },
@@ -341,7 +343,7 @@ export default function StudentLayout() {
                   library: 'Library', doubts: 'Ask Doubts', streak: 'Streak', wallet: 'Coins Wallet',
                   refer: 'Refer & Earn', profile: 'My Profile', orders: 'My Orders',
                   feed: 'Feed', contact: 'Contact Us', 'privacy-policy': 'Privacy Policy',
-                  'ask-prepiify': 'Ask Prepiify', learn: 'Course Player',
+                  'ask-prepiify': 'Ask Prepiify', learn: 'Course Player', 'live-classes': 'Live Classes',
                 };
                 const segments = location.pathname.split('/').filter(Boolean);
                 // Find last non-ObjectId segment

@@ -8,6 +8,7 @@ import {
   updateDoubtStatus,
   doubtStats,
   getDoubtUsage,
+  closeDoubt,
 } from '../controllers/doubt.controller.js';
 
 const router = Router();
@@ -17,6 +18,7 @@ router.use(protect);
 router.get('/usage', getDoubtUsage);
 router.post('/', createDoubt);
 router.get('/my', myDoubts);
+router.put('/:id/close', closeDoubt);
 
 // Admin routes
 router.get('/admin', adminOnly, adminListDoubts);

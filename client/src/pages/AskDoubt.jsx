@@ -55,6 +55,17 @@ export default function AskDoubt() {
     }
   };
 
+  const handleCloseDoubt = async (id) => {
+    if (!window.confirm('Are you sure you want to mark this doubt as resolved/closed?')) return;
+    try {
+      await api.put(`/doubts/${id}/close`);
+      toast.success('Doubt marked as resolved/closed!');
+      load();
+    } catch (err) {
+      toast.error(err.message || 'Failed to close doubt');
+    }
+  };
+
   const filtered = filter === 'all' ? doubts : doubts.filter((d) => d.status === filter);
 
   const quotaExceeded = usage.limit !== -1 && usage.remaining <= 0;
@@ -244,6 +255,17 @@ export default function AskDoubt() {
                       ) : (
                         <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-sm text-amber-700 flex items-center gap-2">
                           <Clock size={14} /> Your doubt is pending review. You'll get notified once answered.
+                        </div>
+                      )}
+                      {d.status !== 'closed' && (
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleCloseDoubt(d._id)}
+                            className="px-3 py-1.5 text-xs font-extrabold border border-slate-200 hover:border-slate-350 hover:bg-slate-50 text-slate-700 rounded-xl transition cursor-pointer"
+                          >
+                            Mark as Resolved / Close
+                          </button>
                         </div>
                       )}
                     </div>
