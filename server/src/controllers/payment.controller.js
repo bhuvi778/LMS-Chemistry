@@ -75,14 +75,21 @@ const applyCoupon = (item, couponCode, basePrice) => {
 };
 
 /** Helper to calculate prorated upgrade credit & new amount */
-const calculateUpgradeDetails = (newPlanPrice, existingEnrollment) => {
+const calculateUpgradeDetails = (newPlanPrice, existingEnrollment, courseObj) => {
   if (!existingEnrollment) return { credit: 0, upgradeFee: newPlanPrice };
 
-  const oldPrice = existingEnrollment.pricePaid || 0;
+  let oldPrice = existingEnrollment.pricePaid || 0;
   
-  // Rule: if new_plan_price <= old_plan_price: upgrade not allowed
-  if (newPlanPrice <= oldPrice) {
-    throw new Error(`Upgrade not allowed. The new plan price (${newPlanPrice} AED) must be greater than your current plan price (${oldPrice} AED).`);
+  // Fallback for legacy/manual enrollments where pricePaid was stored as 0
+  if (oldPrice === 0 && courseObj) {
+    const oldPlan = existingEnrollment.planType || 'batch';
+    if (courseObj.plans && courseObj.plans[oldPlan] && courseObj.plans[oldPlan].price > 0) {
+      oldPrice = courseObj.plans[oldPlan].price;
+    } else {
+      if (oldPlan === 'batch') oldPrice = courseObj.price || 0;
+      else if (oldPlan === 'pro') oldPrice = Math.round((courseObj.price || 0) * 1.25);
+      else if (oldPlan === 'infinity') oldPrice = Math.round((courseObj.price || 0) * 1.5);
+    }
   }
 
   let credit = 0;
@@ -203,7 +210,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   if (isCourse && !req.body.isExtension) {
     const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
     if (existing) {
-      const details = calculateUpgradeDetails(originalAmount, existing);
+      const details = calculateUpgradeDetails(originalAmount, existing, item);
       originalAmount = details.upgradeFee;
     }
   }
@@ -261,10 +268,13 @@ export const createOrder = asyncHandler(async (req, res) => {
         await existing.save();
         enrollment = existing;
       } else if (existing) {
+        // Calculate remaining credit from the old pricePaid
+        const details = calculateUpgradeDetails(0, existing, item);
         existing.planType = planType;
-        existing.pricePaid = (existing.pricePaid || 0) + finalAmount;
+        existing.pricePaid = Math.round((details.credit + finalAmount) * 100) / 100;
         existing.paymentId = 'FREE_UPGRADE_' + Date.now();
         existing.validUntil = calculateValidityEndDate(item.validity);
+        existing.createdAt = new Date();
         await existing.save();
         enrollment = existing;
       } else {
@@ -417,6 +427,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   if (courseId) {
     const course = await Course.findById(courseId);
     const already = await Enrollment.findOne({ student: req.user._id, course: courseId });
+    const baseAmountPaid = Math.round((payment.originalAmount - (payment.discountAmount || 0) - (payment.coinDiscount || 0)) * 100) / 100;
     if (payment.isExtension) {
       if (!already) {
         res.status(400);
@@ -433,17 +444,20 @@ export const verifyPayment = asyncHandler(async (req, res) => {
       else if (unit === 'years') baseDate.setFullYear(baseDate.getFullYear() + val);
 
       already.validUntil = baseDate;
-      already.pricePaid = (already.pricePaid || 0) + payment.amount;
+      already.pricePaid = Math.round(((already.pricePaid || 0) + baseAmountPaid) * 100) / 100;
       already.paymentId = razorpayPaymentId;
       await already.save();
       enrollment = already;
     } else if (already) {
       if (payment.planType && payment.planType !== already.planType) {
+        // Calculate remaining credit from the old pricePaid
+        const details = calculateUpgradeDetails(0, already, course);
         already.planType = payment.planType;
-        already.pricePaid = (already.pricePaid || 0) + payment.amount;
+        already.pricePaid = Math.round((details.credit + baseAmountPaid) * 100) / 100;
         already.paymentId = razorpayPaymentId;
         // Reset validity to full duration of new plan
         already.validUntil = course ? calculateValidityEndDate(course.validity) : null;
+        already.createdAt = new Date();
         await already.save();
       }
       enrollment = already;
@@ -452,7 +466,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
         student: req.user._id,
         course: courseId,
         planType: payment.planType || 'batch',
-        pricePaid: payment.amount,
+        pricePaid: baseAmountPaid,
         paymentId: razorpayPaymentId,
         paymentStatus: 'paid',
         validUntil: course ? calculateValidityEndDate(course.validity) : null,
@@ -462,10 +476,11 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   } else {
     const ts = await TestSeries.findById(testSeriesId);
     const already = await TestSeriesEnrollment.findOne({ student: req.user._id, testSeries: testSeriesId });
+    const baseAmountPaid = Math.round((payment.originalAmount - (payment.discountAmount || 0) - (payment.coinDiscount || 0)) * 100) / 100;
     enrollment = already || await TestSeriesEnrollment.create({
       student: req.user._id,
       testSeries: testSeriesId,
-      pricePaid: payment.amount,
+      pricePaid: baseAmountPaid,
       paymentId: razorpayPaymentId,
       paymentStatus: 'paid',
       validUntil: ts ? calculateValidityEndDate(ts.validity) : null,
@@ -577,7 +592,7 @@ export const validateCoupon = asyncHandler(async (req, res) => {
 
     const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
     if (existing) {
-      const details = calculateUpgradeDetails(originalAmount, existing);
+      const details = calculateUpgradeDetails(originalAmount, existing, item);
       originalAmount = details.upgradeFee;
     }
   }

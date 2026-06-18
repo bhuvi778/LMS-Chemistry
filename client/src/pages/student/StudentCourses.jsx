@@ -351,64 +351,89 @@ export default function StudentCourses() {
         )
       )}
 
-      {extensionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 border border-slate-100 animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-start">
-              <h3 className="text-lg font-extrabold text-slate-800">Extend Course Validity</h3>
-              <button
-                onClick={() => setExtensionModal(null)}
-                className="p-1.5 rounded-full hover:bg-slate-105 text-slate-400 hover:text-slate-650 transition"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Course</span>
-                <span className="text-sm font-bold text-slate-700">{extensionModal.course?.title}</span>
+      {extensionModal && (() => {
+        const extPrice = extensionModal.course?.extendValidityPrice || 0;
+        const gwFee = extPrice <= 7299 ? 45 : Math.round(extPrice * 0.007 * 100) / 100;
+        const totalAmount = extPrice > 0 ? Math.round((extPrice + gwFee) * 100) / 100 : 0;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 border border-slate-100 animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-start">
+                <h3 className="text-lg font-extrabold text-slate-800">Extend Course Validity</h3>
+                <button
+                  onClick={() => setExtensionModal(null)}
+                  className="p-1.5 rounded-full hover:bg-slate-105 text-slate-400 hover:text-slate-650 transition"
+                >
+                  <X size={18} />
+                </button>
               </div>
               
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-brand-50 rounded-2xl border border-brand-100/50">
-                  <span className="text-[10px] font-bold text-brand-600 uppercase tracking-wider block">Extension Price</span>
-                  <span className="text-base font-black text-brand-700">AED {extensionModal.course?.extendValidityPrice || 0}</span>
+              <div className="space-y-3">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Course</span>
+                  <span className="text-sm font-bold text-slate-700">{extensionModal.course?.title}</span>
                 </div>
-                <div className="p-3 bg-violet-50 rounded-2xl border border-violet-100/50">
-                  <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wider block">Duration</span>
-                  <span className="text-base font-black text-violet-700 capitalize">
-                    {extensionModal.course?.extendValidityDurationValue} {extensionModal.course?.extendValidityDurationUnit}
-                  </span>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-brand-50 rounded-2xl border border-brand-100/50">
+                    <span className="text-[10px] font-bold text-brand-600 uppercase tracking-wider block">Extension Price</span>
+                    <span className="text-base font-black text-brand-700">AED {extPrice || 0}</span>
+                  </div>
+                  <div className="p-3 bg-violet-50 rounded-2xl border border-violet-100/50">
+                    <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wider block">Duration</span>
+                    <span className="text-base font-black text-violet-700 capitalize">
+                      {extensionModal.course?.extendValidityDurationValue} {extensionModal.course?.extendValidityDurationUnit}
+                    </span>
+                  </div>
                 </div>
+
+                {extensionModal.validUntil && (
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 flex justify-between">
+                    <span>Current Expiry:</span>
+                    <span className="font-bold text-slate-700">
+                      {new Date(extensionModal.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+                )}
+
+                {extPrice > 0 && (
+                  <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-3.5 space-y-1.5 text-xs text-indigo-950 font-medium">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Extension Price</span>
+                      <span>AED {extPrice.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-500">
+                      <span>Internet Handling Charges</span>
+                      <span>AED {gwFee.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1">
+                      <span>Total Amount</span>
+                      <span>AED {totalAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {extensionModal.validUntil && (
-                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 flex justify-between">
-                  <span>Current Expiry:</span>
-                  <span className="font-bold text-slate-700">
-                    {new Date(extensionModal.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </span>
-                </div>
-              )}
+              <button
+                onClick={() => handleExtendValidity(extensionModal)}
+                disabled={extendingBusy}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-brand text-white font-bold py-3 rounded-2xl text-sm shadow-soft hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {extendingBusy ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} /> Processing...
+                  </>
+                ) : extPrice > 0 ? (
+                  <>Pay AED {totalAmount.toFixed(2)} and Extend Now</>
+                ) : (
+                  <>Extend Validity Now</>
+                )}
+              </button>
             </div>
-
-            <button
-              onClick={() => handleExtendValidity(extensionModal)}
-              disabled={extendingBusy}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-brand text-white font-bold py-3 rounded-2xl text-sm shadow-soft hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:pointer-events-none"
-            >
-              {extendingBusy ? (
-                <>
-                  <Loader2 className="animate-spin" size={16} /> Processing...
-                </>
-              ) : (
-                <>Pay and Extend Now</>
-              )}
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

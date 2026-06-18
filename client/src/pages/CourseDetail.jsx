@@ -520,7 +520,17 @@ export default function CourseDetail() {
       }
     }
     if (enrolled && enrollment) {
-      const oldPrice = enrollment.pricePaid || 0;
+      let oldPrice = enrollment.pricePaid || 0;
+      if (oldPrice === 0 && course) {
+        const oldPlan = enrollment.planType || 'batch';
+        if (course.plans && course.plans[oldPlan] && course.plans[oldPlan].price > 0) {
+          oldPrice = course.plans[oldPlan].price;
+        } else {
+          if (oldPlan === 'batch') oldPrice = course.price || 0;
+          else if (oldPlan === 'pro') oldPrice = Math.round((course.price || 0) * 1.25);
+          else if (oldPlan === 'infinity') oldPrice = Math.round((course.price || 0) * 1.5);
+        }
+      }
       let credit = 0;
       if (enrollment.validUntil) {
         const startDate = enrollment.createdAt ? new Date(enrollment.createdAt) : new Date();
@@ -904,7 +914,17 @@ export default function CourseDetail() {
                   
                   let displayPrice = planPrice;
                   if (enrollment && !isDowngradeOrSame) {
-                    const oldPrice = enrollment.pricePaid || 0;
+                    let oldPrice = enrollment.pricePaid || 0;
+                    if (oldPrice === 0 && course) {
+                      const oldPlan = enrollment.planType || 'batch';
+                      if (course.plans && course.plans[oldPlan] && course.plans[oldPlan].price > 0) {
+                        oldPrice = course.plans[oldPlan].price;
+                      } else {
+                        if (oldPlan === 'batch') oldPrice = course.price || 0;
+                        else if (oldPlan === 'pro') oldPrice = Math.round((course.price || 0) * 1.25);
+                        else if (oldPlan === 'infinity') oldPrice = Math.round((course.price || 0) * 1.5);
+                      }
+                    }
                     let credit = 0;
                     if (enrollment.validUntil) {
                       const startDate = enrollment.createdAt ? new Date(enrollment.createdAt) : new Date();

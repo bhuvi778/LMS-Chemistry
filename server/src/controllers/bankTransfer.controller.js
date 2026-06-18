@@ -80,11 +80,6 @@ export const submitBankTransfer = asyncHandler(async (req, res) => {
         else if (planType === 'infinity') newPlanPrice = Math.round(course.price * 1.5);
       }
 
-      const oldPrice = existing.pricePaid || 0;
-      if (newPlanPrice <= oldPrice) {
-        res.status(400);
-        throw new Error(`Upgrade not allowed. The new plan price (${newPlanPrice} AED) must be greater than your current plan price (${oldPrice} AED).`);
-      }
     }
   }
 
@@ -219,11 +214,41 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
     const courseObj = await Course.findById(request.course);
     if (exists) {
       if (request.planType && request.planType !== exists.planType) {
+        // Calculate remaining credit from the old pricePaid
+        let credit = 0;
+        let oldPrice = exists.pricePaid || 0;
+        if (oldPrice === 0 && courseObj) {
+          const oldPlan = exists.planType || 'batch';
+          if (courseObj.plans && courseObj.plans[oldPlan] && courseObj.plans[oldPlan].price > 0) {
+            oldPrice = courseObj.plans[oldPlan].price;
+          } else {
+            if (oldPlan === 'batch') oldPrice = courseObj.price || 0;
+            else if (oldPlan === 'pro') oldPrice = Math.round((courseObj.price || 0) * 1.25);
+            else if (oldPlan === 'infinity') oldPrice = Math.round((courseObj.price || 0) * 1.5);
+          }
+        }
+
+        if (exists.validUntil) {
+          const startDate = exists.createdAt || new Date();
+          const totalMs = new Date(exists.validUntil) - new Date(startDate);
+          let totalDays = Math.ceil(totalMs / (1000 * 60 * 60 * 24));
+          if (totalDays <= 0) totalDays = 365;
+
+          const remainingMs = new Date(exists.validUntil) - new Date();
+          const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
+
+          credit = oldPrice * (remainingDays / totalDays);
+        } else {
+          credit = oldPrice;
+        }
+        credit = Math.round(credit * 100) / 100;
+
         exists.planType = request.planType;
-        exists.pricePaid = (exists.pricePaid || 0) + request.totalAmount;
+        exists.pricePaid = Math.round((credit + request.baseAmount) * 100) / 100;
         exists.paymentId = 'BANK_' + request._id;
         // Reset validity to full duration of new plan
         exists.validUntil = courseObj ? calculateValidityEndDate(courseObj.validity) : null;
+        exists.createdAt = new Date();
         await exists.save();
       }
     } else {
@@ -231,7 +256,7 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
         student: request.student,
         course: request.course,
         planType: request.planType || 'batch',
-        pricePaid: request.totalAmount,
+        pricePaid: request.baseAmount,
         paymentId: 'BANK_' + request._id,
         paymentStatus: 'paid',
         validUntil: courseObj ? calculateValidityEndDate(courseObj.validity) : null,
@@ -245,7 +270,7 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
       await TestSeriesEnrollment.create({
         student: request.student,
         testSeries: request.testSeries,
-        pricePaid: request.totalAmount,
+        pricePaid: request.baseAmount,
         paymentId: 'BANK_' + request._id,
         paymentStatus: 'paid',
         validUntil: tsObj ? calculateValidityEndDate(tsObj.validity) : null,

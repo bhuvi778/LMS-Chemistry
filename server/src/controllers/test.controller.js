@@ -14,7 +14,11 @@ const makeSlug = (title) =>
 
 // ─── ADMIN: Test CRUD ─────────────────────────────────────────────────────────
 export const adminListTests = asyncHandler(async (_req, res) => {
-  const tests = await Test.find().sort({ createdAt: -1 }).select('-questions');
+  const tests = await Test.find()
+    .sort({ createdAt: -1 })
+    .select(
+      '-questions.question -questions.options -questions.correct -questions.correctOptions -questions.correctNumerical -questions.videoSolutionUrl -questions.explanation -questions.image'
+    );
   res.json(tests);
 });
 
@@ -102,7 +106,9 @@ export const publicListTests = asyncHandler(async (req, res) => {
   if (q) filter.title = { $regex: q, $options: 'i' };
   const tests = await Test.find(filter)
     .sort({ order: 1, createdAt: -1 })
-    .select('-questions');
+    .select(
+      '-questions.question -questions.options -questions.correct -questions.correctOptions -questions.correctNumerical -questions.videoSolutionUrl -questions.explanation -questions.image'
+    );
   res.json(tests);
 });
 

@@ -29,10 +29,17 @@ export const enrollInCourse = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Already enrolled in this course');
   }
+
+  let initialPrice = course.price;
+  if (course.plans && course.plans.batch && course.plans.batch.price > 0) {
+    initialPrice = course.plans.batch.price;
+  }
+
   const enrollment = await Enrollment.create({
     student: req.user._id,
     course: courseId,
-    pricePaid: course.price,
+    planType: 'batch',
+    pricePaid: initialPrice,
     paymentId: 'MOCK_' + Date.now(),
     paymentStatus: 'paid',
     validUntil: calculateValidityEndDate(course.validity),

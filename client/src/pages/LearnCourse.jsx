@@ -1060,11 +1060,13 @@ function LiveClassesTab({ liveClasses }) {
                       <span className="text-[10px] opacity-70 font-bold uppercase bg-white/10 px-2 py-0.5 rounded-full">Upcoming</span>
                     )}
                     <span className="text-[9px] font-extrabold bg-white/25 text-white px-2 py-0.5 rounded-full uppercase shrink-0">
-                      {lc.platform === 'internal' ? 'WebRTC' : 
+                      {lc.platform === 'internal' ? 'In-App Room' : 
                        lc.platform === 'agora_call' ? 'Agora Call' : 
-                       lc.platform === 'agora_stream' ? 'Agora Stream' : 
+                       lc.platform === 'agora_stream' ? 'Agora Stream (Legacy)' : 
+                       lc.platform === 'agora_interactive' ? 'Agora Interactive' : 
+                       lc.platform === 'agora_broadcast' ? 'Agora Broadcast' : 
                        lc.platform === 'youtube' ? 'YouTube Live' : 
-                       lc.platform || (lc.useInternalRoom ? 'WebRTC' : 'External')}
+                       lc.platform || (lc.useInternalRoom ? 'In-App Room' : 'External')}
                     </span>
                   </div>
                   <h3 className="font-bold text-base leading-snug mt-1">{lc.title}</h3>

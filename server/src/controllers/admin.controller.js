@@ -353,10 +353,21 @@ export const adminEnrollStudent = asyncHandler(async (req, res) => {
   const course = await Course.findById(courseId);
   if (!course) { res.status(404); throw new Error('Course not found'); }
 
+  const pType = planType || 'batch';
+  let initialPrice = course.price;
+  if (course.plans && course.plans[pType] && course.plans[pType].price > 0) {
+    initialPrice = course.plans[pType].price;
+  } else {
+    if (pType === 'pro') initialPrice = Math.round(course.price * 1.25);
+    else if (pType === 'infinity') initialPrice = Math.round(course.price * 1.5);
+  }
+
   const existing = await Enrollment.findOne({ student: student._id, course: courseId });
   if (existing) {
-    existing.planType = planType || 'batch';
+    existing.planType = pType;
+    existing.pricePaid = initialPrice;
     existing.validUntil = calculateValidityEndDate(course.validity);
+    existing.createdAt = new Date();
     await existing.save();
     await existing.populate('course', 'title category price thumbnail courseType');
     return res.status(200).json(existing);
@@ -365,8 +376,8 @@ export const adminEnrollStudent = asyncHandler(async (req, res) => {
   const enrollment = await Enrollment.create({
     student: student._id,
     course: courseId,
-    planType: planType || 'batch',
-    pricePaid: 0,
+    planType: pType,
+    pricePaid: initialPrice,
     paymentId: 'ADMIN_ALLOT_' + Date.now(),
     paymentStatus: 'paid',
     validUntil: calculateValidityEndDate(course.validity),

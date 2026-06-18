@@ -127,7 +127,7 @@ export default function AdminTestSeries() {
                     </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 mt-3">
+                <div className="flex items-center flex-wrap gap-3 mt-3">
                   <span className="flex items-center gap-1 text-xs text-slate-500">
                     <ClipboardList size={12} /> {s.tests?.length || 0} tests
                   </span>

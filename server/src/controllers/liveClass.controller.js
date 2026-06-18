@@ -19,15 +19,15 @@ export const getLiveClass = asyncHandler(async (req, res) => {
   const obj = lc.toObject();
 
   // Generate Agora Token if applicable
-  if (['agora_call', 'agora_stream'].includes(lc.platform)) {
-    const channelName = lc.roomId;
+  if (['agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast'].includes(lc.platform)) {
+    const channelName = lc.roomId || lc._id.toString();
     const uid = parseInt(req.user._id.toString().slice(-8), 16) || 0;
     
     // Role logic:
-    // 'agora_call' allows everyone to publish (video calling)
-    // 'agora_stream' allows only admin to publish, students subscribe (interactive live stream)
+    // 'agora_call' & 'agora_interactive' generate publisher tokens so participants can speak/stream.
+    // 'agora_broadcast' and legacy 'agora_stream' generate publisher tokens for admins and subscriber tokens for students.
     let agoraRole = 'subscriber';
-    if (lc.platform === 'agora_call' || isAdmin) {
+    if (['agora_call', 'agora_interactive'].includes(lc.platform) || isAdmin) {
       agoraRole = 'publisher';
     }
 

@@ -14,7 +14,7 @@ const liveClassSchema = new mongoose.Schema(
     // Platform type
     platform: {
       type: String,
-      enum: ['internal', 'zoom', 'meet', 'youtube', 'agora_call', 'agora_stream'],
+      enum: ['internal', 'zoom', 'meet', 'youtube', 'agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast'],
       default: 'internal',
     },
     // Self-hosted WebRTC room / Agora room

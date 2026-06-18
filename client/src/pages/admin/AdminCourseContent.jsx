@@ -797,12 +797,14 @@ function LiveClassesTab({ courseId }) {
 
   const platformLabel = (p) =>
     ({
-      internal: 'In-App Room (WebRTC)',
+      internal: 'In-App Room',
       zoom: 'Zoom',
       meet: 'Google Meet',
       youtube: 'YouTube Live',
       agora_call: 'Agora Video Call',
-      agora_stream: 'Agora Stream'
+      agora_stream: 'Agora Stream (Legacy)',
+      agora_interactive: 'Agora Interactive',
+      agora_broadcast: 'Agora Broadcast'
     })[p] || p;
 
   const save = async (e) => {
@@ -887,9 +889,11 @@ function LiveClassesTab({ courseId }) {
                 <label className="label">Platform</label>
                 <select className="input" value={editing.platform || 'internal'}
                   onChange={(e) => setEditing((f) => ({ ...f, platform: e.target.value }))}>
-                  <option value="internal">In-App Room (WebRTC)</option>
+                  <option value="internal">In-App Room</option>
                   <option value="agora_call">Agora Video Call (All Participants)</option>
-                  <option value="agora_stream">Agora Interactive Live Stream (Broadcaster Mode)</option>
+                  <option value="agora_interactive">Agora Interactive Live Stream (Raise Hand / Co-host)</option>
+                  <option value="agora_broadcast">Agora One-Way Broadcast (No Interaction)</option>
+                  <option value="agora_stream">Agora Stream (Legacy)</option>
                   <option value="youtube">YouTube Live (Embed / Broadcast)</option>
                   <option value="zoom">Zoom</option>
                   <option value="meet">Google Meet</option>
@@ -915,16 +919,18 @@ function LiveClassesTab({ courseId }) {
 
             {editing.platform === 'internal' && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700">
-                An in-app WebRTC room will be automatically created. Students will see a "Join Room" button during the scheduled time.
+                An in-app room will be automatically created. Students will see a "Join Room" button during the scheduled time.
               </div>
             )}
 
-            {['agora_call', 'agora_stream'].includes(editing.platform) && (
+            {['agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast'].includes(editing.platform) && (
               <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-3 text-sm text-teal-800">
                 <strong>Agora RTC Session:</strong> Dynamic secure tokens will be generated.
                 {editing.platform === 'agora_call'
-                  ? ' Students and instructors will be able to share their video and audio (Video Calling).'
-                  : ' Only the instructor/broadcaster can stream. Students can watch with ultra-low latency.'}
+                  ? ' Everyone can turn on camera/microphone and speak directly (Video Calling).'
+                  : editing.platform === 'agora_interactive'
+                    ? ' Students join as audience but can raise hand to co-host and speak (Interactive).'
+                    : ' One-way broadcast stream from instructor to all students. No interaction.'}
               </div>
             )}
 

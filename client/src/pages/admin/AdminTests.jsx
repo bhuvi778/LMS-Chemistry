@@ -144,8 +144,8 @@ export default function AdminTests() {
           </Link>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+          <table className="w-full text-sm min-w-[950px]">
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
                 <th className="text-left px-4 py-3 font-semibold text-slate-600">Title</th>

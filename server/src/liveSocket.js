@@ -49,7 +49,7 @@ export function attachLiveSocket(server) {
   io.on('connection', (socket) => {
     let currentRoom = null;
 
-    socket.on('join', async ({ liveClassId, role, passcode }, ack) => {
+    socket.on('join', async ({ liveClassId, role, passcode, agoraUid }, ack) => {
       try {
         const lc = await LiveClass.findById(liveClassId);
         if (!lc || !lc.useInternalRoom) {
@@ -71,6 +71,7 @@ export function attachLiveSocket(server) {
         socket.data.role = finalRole;
         socket.data.liveClassId = liveClassId;
         socket.data.name = socket.user.name;
+        socket.data.agoraUid = agoraUid;
 
         // Tell the new user about existing peers
         const existing = [];
@@ -78,7 +79,7 @@ export function attachLiveSocket(server) {
         for (const sid of room) {
           if (sid === socket.id) continue;
           const s = io.sockets.sockets.get(sid);
-          if (s) existing.push({ peerId: sid, role: s.data.role, name: s.data.name });
+          if (s) existing.push({ peerId: sid, role: s.data.role, name: s.data.name, agoraUid: s.data.agoraUid });
         }
         socket.emit('peers', { list: existing });
 
@@ -87,6 +88,7 @@ export function attachLiveSocket(server) {
           peerId: socket.id,
           role: finalRole,
           name: socket.user.name,
+          agoraUid: socket.data.agoraUid,
         });
 
         // If host, mark live class started
@@ -104,6 +106,27 @@ export function attachLiveSocket(server) {
     socket.on('signal', ({ to, data }) => {
       if (!to) return;
       io.to(to).emit('signal', { from: socket.id, data });
+    });
+
+    socket.on('raise-hand', () => {
+      if (!currentRoom) return;
+      io.to(currentRoom).emit('raise-hand', { peerId: socket.id, name: socket.user.name });
+    });
+
+    socket.on('lower-hand', ({ peerId }) => {
+      if (!currentRoom) return;
+      const targetId = peerId || socket.id;
+      io.to(currentRoom).emit('lower-hand', { peerId: targetId });
+    });
+
+    socket.on('approve-hand', ({ peerId }) => {
+      if (!currentRoom || socket.data.role !== 'host') return;
+      io.to(currentRoom).emit('approve-hand', { peerId });
+    });
+
+    socket.on('remove-cohost', ({ peerId }) => {
+      if (!currentRoom || socket.data.role !== 'host') return;
+      io.to(currentRoom).emit('remove-cohost', { peerId });
     });
 
     socket.on('chat', ({ text }) => {

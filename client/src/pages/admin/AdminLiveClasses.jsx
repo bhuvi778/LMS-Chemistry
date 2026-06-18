@@ -144,7 +144,6 @@ export default function AdminLiveClasses() {
                 </div>
               </div>
               <div>
-                <label className="label">Streaming Platform</label>
                 <select className="input" value={editing.platform || (editing.useInternalRoom ? 'internal' : 'meet')} onChange={(e) => {
                   const val = e.target.value;
                   set('platform', val);
@@ -154,9 +153,11 @@ export default function AdminLiveClasses() {
                     set('useInternalRoom', true);
                   }
                 }}>
-                  <option value="internal">In-App Room (WebRTC)</option>
+                  <option value="internal">In-App Room</option>
                   <option value="agora_call">Agora Video Call (All Participants)</option>
-                  <option value="agora_stream">Agora Interactive Live Stream (Broadcaster Mode)</option>
+                  <option value="agora_interactive">Agora Interactive Live Stream (Raise Hand / Co-host)</option>
+                  <option value="agora_broadcast">Agora One-Way Broadcast (No Interaction)</option>
+                  <option value="agora_stream">Agora Stream (Legacy)</option>
                   <option value="youtube">YouTube Live (Embed / Broadcast)</option>
                   <option value="zoom">Zoom</option>
                   <option value="meet">Google Meet</option>
@@ -188,8 +189,10 @@ export default function AdminLiveClasses() {
                 <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-3 text-sm text-teal-800">
                   <strong>Agora RTC Session:</strong> Dynamic secure tokens will be generated. 
                   {editing.platform === 'agora_call'
-                    ? ' Students and instructors will be able to share their video and audio (Video Calling).'
-                    : ' Only the instructor/broadcaster can stream. Students can watch with ultra-low latency.'}
+                    ? ' Everyone can turn on camera/microphone and speak directly (Video Calling).'
+                    : editing.platform === 'agora_interactive'
+                      ? ' Students join as audience but can raise hand to co-host and speak (Interactive).'
+                      : ' One-way broadcast stream from instructor to all students. No interaction.'}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
@@ -264,7 +267,7 @@ export default function AdminLiveClasses() {
 }
 
 function ClassCard({ lc, onEdit, onDelete, past }) {
-  const isEmbedRoom = ['internal', 'agora_call', 'agora_stream', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet'));
+  const isEmbedRoom = ['internal', 'agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet'));
   
   return (
     <div className={`card overflow-hidden flex flex-col ${past ? 'border-slate-100' : 'border-rose-100'}`}>
@@ -280,11 +283,13 @@ function ClassCard({ lc, onEdit, onDelete, past }) {
                 {lc.courseName && <span className="text-[10px] text-slate-500 truncate max-w-[100px]">{lc.courseName}</span>}
                 {lc.courseName && <span className="text-[9px] text-slate-300">•</span>}
                 <span className="text-[9px] font-extrabold bg-brand-50 border border-brand-100 text-brand-700 px-1 py-0.5 rounded uppercase shrink-0">
-                  {lc.platform === 'internal' ? 'WebRTC' : 
+                  {lc.platform === 'internal' ? 'In-App Room' : 
                    lc.platform === 'agora_call' ? 'Agora Call' : 
-                   lc.platform === 'agora_stream' ? 'Agora Stream' : 
+                   lc.platform === 'agora_stream' ? 'Agora Stream (Legacy)' : 
+                   lc.platform === 'agora_interactive' ? 'Agora Interactive' : 
+                   lc.platform === 'agora_broadcast' ? 'Agora Broadcast' : 
                    lc.platform === 'youtube' ? 'YouTube Live' : 
-                   lc.platform || (lc.useInternalRoom ? 'WebRTC' : 'External')}
+                   lc.platform || (lc.useInternalRoom ? 'In-App Room' : 'External')}
                 </span>
               </div>
             </div>

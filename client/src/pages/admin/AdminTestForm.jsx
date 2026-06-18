@@ -27,6 +27,7 @@ const RICH_TEXT_OPTS = {
     ['fontColor', 'hiliteColor'],
     ['subscript', 'superscript'],
     ['removeFormat'],
+    ['image'],
   ],
 };
 
@@ -934,7 +935,7 @@ export default function AdminTestForm() {
                   </div>
                   <div className="flex items-center gap-3 self-end sm:self-center">
                     <span className="text-[11px] font-bold text-slate-500 bg-slate-200/60 px-2 py-1 rounded-md">
-                      {countAssigned} Qs
+                      Attempt {sec.attemptAllowed > 0 ? sec.attemptAllowed : countAssigned} of {countAssigned} Qs
                     </span>
                     <button
                       type="button"
