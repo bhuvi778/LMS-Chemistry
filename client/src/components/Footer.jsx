@@ -60,7 +60,7 @@ export default function Footer() {
             <img src="/logo-light.png" alt="Ace2Examz Logo" className="h-11 w-auto object-contain" />
           </Link>
           <p className="text-sm text-slate-400 leading-relaxed max-w-sm">
-            UAE's most trusted Chemistry Platform for CBSE, JEE, NEET and more. Taught by expert faculty.
+            India's most trusted Chemistry Platform for CBSE, JEE, NEET and more. Taught by expert faculty.
           </p>
 
           <div className="flex items-center gap-1 mt-5 p-3 rounded-xl bg-white/5 border border-white/8 max-w-sm">
@@ -134,7 +134,7 @@ export default function Footer() {
           <ul className="space-y-3 text-sm">
             <li className="flex gap-2.5 items-start">
               <Mail size={15} className="mt-0.5 text-brand-400 shrink-0" />
-              <a href="mailto:uae@ace2examz.com" className="hover:text-white transition">uae@ace2examz.com</a>
+              <a href="mailto:support@ace2examz.com" className="hover:text-white transition">support@ace2examz.com</a>
             </li>
             <li className="flex gap-2.5 items-start">
               <Phone size={15} className="mt-0.5 text-brand-400 shrink-0" />
@@ -167,7 +167,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Ace2Examz. All rights reserved.
           </div>
           <div className="text-xs text-slate-500">
-            Made with ❤️ for Chemistry students across UAE
+            Made with ❤️ for Chemistry students across India
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation, Navigate, useParams } from 'react-router-dom';
 import { useEffect } from 'react';
+import toast from 'react-hot-toast';
 import Navbar from './components/Navbar.jsx';
 
 function LearnRedirect() {
@@ -92,6 +93,42 @@ import StudentLiveClasses from './pages/student/LiveClasses.jsx';
 
 
 export default function App() {
+  useEffect(() => {
+    // Block context menu (right click)
+    const blockContextMenu = (e) => e.preventDefault();
+
+    // Block keyboard combinations (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U, Ctrl+S, Ctrl+P)
+    const blockShortcuts = (e) => {
+      if (
+        e.key === 'F12' ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') ||
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') ||
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p')
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    // Print Screen / Copy protection
+    const blockPrintScreen = (e) => {
+      if (e.key === 'PrintScreen') {
+        navigator.clipboard.writeText('');
+        toast.error('Screenshots are disabled for security reasons.');
+      }
+    };
+
+    document.addEventListener('contextmenu', blockContextMenu);
+    document.addEventListener('keydown', blockShortcuts);
+    document.addEventListener('keyup', blockPrintScreen);
+
+    return () => {
+      document.removeEventListener('contextmenu', blockContextMenu);
+      document.removeEventListener('keydown', blockShortcuts);
+      document.removeEventListener('keyup', blockPrintScreen);
+    };
+  }, []);
+
   return (
     <div className="min-h-full flex flex-col">
       <ScrollToTop />

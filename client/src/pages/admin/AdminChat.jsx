@@ -168,7 +168,7 @@ export default function AdminChat() {
   );
 
   const fmtTime = (ts) => {
-    return new Date(ts).toLocaleTimeString('en-AE', {
+    return new Date(ts).toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,

@@ -119,7 +119,7 @@ export default function AdminPopups() {
   };
 
   const fmtDate = (ts) => {
-    return new Date(ts).toLocaleDateString('en-AE', {
+    return new Date(ts).toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',

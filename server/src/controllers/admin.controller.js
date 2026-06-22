@@ -178,7 +178,7 @@ export const createLiveClass = asyncHandler(async (req, res) => {
       const link = lc.useInternalRoom ? `/live/${lc._id}` : (lc.meetLink || '');
       await notifyMany(userIds, {
         title: `New Live Class: ${lc.title}`,
-        message: `Scheduled at ${new Date(lc.scheduledAt).toLocaleString('en-AE')} · ${lc.durationMins} min · ${lc.instructor}`,
+        message: `Scheduled at ${new Date(lc.scheduledAt).toLocaleString('en-IN')} · ${lc.durationMins} min · ${lc.instructor}`,
         type: 'live_class',
         link,
         refId: lc._id,

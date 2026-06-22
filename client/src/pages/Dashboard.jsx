@@ -34,9 +34,9 @@ export default function Dashboard() {
   const fmtTime = (ts) => {
     const diff = (Date.now() - new Date(ts).getTime()) / 1000;
     if (diff < 60) return 'just now';
-    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 3650) return Math.floor(diff / 60) + 'm ago';
     if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-    return new Date(ts).toLocaleDateString('en-AE', { day: 'numeric', month: 'short' });
+    return new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   };
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function Dashboard() {
     { icon: BookOpen, label: 'Enrolled Courses', value: enrollments.length, color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50', text: 'text-violet-600' },
     { icon: Flame, label: 'Day Streak', value: `${user?.streak || 0}🔥`, color: 'from-amber-500 to-orange-600', bg: 'bg-amber-50', text: 'text-amber-600' },
     { icon: Coins, label: 'Ace Coins', value: user?.coins || 0, color: 'from-yellow-400 to-amber-500', bg: 'bg-yellow-50', text: 'text-yellow-600' },
-    { icon: TrendingUp, label: 'Total Invested', value: `AED ${enrollments.reduce((a, e) => a + (e.pricePaid || 0), 0).toLocaleString()}`, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+    { icon: TrendingUp, label: 'Total Invested', value: `₹${enrollments.reduce((a, e) => a + (e.pricePaid || 0), 0).toLocaleString()}`, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', text: 'text-emerald-600' },
   ];
 
   const quickLinks = [
@@ -251,7 +251,7 @@ export default function Dashboard() {
                         <h4 className="font-bold text-slate-800 text-sm truncate">{lc.title}</h4>
                         <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
                           <Calendar size={11} />
-                          <span>{new Date(lc.scheduledAt).toLocaleString('en-AE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                          <span>{new Date(lc.scheduledAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       </div>
                       {['internal', 'agora_call', 'agora_stream', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet')) ? (

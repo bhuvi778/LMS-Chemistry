@@ -14,12 +14,12 @@ export default function CourseCard({ course }) {
     const v = course.validity;
     if (v?.type === 'lifetime') return 'Lifetime';
     if (v?.type === 'duration') return `${v.durationValue} ${v.durationUnit}`;
-    if (v?.type === 'endDate' && v.endDate) return `Until ${new Date(v.endDate).toLocaleDateString('en-AE', { month: 'short', year: 'numeric' })}`;
+    if (v?.type === 'endDate' && v.endDate) return `Until ${new Date(v.endDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`;
     if (course.durationMonths) return `${course.durationMonths} months`;
     return 'Lifetime';
   };
   const fmtDate = (d) =>
-    d ? new Date(d).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
+    d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
 
   return (
     <Link
@@ -116,10 +116,10 @@ export default function CourseCard({ course }) {
         <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
           <div>
             <div className="text-xl font-black text-slate-900">
-              AED {course.price?.toLocaleString()}
+              ₹{course.price?.toLocaleString()}
             </div>
             {course.mrp > course.price && (
-              <div className="text-xs text-slate-400 line-through">AED {course.mrp?.toLocaleString()}</div>
+              <div className="text-xs text-slate-400 line-through">₹{course.mrp?.toLocaleString()}</div>
             )}
           </div>
           <span className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-gradient-to-r from-brand-500 to-violet2-500 text-white text-xs font-bold group-hover:shadow-soft transition-all">

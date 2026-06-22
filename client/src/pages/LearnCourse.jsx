@@ -597,7 +597,7 @@ function ReviewsTab({ courseId, user }) {
               </div>
               {rev.comment && <p className="text-xs text-slate-600 leading-relaxed italic">"{rev.comment}"</p>}
               <div className="text-[10px] text-slate-400">
-                {new Date(rev.createdAt || Date.now()).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                {new Date(rev.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
               </div>
             </div>
           ))
@@ -1075,7 +1075,7 @@ function LiveClassesTab({ liveClasses }) {
                 <div className="p-4 space-y-2">
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <Calendar size={14} className="shrink-0 text-slate-400" />
-                    {new Date(lc.scheduledAt).toLocaleString('en-AE', {
+                    {new Date(lc.scheduledAt).toLocaleString('en-IN', {
                       day: 'numeric', month: 'short', year: 'numeric',
                       hour: '2-digit', minute: '2-digit',
                     })}
@@ -1647,7 +1647,7 @@ function AnnouncementsTab({ announcements, readAnnouncements = [], onToggleRead 
                     )}
                   </div>
                   <p className="text-xs text-slate-400 mt-1">
-                    {new Date(ann.createdAt).toLocaleString('en-AE', {
+                    {new Date(ann.createdAt).toLocaleString('en-IN', {
                       day: 'numeric', month: 'short', year: 'numeric',
                       hour: '2-digit', minute: '2-digit',
                     })}

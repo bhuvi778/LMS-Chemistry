@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client.js';
 import {
@@ -37,7 +37,7 @@ export default function AdminDashboard() {
     { label: 'Total Students', value: stats.students.toLocaleString(), icon: Users, color: 'from-blue-500 to-indigo-500', sub: 'Registered learners', link: '/admin/students' },
     { label: 'Total Courses', value: stats.courses, icon: BookOpen, color: 'from-violet-500 to-fuchsia-500', sub: `${detail.publishedCourses || 0} live`, link: '/admin/courses' },
     { label: 'Enrollments', value: stats.enrollments.toLocaleString(), icon: FileText, color: 'from-emerald-500 to-teal-500', sub: 'All time', link: '/admin/enrollments' },
-    { label: 'Total Revenue', value: `AED ${(stats.revenue || 0).toLocaleString()}`, icon: DollarSign, color: 'from-amber-500 to-orange-500', sub: 'All-time earned', link: null },
+    { label: 'Total Revenue', value: `₹ ${(stats.revenue || 0).toLocaleString()}`, icon: DollarSign, color: 'from-amber-500 to-orange-500', sub: 'All-time earned', link: null },
   ];
 
   const maxDay = useMemo(() => Math.max(1, ...(detail.recentDays || []).map((d) => d.count)), [detail.recentDays]);
@@ -54,7 +54,7 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-extrabold text-slate-900">Analytics Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Real-time overview — Ace2Examz • {new Date().toLocaleDateString('en-AE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        <p className="text-slate-500 text-sm mt-1">Real-time overview — Ace2Examz • {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -142,7 +142,7 @@ export default function AdminDashboard() {
               {detail.monthlyRevenue.map((m, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1 group/bar">
                   <div className="relative w-full flex flex-col items-center">
-                    {m.revenue > 0 && <span className="text-[9px] font-bold text-amber-600 opacity-0 group-hover/bar:opacity-100 transition mb-1">AED {m.revenue.toLocaleString()}</span>}
+                    {m.revenue > 0 && <span className="text-[9px] font-bold text-amber-600 opacity-0 group-hover/bar:opacity-100 transition mb-1">₹{m.revenue.toLocaleString()}</span>}
                     <div className="w-full rounded-t-lg bg-gradient-to-t from-amber-500 to-orange-400 transition-all duration-500" style={{ height: `${Math.max(4, (m.revenue / maxRevenue) * 100)}px` }} />
                   </div>
                   <span className="text-[9px] text-slate-400 whitespace-nowrap">{m.month}</span>
@@ -194,7 +194,7 @@ export default function AdminDashboard() {
                   <div className="font-semibold text-xs text-slate-900 truncate">{c.title}</div>
                   <div className="text-[10px] text-slate-400">{c.category} · {c.enrollmentCount} enrolled</div>
                 </div>
-                <div className="text-xs font-bold text-emerald-600 shrink-0">AED {(c.revenue || 0).toLocaleString()}</div>
+                <div className="text-xs font-bold text-emerald-600 shrink-0">₹{(c.revenue || 0).toLocaleString()}</div>
               </div>
             ))}
             {(detail.topCourses || []).length === 0 && <p className="text-sm text-slate-400 py-4 text-center">No data yet</p>}
@@ -212,7 +212,7 @@ export default function AdminDashboard() {
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-500 grid place-items-center text-white shrink-0"><Video size={14} /></div>
                 <div className="min-w-0">
                   <div className="font-semibold text-xs text-slate-900 truncate">{lc.title}</div>
-                  <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5"><Clock size={10} /> {new Date(lc.scheduledAt).toLocaleString('en-AE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                  <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5"><Clock size={10} /> {new Date(lc.scheduledAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
                 </div>
               </div>
             ))}

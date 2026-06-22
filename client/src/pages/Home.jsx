@@ -222,7 +222,7 @@ export default function Home() {
           <div>
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }} className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/[0.08] border border-white/15 backdrop-blur-sm mb-7">
               <Flame size={14} className="text-amber-400" />
-              <span className="text-xs font-bold text-white/90 tracking-wide uppercase">UAE's #1 Chemistry Learning Platform</span>
+              <span className="text-xs font-bold text-white/90 tracking-wide uppercase">India's #1 Chemistry Learning Platform</span>
               <span className="px-2 py-0.5 rounded-full bg-amber-400 text-amber-900 text-[10px] font-black">NEW</span>
             </motion.div>
             <AnimatePresence mode="wait">

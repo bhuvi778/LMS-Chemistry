@@ -26,7 +26,7 @@ export default function PrivacyPolicy() {
         },
         {
           id: '1.6',
-          text: `You agree to immediately notify us in writing by email to uae@ace2examz.com of any unauthorised use of your Personal User Information or any other breach of security. We are not and shall not be liable for any harm arising from or relating to the theft of your Personal User Information that is under Your control, your disclosure of your Personal User Information, or the use of your Personal User Information by another person or entity.`,
+          text: `You agree to immediately notify us in writing by email to support@ace2examz.com of any unauthorised use of your Personal User Information or any other breach of security. We are not and shall not be liable for any harm arising from or relating to the theft of your Personal User Information that is under Your control, your disclosure of your Personal User Information, or the use of your Personal User Information by another person or entity.`,
         },
         {
           id: '1.7',
@@ -94,14 +94,14 @@ export default function PrivacyPolicy() {
       subsections: [
         {
           id: '5.1',
-          text: `We provide all customers with the opportunity to opt out of receiving non-essential (promotional, marketing-related) communications from Us on behalf of our partners, and from Us in general, after providing Us with personal information. If You want to remove your contact information from all lists and newsletters or if you have additional questions or require more information about our Privacy Policy, do not hesitate to contact us through email uae@ace2examz.com.`,
+          text: `We provide all customers with the opportunity to opt out of receiving non-essential (promotional, marketing-related) communications from Us on behalf of our partners, and from Us in general, after providing Us with personal information. If You want to remove your contact information from all lists and newsletters or if you have additional questions or require more information about our Privacy Policy, do not hesitate to contact us through email support@ace2examz.com.`,
         },
       ],
     },
     {
       num: '6',
       title: 'Privacy Policies',
-      content: `Third party ad servers or ad networks use technologies like cookies, JavaScript, or Web Beacons that are used in their respective advertisements and links that appear on Ace2Examz UAE, which are sent directly to users' browsers. They automatically receive your IP address when this occurs. These technologies are used to measure the effectiveness of their advertising campaigns and/or to personalise the advertising content that you see on websites that you visit. Please note that we do not have access to or control over these cookies that are used by third party advertisers.`,
+      content: `Third party ad servers or ad networks use technologies like cookies, JavaScript, or Web Beacons that are used in their respective advertisements and links that appear on Ace2Examz, which are sent directly to users' browsers. They automatically receive your IP address when this occurs. These technologies are used to measure the effectiveness of their advertising campaigns and/or to personalise the advertising content that you see on websites that you visit. Please note that we do not have access to or control over these cookies that are used by third party advertisers.`,
     },
     {
       num: '7',
@@ -121,12 +121,12 @@ export default function PrivacyPolicy() {
     {
       num: '10',
       title: 'Grievance Redressal',
-      content: `In administering the Company's Website and mobile application, the Company shall always adhere to the applicable laws of the United Arab Emirates (UAE). The Company has a mechanism for reporting abuse, which is aimed at providing an effective and easy mechanism for You to report any abuses that may occur on the Website and to follow up and resolve cases within a reasonable time.\n\nAs part of the mechanism for reporting abuse, the Website shall always have a dedicated Grievance Officer of the Company (the "G.O.").`,
+      content: `In administering the Company's Website and mobile application, the Company shall always adhere to the applicable laws of India. The Company has a mechanism for reporting abuse, which is aimed at providing an effective and easy mechanism for You to report any abuses that may occur on the Website and to follow up and resolve cases within a reasonable time.\n\nAs part of the mechanism for reporting abuse, the Website shall always have a dedicated Grievance Officer of the Company (the "G.O.").`,
     },
     {
       num: '11',
       title: 'Online Privacy Policy Only',
-      content: `This Privacy Policy applies only to our online activities and is valid for visitors to our website with regard to the information that they shared and/or collected in Ace2Examz UAE. This policy is not applicable to any information collected offline or via channels other than this website.`,
+      content: `This Privacy Policy applies only to our online activities and is valid for visitors to our website with regard to the information that they shared and/or collected in Ace2Examz. This policy is not applicable to any information collected offline or via channels other than this website.`,
     },
     {
       num: '12',
@@ -193,7 +193,7 @@ export default function PrivacyPolicy() {
         </div>
 
         <p className="mt-10 text-xs text-slate-600 text-center">
-          Last updated: May 2026 &mdash; Ace2Examz UAE
+          Last updated: May 2026 &mdash; Ace2Examz
         </p>
       </div>
     </div>

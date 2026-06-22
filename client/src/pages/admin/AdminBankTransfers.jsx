@@ -119,7 +119,7 @@ export default function AdminBankTransfers() {
                 <tr>
                   <th className="text-left px-4 py-3">Student</th>
                   <th className="text-left px-4 py-3">Item</th>
-                  <th className="text-right px-4 py-3">Amount (AED)</th>
+                  <th className="text-right px-4 py-3">Amount (INR)</th>
                   <th className="text-left px-4 py-3">Reference</th>
                   <th className="text-left px-4 py-3">Date</th>
                   <th className="text-left px-4 py-3">Status</th>
@@ -216,7 +216,7 @@ export default function AdminBankTransfers() {
             <div className="bg-slate-50 rounded-xl p-3 space-y-1 text-sm">
               <div><span className="text-slate-500">Student:</span> <span className="font-semibold">{actionModal.req.studentName}</span></div>
               <div><span className="text-slate-500">Item:</span> <span className="font-semibold">{actionModal.req.course?.title || actionModal.req.testSeries?.title || '—'}</span></div>
-              <div><span className="text-slate-500">Total:</span> <span className="font-bold text-slate-800">AED {actionModal.req.totalAmount?.toFixed(2)}</span></div>
+              <div><span className="text-slate-500">Total:</span> <span className="font-bold text-slate-800">₹{actionModal.req.totalAmount?.toFixed(2)}</span></div>
               <div><span className="text-slate-500">Reference:</span> <span className="font-mono">{actionModal.req.referenceNumber}</span></div>
             </div>
             {actionModal.type === 'confirm' && (

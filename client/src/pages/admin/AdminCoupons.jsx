@@ -97,7 +97,7 @@ function ItemCouponCard({ item, type, onSaved }) {
         <div className="flex-1 min-w-0">
           <div className="font-bold text-slate-900 text-sm truncate">{item.title}</div>
           <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
-            <span>AED {item.price?.toLocaleString() ?? 0}</span>
+            <span>₹{item.price?.toLocaleString() ?? 0}</span>
             <span className="text-slate-300">•</span>
             <span>
               {coupons.length === 0
@@ -163,7 +163,7 @@ function ItemCouponCard({ item, type, onSaved }) {
               onChange={(e) => updateCoupon(i, 'discountType', e.target.value)}
             >
               <option value="percent">% Percent</option>
-              <option value="amount">AED Amount</option>
+              <option value="amount">INR Amount</option>
             </select>
             {/* Value */}
             <input
@@ -220,7 +220,7 @@ function ItemCouponCard({ item, type, onSaved }) {
                     <span className="font-normal text-amber-500">
                       — {c.discountType === 'percent'
                         ? `${c.discountValue}% off`
-                        : `AED ${c.discountValue} off`}
+                        : `₹${c.discountValue} off`}
                     </span>
                   </span>
                 ))}

@@ -309,7 +309,7 @@ export default function Login() {
             <span className="font-display font-extrabold text-2xl">Ace2Examz</span>
           </div>
           <h2 className="font-display text-4xl font-extrabold leading-tight">
-            Welcome back to UAE's #1 Chemistry Platform
+            Welcome back to India's #1 Chemistry Platform
           </h2>
           <p className="mt-4 text-white/80">
             Pick up where you left off and keep crushing your goals.

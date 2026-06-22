@@ -333,12 +333,12 @@ export default function AdminTestSeriesForm() {
         {/* Pricing (only if not free) */}
         {!form.isFree && (
           <div className="space-y-3 border-t border-slate-100 pt-4">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pricing (AED)</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pricing (INR)</h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-slate-500 mb-1 block">Price (AED)</label>
+                <label className="text-xs text-slate-500 mb-1 block">Price (INR)</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">AED</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">INR</span>
                   <input
                     type="number"
                     className="w-full border border-slate-200 rounded-lg pl-12 pr-3 py-2 text-sm focus:outline-none focus:border-brand-400"
@@ -348,9 +348,9 @@ export default function AdminTestSeriesForm() {
                 </div>
               </div>
               <div>
-                <label className="text-xs text-slate-500 mb-1 block">MRP (AED)</label>
+                <label className="text-xs text-slate-500 mb-1 block">MRP (INR)</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">AED</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">INR</span>
                   <input
                     type="number"
                     className="w-full border border-slate-200 rounded-lg pl-12 pr-3 py-2 text-sm focus:outline-none focus:border-brand-400"
@@ -431,7 +431,7 @@ export default function AdminTestSeriesForm() {
                       }))}
                     >
                       <option value="percent">% Percent</option>
-                      <option value="amount">AED Amount</option>
+                      <option value="amount">INR Amount</option>
                     </select>
                     <input
                       type="number"

@@ -404,7 +404,7 @@ export default function TestResult() {
             </div>
             <h1 className="text-2xl font-bold text-slate-800 mb-1">{test?.title}</h1>
             <p className="text-slate-400 text-xs font-medium">
-              Submitted on {new Date(attempt.submittedAt).toLocaleString('en-AE', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              Submitted on {new Date(attempt.submittedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
 

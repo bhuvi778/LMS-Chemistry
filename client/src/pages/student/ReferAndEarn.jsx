@@ -34,7 +34,7 @@ export default function ReferAndEarn() {
   const steps = [
     { icon: Share2, title: 'Share Your Code', desc: 'Share your unique referral code with friends' },
     { icon: Users, title: 'Friend Signs Up', desc: 'They register using your referral code' },
-    { icon: Coins, title: 'Earn 5 Coins', desc: 'You receive 5 Ace Coins instantly (≈ 0.20 AED)' },
+    { icon: Coins, title: 'Earn 5 Coins', desc: 'You receive 5 Ace Coins instantly (≈ ₹0.20)' },
   ];
 
   return (
@@ -56,7 +56,7 @@ export default function ReferAndEarn() {
             </div>
             <div>
               <h2 className="font-display font-extrabold text-2xl">Earn 5 Coins per Friend</h2>
-              <p className="text-white/80 text-sm">Equivalent to 0.20 AED per referral</p>
+              <p className="text-white/80 text-sm">Equivalent to ₹0.20 per referral</p>
             </div>
           </div>
 
@@ -134,7 +134,7 @@ export default function ReferAndEarn() {
       {/* Terms */}
       <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
         <p className="text-xs text-slate-500 font-medium leading-relaxed">
-          📋 <b>Terms:</b> Referral coins are credited once your friend successfully creates and verifies their account. Conversion rate: 25 Coins = 1 AED. There is no limit on referrals.
+          📋 <b>Terms:</b> Referral coins are credited once your friend successfully creates and verifies their account. Conversion rate: 25 Coins = ₹1. There is no limit on referrals.
         </p>
       </div>
     </div>

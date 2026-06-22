@@ -51,7 +51,7 @@ export default function AdminStatsWallet() {
     finally { setBusy(false); }
   };
 
-  const aed = (coins) => (coins / 25).toFixed(2);
+  const inr = (coins) => (coins / 25).toFixed(2);
 
   return (
     <div className="space-y-6">
@@ -71,7 +71,7 @@ export default function AdminStatsWallet() {
           <div>
             <div className="text-xs text-slate-400 uppercase font-bold tracking-wider">Total Coins Circulated</div>
             <div className="text-2xl font-black">{(data.totalCoins || 0).toLocaleString()}</div>
-            <div className="text-xs text-slate-400">≈ {aed(data.totalCoins || 0)} AED</div>
+            <div className="text-xs text-slate-400">≈ ₹{inr(data.totalCoins || 0)}</div>
           </div>
         </div>
         <div className="card p-5 flex items-center gap-4">
@@ -125,7 +125,7 @@ export default function AdminStatsWallet() {
                 <tr className="border-b border-slate-100">
                   <th className="text-left py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Student</th>
                   <th className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Coins</th>
-                  <th className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">AED Value</th>
+                  <th className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">INR Value</th>
                   <th className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Active Days</th>
                   <th className="text-right py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -153,7 +153,7 @@ export default function AdminStatsWallet() {
                       </span>
                     </td>
                     <td className="py-3 px-3 text-center text-slate-600 font-semibold text-xs">
-                      ≈ {aed(s.coins || 0)} AED
+                      ≈ ₹{inr(s.coins || 0)}
                     </td>
                     <td className="py-3 px-3 text-center text-slate-600 text-xs font-semibold">
                       {(s.activeDays || []).length} days
@@ -193,7 +193,7 @@ export default function AdminStatsWallet() {
               <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-3 text-center">
                 <span className="text-xs text-slate-500">Current Balance</span>
                 <div className="text-2xl font-black text-yellow-600">{editing.coins || 0} Coins</div>
-                <div className="text-xs text-slate-400">≈ {aed(editing.coins || 0)} AED</div>
+                <div className="text-xs text-slate-400">≈ ₹{inr(editing.coins || 0)}</div>
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Amount</label>

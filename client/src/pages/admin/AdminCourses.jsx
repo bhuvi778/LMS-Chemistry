@@ -260,11 +260,11 @@ export default function AdminCourses() {
                         className="flex items-baseline gap-2 hover:text-brand-700 group/p"
                       >
                         <span className="text-xl font-extrabold gradient-text">
-                          AED {(c.price || 0).toLocaleString()}
+                          ₹{(c.price || 0).toLocaleString()}
                         </span>
                         {c.mrp > c.price && (
                           <span className="text-xs line-through text-slate-400">
-                            AED {c.mrp.toLocaleString()}
+                            ₹{c.mrp.toLocaleString()}
                           </span>
                         )}
                         <Edit
@@ -348,7 +348,7 @@ export default function AdminCourses() {
                       <Star size={12} fill="currentColor" /> {c.rating || 4.8}
                     </span>
                   </td>
-                  <td className="p-4 font-semibold">AED {c.price?.toLocaleString()}</td>
+                  <td className="p-4 font-semibold">₹{c.price?.toLocaleString()}</td>
                   <td className="p-4">
                     <button
                       onClick={() => toggleStatus(c)}

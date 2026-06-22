@@ -37,7 +37,7 @@ export default function AdminSubscribers() {
 
   const exportCSV = () => {
     const rows = [['Email', 'Subscribed At']];
-    subscribers.forEach((s) => rows.push([s.email, new Date(s.createdAt).toLocaleString('en-AE')]));
+    subscribers.forEach((s) => rows.push([s.email, new Date(s.createdAt).toLocaleString('en-IN')]));
     const csv = rows.map((r) => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -102,7 +102,7 @@ export default function AdminSubscribers() {
                     </a>
                   </td>
                   <td className="px-4 py-3 text-slate-500 text-xs">
-                    {new Date(s.createdAt).toLocaleString('en-AE')}
+                    {new Date(s.createdAt).toLocaleString('en-IN')}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button

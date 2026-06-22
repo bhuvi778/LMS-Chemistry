@@ -86,27 +86,9 @@ export default function StudentLayout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
-  const [uaeTime, setUaeTime] = useState('');
 
-  useEffect(() => {
-    const updateTime = () => {
-      const options = {
-        timeZone: 'Asia/Dubai',
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      };
-      const formatter = new Intl.DateTimeFormat('en-US', options);
-      setUaeTime(formatter.format(new Date()));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
+
+
 
   // Sync user profile data on load to ensure streak & coins are up to date
   useEffect(() => {
@@ -353,11 +335,7 @@ export default function StudentLayout() {
             </h2>
           </div>
           <div className="flex items-center gap-4">
-            {/* UAE Time Indicator (Header) */}
-            <div className="hidden lg:flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-650">
-              <Clock size={13} className="text-slate-400" />
-              <span>UAE Time: {uaeTime}</span>
-            </div>
+
 
             {/* Quick stats indicators */}
             <Link

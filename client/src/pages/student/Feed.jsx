@@ -373,7 +373,7 @@ export default function Feed() {
                               <span className="font-bold text-slate-700">{comment.userName}</span>
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] text-slate-400">
-                                  {new Date(comment.createdAt).toLocaleDateString('en-AE', {
+                                  {new Date(comment.createdAt).toLocaleDateString('en-IN', {
                                     day: 'numeric',
                                     month: 'short',
                                     hour: '2-digit',

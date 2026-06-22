@@ -576,7 +576,7 @@ export default function AdminCourseForm() {
           {/* Pricing */}
           <div className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-2">
-              <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide">Pricing (AED)</h2>
+              <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide">Pricing (INR)</h2>
               <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-brand-700">
                 <input
                   type="checkbox"
@@ -636,7 +636,7 @@ export default function AdminCourseForm() {
                   {(form.plans?.batch?.enabled ?? true) && (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="label text-xs">Price (AED)</label>
+                        <label className="label text-xs">Price (INR)</label>
                         <input
                           type="number"
                           className="input text-sm"
@@ -655,7 +655,7 @@ export default function AdminCourseForm() {
                         />
                       </div>
                       <div>
-                        <label className="label text-xs">MRP (AED)</label>
+                        <label className="label text-xs">MRP (INR)</label>
                         <input
                           type="number"
                           className="input text-sm"
@@ -703,7 +703,7 @@ export default function AdminCourseForm() {
                   {(form.plans?.pro?.enabled ?? true) && (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="label text-xs">Price (AED)</label>
+                        <label className="label text-xs">Price (INR)</label>
                         <input
                           type="number"
                           className="input text-sm"
@@ -721,7 +721,7 @@ export default function AdminCourseForm() {
                         />
                       </div>
                       <div>
-                        <label className="label text-xs">MRP (AED)</label>
+                        <label className="label text-xs">MRP (INR)</label>
                         <input
                           type="number"
                           className="input text-sm"
@@ -769,7 +769,7 @@ export default function AdminCourseForm() {
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="label text-xs">Price (AED)</label>
+                          <label className="label text-xs">Price (INR)</label>
                           <input
                             type="number"
                             className="input text-sm"
@@ -787,7 +787,7 @@ export default function AdminCourseForm() {
                           />
                         </div>
                         <div>
-                          <label className="label text-xs">MRP (AED)</label>
+                          <label className="label text-xs">MRP (INR)</label>
                           <input
                             type="number"
                             className="input text-sm"
@@ -905,7 +905,7 @@ export default function AdminCourseForm() {
                         }))}
                       >
                         <option value="percent">% Percent</option>
-                        <option value="amount">AED Amount</option>
+                        <option value="amount">INR Amount</option>
                       </select>
                       <input
                         type="number"
@@ -1225,7 +1225,7 @@ export default function AdminCourseForm() {
               <div className="space-y-3 pl-4 border-l-2 border-brand-200">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label text-xs">Extension Price (AED)</label>
+                    <label className="label text-xs">Extension Price (INR)</label>
                     <input
                       type="number"
                       min={0}

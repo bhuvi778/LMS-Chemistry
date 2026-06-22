@@ -20,7 +20,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
 
   // Step 1 form state
   const [studentName, setStudentName] = useState(user?.name || '');
-  const rawPhone = (user?.phone || '').replace(/^\+?971\s?/, '');
+  const rawPhone = (user?.phone || '').replace(/^\+?91\s?/, '');
   const [studentPhone, setStudentPhone] = useState(rawPhone);
   const [studentEmail, setStudentEmail] = useState(user?.email || '');
   const [studentStreet, setStudentStreet] = useState('');
@@ -70,7 +70,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
     if (!studentCity.trim()) { toast.error('Please enter your city'); return; }
     if (!studentState.trim()) { toast.error('Please enter your state/emirate'); return; }
     if (!studentPinCode.trim()) { toast.error('Please enter your pin/postal code'); return; }
-    const fullPhone = '+971' + studentPhone.trim();
+    const fullPhone = '+91' + studentPhone.trim();
     const fullAddress = [studentStreet.trim(), studentCity.trim(), studentState.trim(), studentPinCode.trim()].filter(Boolean).join(', ');
     setBusy(true);
     try {
@@ -187,21 +187,21 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Payment Summary</h3>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Base Amount</span>
-                  <span className="font-semibold">AED {baseAmount.toFixed(2)}</span>
+                  <span className="font-semibold">₹{baseAmount.toFixed(2)}</span>
                 </div>
                 {coinDiscountVal > 0 && (
                   <div className="flex justify-between text-sm text-emerald-600 font-bold">
                     <span>Coin Discount</span>
-                    <span>- AED {coinDiscountVal.toFixed(2)}</span>
+                    <span>- ₹{coinDiscountVal.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Internet Handling Charges</span>
-                  <span className="text-slate-600">AED {handlingFee.toFixed(2)}</span>
+                  <span className="text-slate-600">₹{handlingFee.toFixed(2)}</span>
                 </div>
                 <div className="border-t border-slate-200 pt-2 flex justify-between text-sm font-bold">
                   <span className="text-slate-800">Total to Transfer</span>
-                  <span className="text-indigo-600 text-base">AED {totalAmount.toFixed(2)}</span>
+                  <span className="text-indigo-600 text-base">₹{totalAmount.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -243,12 +243,12 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
                 <div>
                   <label className="text-xs text-slate-500 font-medium block mb-1">Phone / WhatsApp *</label>
                   <div className="flex">
-                    <span className="inline-flex items-center px-3 border border-r-0 border-slate-200 rounded-l-lg bg-slate-50 text-sm font-semibold text-slate-600 select-none">🇦🇪 +971</span>
+                    <span className="inline-flex items-center px-3 border border-r-0 border-slate-200 rounded-l-lg bg-slate-50 text-sm font-semibold text-slate-600 select-none">🇮🇳 +91</span>
                     <input
                       type="tel"
                       value={studentPhone}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/^\+?971\s?/, '');
+                        const val = e.target.value.replace(/^\+?91\s?/, '');
                         setStudentPhone(val);
                       }}
                       className="flex-1 border border-slate-200 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
@@ -284,7 +284,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
                       value={studentCity}
                       onChange={(e) => setStudentCity(e.target.value)}
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
-                      placeholder="e.g. Dubai"
+                      placeholder="e.g. Mumbai"
                     />
                   </div>
                   <div>
@@ -294,7 +294,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
                       value={studentState}
                       onChange={(e) => setStudentState(e.target.value)}
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
-                      placeholder="e.g. Dubai"
+                      placeholder="e.g. Maharashtra"
                     />
                   </div>
                 </div>
@@ -340,7 +340,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
                   Request Submitted Successfully!
                 </div>
                 <p className="text-xs text-emerald-700">
-                  Transfer <strong>AED {totalAmount.toFixed(2)}</strong> to our bank account above. Once you've transferred, add the reference number or upload your screenshot below.
+                  Transfer <strong>₹{totalAmount.toFixed(2)}</strong> to our bank account above. Once you've transferred, add the reference number or upload your screenshot below.
                 </p>
               </div>
 

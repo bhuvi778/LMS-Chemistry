@@ -18,7 +18,7 @@ const STATUS_ICONS = {
 };
 
 const fmt = (d) =>
-  new Date(d).toLocaleString('en-AE', {
+  new Date(d).toLocaleString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -78,7 +78,7 @@ export default function AdminPayments() {
           </h1>
           <p className="text-slate-500 text-sm mt-1">
             {filtered.length} of {list.length} transactions · Revenue{' '}
-            <b className="text-emerald-700">AED {totalPaid.toLocaleString()}</b>
+            <b className="text-emerald-700">₹{totalPaid.toLocaleString()}</b>
           </p>
         </div>
       </div>
@@ -86,7 +86,7 @@ export default function AdminPayments() {
       {/* KPI chips */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'Total Revenue', value: `AED ${totalPaid.toLocaleString()}`, icon: Banknote, color: 'from-emerald-500 to-teal-500' },
+          { label: 'Total Revenue', value: `₹${totalPaid.toLocaleString()}`, icon: Banknote, color: 'from-emerald-500 to-teal-500' },
           { label: 'Successful', value: paidCount, icon: CheckCircle2, color: 'from-brand-500 to-violet-500' },
           { label: 'Pending', value: pendingCount, icon: Clock, color: 'from-amber-500 to-orange-500' },
           { label: 'Failed', value: failedCount, icon: XCircle, color: 'from-red-500 to-rose-500' },
@@ -178,14 +178,14 @@ export default function AdminPayments() {
                       )}
                       {p.couponCode && (
                         <span className="inline-block text-xs font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded mt-0.5">
-                          🏷 {p.couponCode} -AED {p.discountAmount}
+                          🏷 {p.couponCode} -₹{p.discountAmount}
                         </span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-slate-800">
-                      AED {p.amount?.toLocaleString()}
+                      ₹{p.amount?.toLocaleString()}
                       {p.discountAmount > 0 && (
-                        <div className="text-xs text-slate-400 font-normal line-through">AED {p.originalAmount?.toLocaleString()}</div>
+                        <div className="text-xs text-slate-400 font-normal line-through">₹{p.originalAmount?.toLocaleString()}</div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">

@@ -60,7 +60,6 @@ const groups = [
     icon: CreditCard,
     items: [
       { to: '/admin/payments', label: 'Payments', icon: CreditCard },
-      { to: '/admin/bank-transfers', label: 'Bank Transfer', icon: Banknote },
     ],
   },
   {
@@ -105,21 +104,10 @@ export default function AdminLayout() {
   const n = useNavigate();
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState({});
-  const [uaeTime, setUaeTime] = useState({ time: '', date: '' });
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setUaeTime({
-        time: now.toLocaleTimeString('en-US', { timeZone: 'Asia/Dubai', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
-        date: now.toLocaleDateString('en-US', { timeZone: 'Asia/Dubai', weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }),
-      });
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
+
 
   useEffect(() => {
     const initialOpen = {};
@@ -277,21 +265,9 @@ export default function AdminLayout() {
             {/* Right: time + user */}
             <div className="flex items-center gap-3 shrink-0">
 
-              {/* UAE Time — desktop */}
-              <div className="hidden md:flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <div className="leading-tight text-right">
-                  <div className="text-xs font-black text-slate-800 font-mono tracking-wide">{uaeTime.time}</div>
-                  <div className="text-[10px] text-slate-400 font-medium whitespace-nowrap">{uaeTime.date} · UAE</div>
-                </div>
-                <Clock size={14} className="text-slate-400" />
-              </div>
 
-              {/* UAE Time — mobile compact */}
-              <div className="md:hidden flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
-                <Clock size={12} className="text-slate-400" />
-                <span className="text-xs font-mono font-bold text-slate-700">{uaeTime.time}</span>
-              </div>
+
+
 
               <NotificationBell />
 

@@ -310,7 +310,7 @@ function StudentCard({ s, onOpen }) {
               </span>
             )}
           </div>
-          <div className="text-[11px] text-slate-500">Joined {new Date(s.createdAt).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+          <div className="text-[11px] text-slate-500">Joined {new Date(s.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
         </div>
       </div>
 
@@ -336,7 +336,7 @@ function StudentCard({ s, onOpen }) {
         <div className="text-[10px] text-slate-500 flex items-center gap-1 pt-1 border-t border-brand-100/60">
           <Lock size={9} />
           {s.passwordSetByAdmin
-            ? <span>Password set by admin {s.passwordSetAt ? new Date(s.passwordSetAt).toLocaleDateString('en-AE') : ''}</span>
+            ? <span>Password set by admin {s.passwordSetAt ? new Date(s.passwordSetAt).toLocaleDateString('en-IN') : ''}</span>
             : <span>Self-registered</span>}
         </div>
       </div>
@@ -607,7 +607,7 @@ function StudentModal({ id, onClose, onChanged }) {
               <InfoRow icon={Mail} label="Email" value={data.email} onCopy={() => copy(data.email, 'email')} copied={copied === 'email'} />
               <InfoRow icon={Phone} label="Phone" value={data.phone || '—'} onCopy={data.phone ? () => copy(data.phone, 'phone') : null} copied={copied === 'phone'} />
               <InfoRow icon={KeyRound} label="Student ID (Username)" value={data.studentId || '—'} mono onCopy={data.studentId ? () => copy(data.studentId, 'sid') : null} copied={copied === 'sid'} />
-              <InfoRow icon={Calendar} label="Joined" value={new Date(data.createdAt).toLocaleString('en-AE')} />
+              <InfoRow icon={Calendar} label="Joined" value={new Date(data.createdAt).toLocaleString('en-IN')} />
             </div>
 
             {/* Login credentials box */}
@@ -651,7 +651,7 @@ function StudentModal({ id, onClose, onChanged }) {
                 <Lock size={9} />
                 {data.passwordSetAt && (
                   <span>
-                    {data.passwordSetByAdmin ? 'Last set by admin' : 'Last changed by student'}: {new Date(data.passwordSetAt).toLocaleString('en-AE')}
+                    {data.passwordSetByAdmin ? 'Last set by admin' : 'Last changed by student'}: {new Date(data.passwordSetAt).toLocaleString('en-IN')}
                   </span>
                 )}
               </div>
@@ -828,7 +828,7 @@ function StudentModal({ id, onClose, onChanged }) {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm truncate">{e.course?.title || '— deleted course —'}</div>
                         <div className="text-[11px] text-slate-500">
-                          {e.course?.category} · Enrolled {new Date(e.createdAt).toLocaleDateString('en-AE')}
+                          {e.course?.category} · Enrolled {new Date(e.createdAt).toLocaleDateString('en-IN')}
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                           <select
@@ -945,7 +945,7 @@ function StudentModal({ id, onClose, onChanged }) {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm truncate">{e.testSeries?.title || '— deleted test series —'}</div>
                         <div className="text-[11px] text-slate-500">
-                          Enrolled {new Date(e.createdAt).toLocaleDateString('en-AE')}
+                          Enrolled {new Date(e.createdAt).toLocaleDateString('en-IN')}
                         </div>
                         {e.paymentId?.startsWith('ADMIN_ALLOT_') && (
                           <span className="text-[10px] font-semibold text-brand-600">Admin allotted</span>
@@ -982,7 +982,7 @@ function StudentModal({ id, onClose, onChanged }) {
                     <div key={sess._id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 border border-slate-100 hover:bg-slate-100/50 transition">
                       <div className="truncate mr-2">
                         <div className="font-medium truncate">{sess.deviceInfo?.slice(0, 80) || 'Unknown device'}</div>
-                        <div className="text-slate-500 text-[10px]">IP: {sess.ip || '—'} · Last active {new Date(sess.lastActive || sess.createdAt).toLocaleString('en-AE')}</div>
+                        <div className="text-slate-500 text-[10px]">IP: {sess.ip || '—'} · Last active {new Date(sess.lastActive || sess.createdAt).toLocaleString('en-IN')}</div>
                       </div>
                       <button
                         onClick={async () => {

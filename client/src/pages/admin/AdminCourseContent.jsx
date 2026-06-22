@@ -783,7 +783,7 @@ function LiveClassesTab({ courseId }) {
 
   const fmtDateTime = (iso) => {
     if (!iso) return '';
-    return new Date(iso).toLocaleString('en-AE', { dateStyle: 'medium', timeStyle: 'short' });
+    return new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
   };
 
   const statusBadge = (cls) => {
@@ -2099,7 +2099,7 @@ function AnnouncementsTab({ courseId }) {
                   <div>
                     <div className="font-semibold text-slate-800">{ann.title}</div>
                     <div className="text-xs text-slate-400 mt-0.5">
-                      {new Date(ann.createdAt).toLocaleString('en-AE', {
+                      {new Date(ann.createdAt).toLocaleString('en-IN', {
                         day: 'numeric', month: 'short', year: 'numeric',
                         hour: '2-digit', minute: '2-digit'
                       })}

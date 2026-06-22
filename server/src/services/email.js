@@ -181,7 +181,7 @@ export const sendLoginNotificationEmail = (email, name, deviceInfo, ip) =>
       <div style="background:#f3f4f6;border-radius:8px;padding:16px;margin:16px 0;font-size:14px;color:#374151">
         <p style="margin:0 0 8px 0"><b>Device:</b> ${deviceInfo}</p>
         <p style="margin:0 0 8px 0"><b>IP Address:</b> ${ip}</p>
-        <p style="margin:0"><b>Date/Time:</b> ${new Date().toLocaleString('en-AE', { timeZone: 'Asia/Dubai', dateStyle: 'medium', timeStyle: 'short' })} GST</p>
+        <p style="margin:0"><b>Date/Time:</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST</p>
       </div>
       <p style="color:#6b7280;font-size:13px">If this was you, you can safely ignore this email. If you don't recognize this activity, we recommend securing your account immediately by changing your password.</p>
     `)

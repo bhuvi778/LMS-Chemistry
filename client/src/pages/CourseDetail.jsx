@@ -40,7 +40,7 @@ import {
   Share2,
   Coins
 } from 'lucide-react';
-import BankTransferModal from '../components/BankTransferModal.jsx';
+
 
 // ─── Load Razorpay checkout script ───────────────────────────────────────────
 function loadRazorpayScript() {
@@ -78,7 +78,7 @@ function validityLabel(validity, durationMonths) {
   if (validity?.type === 'lifetime') return 'Lifetime access';
   if (validity?.type === 'duration') return `${validity.durationValue} ${validity.durationUnit}`;
   if (validity?.type === 'endDate' && validity.endDate) {
-    return `Access until ${new Date(validity.endDate).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    return `Access until ${new Date(validity.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
   }
   if (durationMonths) return `${durationMonths} months`;
   return 'Lifetime access';
@@ -607,7 +607,7 @@ export default function CourseDetail() {
         planType: selectedPlan,
       });
       setCouponApplied(data);
-      toast.success(`Coupon applied! You save AED ${data.discountAmount}`);
+      toast.success(`Coupon applied! You save ₹${data.discountAmount}`);
     } catch (e) {
       toast.error(e.message || 'Invalid coupon code');
       setCouponApplied(null);
@@ -841,9 +841,9 @@ export default function CourseDetail() {
               {(course.startDate || course.endDate) && (
                 <span className="flex items-center gap-1.5 text-brand-700 font-semibold">
                   <Calendar size={16} />
-                  {course.startDate && new Date(course.startDate).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {course.startDate && new Date(course.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                   {course.startDate && course.endDate && ' → '}
-                  {course.endDate && new Date(course.endDate).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {course.endDate && new Date(course.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </span>
               )}
             </div>
@@ -963,7 +963,7 @@ export default function CourseDetail() {
                     >
                       <span className="text-xs sm:text-sm leading-none whitespace-nowrap">{p.l}</span>
                       <span className="text-xs mt-1 text-slate-500 font-bold">
-                        {isDowngradeOrSame ? 'Owned' : enrollment ? `Upgrade: AED ${displayPrice}` : `AED ${displayPrice}`}
+                        {isDowngradeOrSame ? 'Owned' : enrollment ? `Upgrade: ₹${displayPrice}` : `₹${displayPrice}`}
                       </span>
                     </button>
                   );
@@ -1080,26 +1080,26 @@ export default function CourseDetail() {
                     <div>
                       <div className="flex items-baseline gap-3 flex-wrap w-full">
                         <div className="text-3xl font-extrabold gradient-text">
-                          AED {displayPrice?.toLocaleString()}
+                          ₹{displayPrice?.toLocaleString()}
                         </div>
                         {(couponApplied || coinDiscount > 0 || (currentPlanMrp > currentPlanPrice)) && (
                           <div className="text-sm text-slate-400 line-through">
-                            AED {(couponApplied ? currentPlanPrice : currentPlanMrp)?.toLocaleString()}
+                            ₹{(couponApplied ? currentPlanPrice : currentPlanMrp)?.toLocaleString()}
                           </div>
                         )}
                         {couponApplied && (
                           <div className="ml-auto text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
-                            Save AED {couponApplied.discountAmount?.toLocaleString()}
+                            Save ₹{couponApplied.discountAmount?.toLocaleString()}
                           </div>
                         )}
                         {coinDiscount > 0 && (
                           <div className="ml-auto text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-1 rounded-lg">
-                            Coins Saved AED {coinDiscount?.toLocaleString()}
+                            Coins Saved ₹{coinDiscount?.toLocaleString()}
                           </div>
                         )}
                         {!couponApplied && coinDiscount === 0 && actualDiscount > 0 && (
                           <div className="ml-auto text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
-                            Save AED {(currentPlanMrp - currentPlanPrice)?.toLocaleString()}
+                            Save ₹{(currentPlanMrp - currentPlanPrice)?.toLocaleString()}
                           </div>
                         )}
                       </div>
@@ -1195,7 +1195,7 @@ export default function CourseDetail() {
                                       <Tag size={11} />
                                       {c.code}
                                       <span className="text-amber-500 font-normal">
-                                        — {c.discountType === 'percent' ? `${c.discountValue}% off` : `AED ${c.discountValue} off`}
+                                        — {c.discountType === 'percent' ? `${c.discountValue}% off` : `₹${c.discountValue} off`}
                                       </span>
                                     </button>
                                   ))}
@@ -1214,7 +1214,7 @@ export default function CourseDetail() {
                           <Coins className="text-amber-500 animate-pulse" size={16} />
                           <div>
                             <p className="text-xs font-bold text-slate-800">Redeem Ace Coins</p>
-                            <p className="text-[10px] text-slate-500 font-semibold">You have {user.coins} coins (≈ {(user.coins / 25).toFixed(2)} AED)</p>
+                            <p className="text-[10px] text-slate-500 font-semibold">You have {user.coins} coins (≈ {(user.coins / 25).toFixed(2)} INR)</p>
                           </div>
                         </div>
                         <input
@@ -1250,89 +1250,32 @@ export default function CourseDetail() {
 
                       return (
                         <div className="mt-4 space-y-3">
-                          {/* Mode toggle */}
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              disabled={isSoldOut}
-                              onClick={() => setPayMode('razorpay')}
-                              className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border text-xs font-semibold transition peer-checked:bg-indigo-50 ${isSoldOut ? 'opacity-40 cursor-not-allowed' : ''} ${payMode === 'razorpay' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-indigo-300'}`}
-                            >
-                              <CreditCard size={15} />
-                              Online (Razorpay)
-                            </button>
-                            <button
-                              disabled={isSoldOut}
-                              onClick={() => setPayMode('bank')}
-                              className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border text-xs font-semibold transition ${isSoldOut ? 'opacity-40 cursor-not-allowed' : ''} ${payMode === 'bank' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:border-emerald-300'}`}
-                            >
-                              <Building2 size={15} />
-                              Bank Transfer
-                            </button>
-                          </div>
-
                           {/* Razorpay fee breakdown */}
-                          {payMode === 'razorpay' && !isSoldOut && (
+                          {!isSoldOut && (
                             <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl px-3 py-2.5 space-y-1 text-xs">
-                              <div className="flex justify-between text-slate-600"><span>Course price</span><span>AED {initialAmt.toFixed(2)}</span></div>
-                              {coinDiscount > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coin discount</span><span>- AED {coinDiscount.toFixed(2)}</span></div>}
-                              <div className="flex justify-between text-slate-500"><span>Internet handling fee</span><span>AED {gwFee.toFixed(2)}</span></div>
-                              <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1"><span>Total</span><span>AED {rzpTotal.toFixed(2)}</span></div>
+                              <div className="flex justify-between text-slate-650"><span>Course price</span><span>₹{initialAmt.toFixed(2)}</span></div>
+                              {coinDiscount > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coin discount</span><span>- ₹{coinDiscount.toFixed(2)}</span></div>}
+                              <div className="flex justify-between text-slate-500"><span>Internet handling fee</span><span>₹{gwFee.toFixed(2)}</span></div>
+                              <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1"><span>Total</span><span>₹{rzpTotal.toFixed(2)}</span></div>
                             </div>
                           )}
-
-                          {/* Bank transfer info */}
-                          {payMode === 'bank' && !isSoldOut && (() => {
-                            const bankFee = baseAmt <= 7299 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
-                            const bankTotal = Math.round((baseAmt + bankFee) * 100) / 100;
-                            return (
-                              <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl px-3 py-2.5 text-xs text-emerald-700 space-y-1">
-                                <p className="font-semibold">Transfer to our bank account</p>
-                                <div className="flex justify-between text-slate-600"><span>Course price</span><span>AED {initialAmt.toFixed(2)}</span></div>
-                                {coinDiscount > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coin discount</span><span>- AED {coinDiscount.toFixed(2)}</span></div>}
-                                <div className="flex justify-between text-slate-500"><span>Internet Handling Charges</span><span>AED {bankFee.toFixed(2)}</span></div>
-                                <div className="flex justify-between font-bold text-emerald-700 border-t border-emerald-200 pt-1"><span>Total to Transfer</span><span>AED {bankTotal.toFixed(2)}</span></div>
-                                <p className="text-[10px] text-slate-400">Admin will confirm your enrollment after verifying payment.</p>
-                              </div>
-                            );
-                          })()}
 
                           {/* Action button */}
                           {isSoldOut ? (
                             <button
                               disabled
-                              className="w-full py-3 bg-slate-300 text-slate-600 rounded-xl font-semibold text-base cursor-not-allowed"
+                              className="w-full py-3 bg-slate-300 text-slate-650 rounded-xl font-semibold text-base cursor-not-allowed"
                             >
                               Sold Out
                             </button>
-                          ) : payMode === 'razorpay' ? (
+                          ) : (
                             <button
                               onClick={enroll}
                               disabled={busy}
                               className="btn-primary w-full justify-center disabled:opacity-60 text-base py-3 gap-2"
                             >
                               {busy ? <Loader2 className="animate-spin" size={16} /> : <CreditCard size={16} />}
-                              {busy ? 'Processing…' : `Pay AED ${rzpTotal.toFixed(2)}`}
-                            </button>
-                          ) : bankTransferRequest && bankTransferRequest.status === 'pending' ? (
-                            <div className="space-y-2 w-full">
-                              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center text-xs text-amber-700 font-semibold">
-                                Request Pending Verification
-                              </div>
-                              <button
-                                onClick={() => setShowBankModal(true)}
-                                className="w-full flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold text-base"
-                              >
-                                <Building2 size={16} />
-                                {bankTransferRequest.screenshotUrl ? 'Update Payment Screenshot' : 'Upload Payment Screenshot'}
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setShowBankModal(true)}
-                              className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-base"
-                            >
-                              <Building2 size={16} />
-                              Request Bank Transfer
+                              {busy ? 'Processing…' : `Pay ₹${rzpTotal.toFixed(2)}`}
                             </button>
                           )}
                         </div>
@@ -1360,7 +1303,7 @@ export default function CourseDetail() {
                           className="btn-primary w-full mt-3 justify-center text-base py-3 gap-2"
                         >
                           <Zap size={16} />
-                          Pay AED {planInfo.price?.toLocaleString()}
+                          Pay ₹ {planInfo.price?.toLocaleString()}
                         </button>
                       );
                     })()}
@@ -1898,7 +1841,7 @@ export default function CourseDetail() {
                          <p className="text-xs text-slate-600 leading-relaxed italic">"{rev.comment}"</p>
                        )}
                        <div className="text-[10px] text-slate-400">
-                         {new Date(rev.createdAt || Date.now()).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                         {new Date(rev.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                        </div>
                      </div>
                    ))
@@ -2001,15 +1944,15 @@ export default function CourseDetail() {
                     <div className="text-center sm:text-right">
                       {upsellCourse.mrp > upsellCourse.price && (
                         <div className="text-xs text-white/40 line-through mb-0.5">
-                          AED {upsellCourse.mrp?.toLocaleString()}
+                          ₹ {upsellCourse.mrp?.toLocaleString()}
                         </div>
                       )}
                       <div className="text-2xl sm:text-3xl font-extrabold text-white">
-                        AED <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400">{upsellCourse.price?.toLocaleString()}</span>
+                        ₹ <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400">{upsellCourse.price?.toLocaleString()}</span>
                       </div>
                       {upsellCourse.mrp > upsellCourse.price && (
                         <div className="text-xs text-emerald-400 font-semibold mt-0.5">
-                          Save AED {(upsellCourse.mrp - upsellCourse.price).toLocaleString()}
+                          Save ₹{(upsellCourse.mrp - upsellCourse.price).toLocaleString()}
                         </div>
                       )}
                     </div>
@@ -2030,33 +1973,7 @@ export default function CourseDetail() {
         </section>
       )}
 
-      {/* Bank Transfer Modal */}
-      {showBankModal && course && (
-        <BankTransferModal
-          isOpen={showBankModal}
-          onClose={() => {
-            setShowBankModal(false);
-            if (user) {
-              api.get('/bank-transfer/me').then((r) => {
-                const matching = (r.data || []).find(
-                  (req) => req.itemType === 'course' && req.course?._id === course._id && req.status === 'pending'
-                );
-                setBankTransferRequest(matching);
-              }).catch(() => {});
-            }
-          }}
-          itemType="course"
-          itemId={course._id}
-          itemName={course.title}
-          baseAmount={(() => {
-            const planInfo = getPlanPriceAndMrp();
-            return couponApplied ? couponApplied.finalAmount : planInfo.price;
-          })()}
-          planType={selectedPlan}
-          initialRequest={bankTransferRequest}
-          redeemCoins={redeemCoins}
-        />
-      )}
+
       {openPdf && <PdfModal pdf={openPdf} onClose={() => setOpenPdf(null)} />}
     </div>
   );

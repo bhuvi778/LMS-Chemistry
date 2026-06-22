@@ -25,7 +25,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [uaeTime, setUaeTime] = useState('');
+
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const profileMenuRef = useRef(null);
 
@@ -48,21 +48,7 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  useEffect(() => {
-    const tick = () =>
-      setUaeTime(
-        new Date().toLocaleTimeString('en-AE', {
-          timeZone: 'Asia/Dubai',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true,
-        })
-      );
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
+
 
   return (
     <header className={`sticky top-0 z-40 transition-all duration-300 ${isHome && !scrolled
@@ -139,11 +125,7 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden md:flex items-center gap-2 relative">
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tabular-nums ${isHome && !scrolled ? 'bg-white/10 text-white/80' : 'bg-slate-100 text-slate-600'}`}>
-            <Clock size={12} />
-            <span>UAE</span>
-            <span className="font-mono">{uaeTime}</span>
-          </div>
+
           {!user ? (
             <>
               <Link
@@ -268,10 +250,7 @@ export default function Navbar() {
       {open && (
         <div className="md:hidden border-t border-slate-100 bg-white shadow-lg">
           <div className="container-x py-3 flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 text-xs font-semibold text-slate-600 tabular-nums">
-              <Clock size={12} />
-              <span>UAE Time: <span className="font-mono">{uaeTime}</span></span>
-            </div>
+
             {links.map((l) => (
               <NavLink
                 key={l.to}

@@ -163,12 +163,12 @@ export default function TermsAndConditions() {
     {
       num: '15',
       title: 'Grievance Redressal',
-      content: `Our Grievance Officer shall undertake all reasonable efforts to address your grievances at the earliest possible opportunity. For any concerns or complaints, please contact us at uae@ace2examz.com.`,
+      content: `Our Grievance Officer shall undertake all reasonable efforts to address your grievances at the earliest possible opportunity. For any concerns or complaints, please contact us at support@ace2examz.com.`,
     },
     {
       num: '16',
       title: 'Jurisdiction',
-      content: `The Terms shall be governed by and construed in accordance with the laws of UAE, without regard to conflict of law principles. Further, the Terms shall be subject to the exclusive jurisdiction of the competent courts located in UAE and You hereby accede to and accept the jurisdiction of such courts.`,
+      content: `The Terms shall be governed by and construed in accordance with the laws of India, without regard to conflict of law principles. Further, the Terms shall be subject to the exclusive jurisdiction of the competent courts located in India and You hereby accede to and accept the jurisdiction of such courts.`,
     },
     {
       num: '17',
@@ -197,7 +197,7 @@ export default function TermsAndConditions() {
           </h1>
           <p className="mt-4 text-slate-400 text-base leading-relaxed max-w-2xl">
             Keystone Academy Connect (OPC) Private Limited ("the Company", "we", "us", "our", "Ace2Examz") owns and operates{' '}
-            <span className="text-white font-medium">uae.ace2examz.com</span> including its mobile applications, subdomains and Google
+            <span className="text-white font-medium">app.ace2examz.com</span> including its mobile applications, subdomains and Google
             assistant bot (the "Website/Ace2Examz"). These Terms &amp; Conditions govern the use of or access to the Website and Services.
           </p>
           <p className="mt-3 text-slate-500 text-sm">
@@ -260,8 +260,8 @@ export default function TermsAndConditions() {
         <div className="mt-12 rounded-2xl border border-brand-500/20 bg-brand-500/5 p-6 text-center">
           <p className="text-slate-400 text-sm">
             For any queries regarding these Terms &amp; Conditions, please reach out to us at{' '}
-            <a href="mailto:uae@ace2examz.com" className="text-brand-400 hover:text-brand-300 transition font-medium">
-              uae@ace2examz.com
+            <a href="mailto:support@ace2examz.com" className="text-brand-400 hover:text-brand-300 transition font-medium">
+              support@ace2examz.com
             </a>
           </p>
         </div>

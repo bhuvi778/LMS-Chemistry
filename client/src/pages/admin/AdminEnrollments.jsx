@@ -23,7 +23,7 @@ const colorFor = (s = '') => {
   return palette[h % palette.length];
 };
 
-const fmt = (d) => new Date(d).toLocaleString('en-AE', {
+const fmt = (d) => new Date(d).toLocaleString('en-IN', {
   day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
 });
 
@@ -104,7 +104,7 @@ export default function AdminEnrollments() {
           </h1>
           <p className="text-slate-500">
             {filtered.length} of {list.length} enrollments · Total{' '}
-            <b className="text-emerald-700">AED {totalRevenue.toLocaleString()}</b>
+            <b className="text-emerald-700">₹{totalRevenue.toLocaleString()}</b>
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -188,13 +188,13 @@ export default function AdminEnrollments() {
                       <span className="chip bg-indigo-50 text-indigo-700 text-[10px] uppercase">{e.planType || 'batch'}</span>
                     </div>
                   </td>
-                  <td className="p-4 font-semibold text-slate-900">AED {e.pricePaid?.toLocaleString()}</td>
+                  <td className="p-4 font-semibold text-slate-900">₹{e.pricePaid?.toLocaleString()}</td>
                   <td className="p-4 font-mono text-xs text-slate-500">{e.paymentId || '—'}</td>
                   <td className="p-4">
                     <StatusChip status={e.paymentStatus} />
                   </td>
                   <td className="p-4 text-slate-600 text-xs">
-                    {e.validUntil ? new Date(e.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}
+                    {e.validUntil ? new Date(e.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}
                   </td>
                   <td className="p-4">
                     <button
@@ -222,7 +222,7 @@ export default function AdminEnrollments() {
               <div>Student: <span className="font-semibold text-slate-850">{extendingEnroll.student?.name}</span></div>
               <div>Course: <span className="font-semibold text-slate-850">{extendingEnroll.course?.title}</span></div>
               <div>Current Plan: <span className="chip bg-brand-50 text-brand-700 font-bold uppercase py-0.5 px-1.5 text-[10px]">{extendingEnroll.planType || 'batch'}</span></div>
-              <div>Current Expiry: <span className="font-semibold text-slate-850">{extendingEnroll.validUntil ? new Date(extendingEnroll.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}</span></div>
+              <div>Current Expiry: <span className="font-semibold text-slate-850">{extendingEnroll.validUntil ? new Date(extendingEnroll.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}</span></div>
             </div>
             <div className="mb-4">
               <label className="text-xs font-bold text-slate-500 block mb-1">Plan Level (Upgrade/Downgrade)</label>
@@ -345,7 +345,7 @@ function EnrollCard({ e, onExtend }) {
                 <CreditCard size={10} /> Paid
               </div>
               <div className="text-base font-extrabold gradient-text">
-                AED {e.pricePaid?.toLocaleString() || 0}
+                ₹{e.pricePaid?.toLocaleString() || 0}
               </div>
             </div>
             <StatusChip status={e.paymentStatus} />
@@ -359,7 +359,7 @@ function EnrollCard({ e, onExtend }) {
             <Calendar size={10} /> {fmt(e.createdAt)}
           </div>
           <div className="text-[10px] text-slate-500 mt-1.5 pt-1.5 border-t border-slate-200/50 flex items-center justify-between">
-            <span>Expiry: {e.validUntil ? new Date(e.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}</span>
+            <span>Expiry: {e.validUntil ? new Date(e.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}</span>
             <button
               onClick={() => onExtend(e)}
               className="text-brand-600 hover:text-brand-800 font-bold hover:underline"

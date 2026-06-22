@@ -9,7 +9,7 @@ export default function About() {
             <Atom size={14} /> About Us
           </span>
           <h1 className="font-display text-4xl font-extrabold">
-            UAE's most loved <span className="gradient-text">Chemistry Platform</span>
+            India's most loved <span className="gradient-text">Chemistry Platform</span>
           </h1>
           <p className="text-slate-600 mt-4 text-lg leading-relaxed">
             ChemPrep was built by Chemistry educators who believed Chemistry deserved a
@@ -22,7 +22,7 @@ export default function About() {
       <section className="section">
         <div className="container-x grid md:grid-cols-3 gap-6">
           {[
-            { i: Target, t: 'Our Mission', d: 'Make world-class Chemistry education affordable and accessible for every UAE aspirant.' },
+            { i: Target, t: 'Our Mission', d: 'Make world-class Chemistry education affordable and accessible for every aspirant.' },
             { i: Heart, t: 'Our Values', d: 'Student-first, quality over quantity, and absolute transparency.' },
             { i: Lightbulb, t: 'Our Vision', d: 'To produce the next generation of chemists, researchers, and problem-solvers.' },
           ].map((v, i) => (

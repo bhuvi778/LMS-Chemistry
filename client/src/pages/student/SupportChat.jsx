@@ -159,7 +159,7 @@ export default function SupportChat() {
 
   const fmtTime = (ts) => {
     if (!ts) return '';
-    return new Date(ts).toLocaleTimeString('en-AE', {
+    return new Date(ts).toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,

@@ -22,7 +22,7 @@ const empty = {
 
 function fmt(dateStr) {
   if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleString('en-AE', {
+  return new Date(dateStr).toLocaleString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -305,7 +305,7 @@ function ClassCard({ lc, onEdit, onDelete, past }) {
         {lc.description && <p className="text-xs text-slate-500 line-clamp-2">{lc.description}</p>}
         <div className="flex items-center gap-1.5 text-xs text-slate-600">
           <Clock size={12} className="text-slate-400" />
-          {new Date(lc.scheduledAt).toLocaleString('en-AE', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          {new Date(lc.scheduledAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           <span className="text-slate-300">·</span>{lc.durationMins} min
         </div>
         <div className="text-xs text-slate-500 flex items-center gap-1">

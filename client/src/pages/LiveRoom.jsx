@@ -706,7 +706,7 @@ export default function LiveRoom() {
             </div>
           </div>
           <div className="text-sm text-slate-600 mt-4 p-3 rounded-xl bg-slate-50 border border-slate-100">
-            <div><b>Scheduled:</b> {new Date(meta.scheduledAt).toLocaleString('en-AE')}</div>
+            <div><b>Scheduled:</b> {new Date(meta.scheduledAt).toLocaleString('en-IN')}</div>
             <div><b>Duration:</b> {meta.durationMins} minutes</div>
             <div className="mt-1 flex gap-1.5 flex-wrap">
               <span className={`chip text-[10px] ${

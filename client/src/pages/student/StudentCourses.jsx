@@ -105,7 +105,7 @@ export default function StudentCourses() {
     if (v?.type === 'lifetime') return 'Lifetime Access';
     if (v?.type === 'duration') return `${v.durationValue} ${v.durationUnit}`;
     if (v?.type === 'endDate' && v.endDate) {
-      return `Until ${new Date(v.endDate).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      return `Until ${new Date(v.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
     }
     if (c.durationMonths) return `${c.durationMonths} months`;
     return 'Lifetime Access';
@@ -231,10 +231,10 @@ export default function StudentCourses() {
                     </h3>
                     <div className="flex items-center gap-4 text-xs text-slate-500">
                       <span className="flex items-center gap-1">
-                        <Clock size={12} /> {e.validUntil ? `Expires: ${new Date(e.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}` : getValidityText(e.course)}
+                        <Clock size={12} /> {e.validUntil ? `Expires: ${new Date(e.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : getValidityText(e.course)}
                       </span>
                       <span>•</span>
-                      <span>Paid AED {e.pricePaid?.toLocaleString()}</span>
+                      <span>Paid ₹{e.pricePaid?.toLocaleString()}</span>
                     </div>
                     <div className="pt-2">
                       <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mb-1.5">
@@ -270,7 +270,7 @@ export default function StudentCourses() {
                       onClick={() => setExtensionModal(e)}
                       className="w-full flex items-center justify-center gap-1.5 text-xs text-emerald-700 border border-emerald-200 rounded-2xl hover:bg-emerald-50 transition py-2 font-bold"
                     >
-                      <Clock size={12} /> Extend Validity (AED {e.course.extendValidityPrice || 0})
+                      <Clock size={12} /> Extend Validity (₹{e.course.extendValidityPrice || 0})
                     </button>
                   )}
                   {e.paymentId && e.paymentId !== 'FREE' && !e.paymentId?.startsWith('FREE_') && (
@@ -323,7 +323,7 @@ export default function StudentCourses() {
                         <span className="flex items-center gap-1">
                           <Clock size={12} /> {getValidityText(course)}
                         </span>
-                        <span className="font-bold text-brand-700">AED {course.price?.toLocaleString()}</span>
+                        <span className="font-bold text-brand-700">₹{course.price?.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -378,7 +378,7 @@ export default function StudentCourses() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-brand-50 rounded-2xl border border-brand-100/50">
                     <span className="text-[10px] font-bold text-brand-600 uppercase tracking-wider block">Extension Price</span>
-                    <span className="text-base font-black text-brand-700">AED {extPrice || 0}</span>
+                    <span className="text-base font-black text-brand-700">₹{extPrice || 0}</span>
                   </div>
                   <div className="p-3 bg-violet-50 rounded-2xl border border-violet-100/50">
                     <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wider block">Duration</span>
@@ -392,24 +392,24 @@ export default function StudentCourses() {
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 flex justify-between">
                     <span>Current Expiry:</span>
                     <span className="font-bold text-slate-700">
-                      {new Date(extensionModal.validUntil).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {new Date(extensionModal.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
                   </div>
                 )}
 
                 {extPrice > 0 && (
                   <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-3.5 space-y-1.5 text-xs text-indigo-950 font-medium">
-                    <div className="flex justify-between text-slate-600">
+                    <div className="flex justify-between text-slate-650">
                       <span>Extension Price</span>
-                      <span>AED {extPrice.toFixed(2)}</span>
+                      <span>₹{extPrice.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-slate-500">
                       <span>Internet Handling Charges</span>
-                      <span>AED {gwFee.toFixed(2)}</span>
+                      <span>₹{gwFee.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1">
                       <span>Total Amount</span>
-                      <span>AED {totalAmount.toFixed(2)}</span>
+                      <span>₹{totalAmount.toFixed(2)}</span>
                     </div>
                   </div>
                 )}
@@ -425,7 +425,7 @@ export default function StudentCourses() {
                     <Loader2 className="animate-spin" size={16} /> Processing...
                   </>
                 ) : extPrice > 0 ? (
-                  <>Pay AED {totalAmount.toFixed(2)} and Extend Now</>
+                  <>Pay ₹{totalAmount.toFixed(2)} and Extend Now</>
                 ) : (
                   <>Extend Validity Now</>
                 )}

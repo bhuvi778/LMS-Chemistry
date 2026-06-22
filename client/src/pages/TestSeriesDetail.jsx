@@ -25,7 +25,7 @@ import {
   Coins,
   FileText
 } from 'lucide-react';
-import BankTransferModal from '../components/BankTransferModal.jsx';
+
 
 function loadRazorpayScript() {
   return new Promise((resolve) => {
@@ -109,7 +109,7 @@ export default function TestSeriesDetail() {
         couponCode: couponInput.trim(),
       });
       setCouponApplied(data);
-      toast.success(`Coupon applied! You save AED ${data.discountAmount}`);
+      toast.success(`Coupon applied! You save ₹${data.discountAmount}`);
     } catch (e) {
       toast.error(e.message || 'Invalid coupon code');
       setCouponApplied(null);
@@ -306,7 +306,7 @@ export default function TestSeriesDetail() {
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${series.isFree ? 'bg-emerald-500/20 text-emerald-300' : enrolled ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-white/60'}`}>
-                  {series.isFree ? 'Free Series' : enrolled ? 'Enrolled' : `AED ${series.price?.toLocaleString()}`}
+                  {series.isFree ? 'Free Series' : enrolled ? 'Enrolled' : `₹${series.price?.toLocaleString()}`}
                 </span>
                 {series.seriesType === 'previous_paper' && (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300">
@@ -362,26 +362,26 @@ export default function TestSeriesDetail() {
             {/* Price display */}
             <div className="flex items-baseline gap-3 flex-wrap">
               <span className="text-3xl font-extrabold text-slate-900">
-                AED {displayPrice?.toLocaleString()}
+                ₹{displayPrice?.toLocaleString()}
               </span>
               {(couponApplied || coinDiscount > 0 || series.mrp > series.price) && (
                 <span className="text-sm text-slate-400 line-through">
-                  AED {(couponApplied ? series.price : series.mrp)?.toLocaleString()}
+                  ₹{(couponApplied ? series.price : series.mrp)?.toLocaleString()}
                 </span>
               )}
               {couponApplied && (
                 <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
-                  Save AED {couponApplied.discountAmount?.toLocaleString()}
+                  Save ₹{couponApplied.discountAmount?.toLocaleString()}
                 </span>
               )}
               {coinDiscount > 0 && (
                 <span className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-1 rounded-lg">
-                  Coins Saved AED {coinDiscount?.toLocaleString()}
+                  Coins Saved ₹{coinDiscount?.toLocaleString()}
                 </span>
               )}
               {!couponApplied && coinDiscount === 0 && series.mrp > series.price && (
                 <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
-                  Save AED {(series.mrp - series.price)?.toLocaleString()}
+                  Save ₹{(series.mrp - series.price)?.toLocaleString()}
                 </span>
               )}
             </div>
@@ -430,7 +430,7 @@ export default function TestSeriesDetail() {
                             <Tag size={11} />
                             {c.code}
                             <span className="text-amber-500 font-normal">
-                              — {c.discountType === 'percent' ? `${c.discountValue}% off` : `AED ${c.discountValue} off`}
+                              — {c.discountType === 'percent' ? `${c.discountValue}% off` : `₹${c.discountValue} off`}
                             </span>
                           </button>
                         ))}
@@ -448,7 +448,7 @@ export default function TestSeriesDetail() {
                   <Coins className="text-amber-500 animate-pulse" size={16} />
                   <div>
                     <p className="text-xs font-bold text-slate-800">Redeem Ace Coins</p>
-                    <p className="text-[10px] text-slate-500 font-semibold">You have {user.coins} coins (≈ {(user.coins / 25).toFixed(2)} AED)</p>
+                    <p className="text-[10px] text-slate-500 font-semibold">You have {user.coins} coins (≈ {(user.coins / 25).toFixed(2)} INR)</p>
                   </div>
                 </div>
                 <input
@@ -475,82 +475,23 @@ export default function TestSeriesDetail() {
               const rzpTotal = Math.round((baseAmt + gwFee) * 100) / 100;
               return (
                 <div className="space-y-3">
-                  {/* Mode toggle */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setPayMode('razorpay')}
-                      className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border text-xs font-semibold transition ${payMode === 'razorpay' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-indigo-300'}`}
-                    >
-                      <CreditCard size={15} />
-                      Online (Razorpay)
-                    </button>
-                    <button
-                      onClick={() => setPayMode('bank')}
-                      className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border text-xs font-semibold transition ${payMode === 'bank' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:border-emerald-300'}`}
-                    >
-                      <Building2 size={15} />
-                      Bank Transfer
-                    </button>
+                  {/* Razorpay fee breakdown */}
+                  <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl px-3 py-2.5 space-y-1 text-xs">
+                    <div className="flex justify-between text-slate-600"><span>Series price</span><span>₹{initialAmt.toFixed(2)}</span></div>
+                    {coinDiscountVal > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coin discount</span><span>- ₹{coinDiscountVal.toFixed(2)}</span></div>}
+                    <div className="flex justify-between text-slate-500"><span>Internet handling fee</span><span>₹{gwFee.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1"><span>Total</span><span>₹{rzpTotal.toFixed(2)}</span></div>
                   </div>
 
-                  {/* Razorpay fee breakdown */}
-                  {payMode === 'razorpay' && (
-                    <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl px-3 py-2.5 space-y-1 text-xs">
-                      <div className="flex justify-between text-slate-600"><span>Series price</span><span>AED {initialAmt.toFixed(2)}</span></div>
-                      {coinDiscountVal > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coin discount</span><span>- AED {coinDiscountVal.toFixed(2)}</span></div>}
-                      <div className="flex justify-between text-slate-500"><span>Internet handling fee</span><span>AED {gwFee.toFixed(2)}</span></div>
-                      <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1"><span>Total</span><span>AED {rzpTotal.toFixed(2)}</span></div>
-                    </div>
-                  )}
-
-                  {/* Bank transfer info */}
-                  {payMode === 'bank' && (() => {
-                    const bankFee = baseAmt <= 7299 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
-                    const bankTotal = Math.round((baseAmt + bankFee) * 100) / 100;
-                    return (
-                      <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl px-3 py-2.5 text-xs text-emerald-700 space-y-1">
-                        <p className="font-semibold">Transfer to our bank account</p>
-                        <div className="flex justify-between text-slate-600"><span>Series price</span><span>AED {initialAmt.toFixed(2)}</span></div>
-                        {coinDiscountVal > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coin discount</span><span>- AED {coinDiscountVal.toFixed(2)}</span></div>}
-                        <div className="flex justify-between text-slate-500"><span>Internet Handling Charges</span><span>AED {bankFee.toFixed(2)}</span></div>
-                        <div className="flex justify-between font-bold text-emerald-700 border-t border-emerald-200 pt-1"><span>Total to Transfer</span><span>AED {bankTotal.toFixed(2)}</span></div>
-                        <p className="text-[10px] text-slate-400">Admin will verify and enroll you.</p>
-                      </div>
-                    );
-                  })()}
-
                   {/* Action button */}
-                  {payMode === 'razorpay' ? (
-                    <button
-                      onClick={handleEnroll}
-                      disabled={busy}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 text-white font-bold text-base hover:opacity-90 disabled:opacity-60 transition"
-                    >
-                      {busy ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-                      {busy ? 'Processing…' : `Pay AED ${rzpTotal.toFixed(2)}`}
-                    </button>
-                  ) : bankTransferRequest && bankTransferRequest.status === 'pending' ? (
-                    <div className="space-y-2 w-full">
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center text-xs text-amber-700 font-semibold">
-                        Request Pending Verification
-                      </div>
-                      <button
-                        onClick={() => setShowBankModal(true)}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-base"
-                      >
-                        <Building2 size={16} />
-                        {bankTransferRequest.screenshotUrl ? 'Update Payment Screenshot' : 'Upload Payment Screenshot'}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowBankModal(true)}
-                      className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-base"
-                    >
-                      <Building2 size={16} />
-                      Request Bank Transfer
-                    </button>
-                  )}
+                  <button
+                    onClick={handleEnroll}
+                    disabled={busy}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 text-white font-bold text-base hover:opacity-90 disabled:opacity-60 transition"
+                  >
+                    {busy ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+                    {busy ? 'Processing…' : `Pay ₹${rzpTotal.toFixed(2)}`}
+                  </button>
                 </div>
               );
             })()}
@@ -574,7 +515,7 @@ export default function TestSeriesDetail() {
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 text-white font-bold text-base hover:opacity-90 transition"
               >
                 <Zap size={16} />
-                Pay AED {series.price?.toLocaleString()}
+                Pay ₹{series.price?.toLocaleString()}
               </button>
             )}
 
@@ -764,29 +705,7 @@ export default function TestSeriesDetail() {
         </div>
       </div>
 
-      {/* Bank Transfer Modal */}
-      {showBankModal && series && (
-        <BankTransferModal
-          isOpen={showBankModal}
-          onClose={() => {
-            setShowBankModal(false);
-            if (user) {
-              api.get('/bank-transfer/me').then((r) => {
-                const matching = (r.data || []).find(
-                  (req) => req.itemType === 'test_series' && req.testSeries?._id === id
-                );
-                setBankTransferRequest(matching);
-              }).catch(() => {});
-            }
-          }}
-          itemType="test_series"
-          itemId={series._id}
-          itemName={series.title}
-          baseAmount={finalPrice || series.price}
-          initialRequest={bankTransferRequest}
-          redeemCoins={redeemCoins}
-        />
-      )}
+
       {/* PDF Viewer Modal */}
       {openPdf && <PdfModal pdf={openPdf} onClose={() => setOpenPdf(null)} />}
     </div>

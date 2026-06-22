@@ -326,18 +326,18 @@ export const createOrder = asyncHandler(async (req, res) => {
     return res.status(201).json({ free: true, enrollment });
   }
 
-  // Internet handling fee: AED 45 flat if <= 7299, else 0.7%
+  // Internet handling fee: INR 45 flat if <= 7299, else 0.7%
   const gatewayFee = finalAmount <= 7299
     ? 45
     : Math.round(finalAmount * 0.007 * 100) / 100;
   const chargeAmount = Math.round((finalAmount + gatewayFee) * 100) / 100;
 
-  // Create Razorpay order (amount in fils, 1 AED = 100 fils)
+  // Create Razorpay order (amount in paise, 1 INR = 100 paise)
   const razorpay = getRazorpay();
   const itemId = isCourse ? courseId : resolvedSeriesId;
   const razorpayOrder = await razorpay.orders.create({
     amount: Math.round(chargeAmount * 100),
-    currency: 'AED',
+    currency: 'INR',
     receipt: `rcpt_${req.user._id}_${itemId}_${Date.now()}`.substring(0, 40),
     notes: {
       studentId: req.user._id.toString(),

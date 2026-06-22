@@ -52,7 +52,7 @@ export default function AdminEnquiries() {
   };
 
   const fmtDate = (ts) => {
-    return new Date(ts).toLocaleString('en-AE', {
+    return new Date(ts).toLocaleString('en-IN', {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',

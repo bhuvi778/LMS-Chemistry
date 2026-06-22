@@ -14,7 +14,7 @@ export const createEnquiry = asyncHandler(async (req, res) => {
 
   try {
     const { sendEnquiryNotificationToAdmin, sendEnquiryReceiptToUser } = await import('../services/email.js');
-    sendEnquiryNotificationToAdmin('uae@ace2examz.com', enquiry).catch(() => {});
+    sendEnquiryNotificationToAdmin('support@ace2examz.com', enquiry).catch(() => {});
     sendEnquiryReceiptToUser(enquiry.email, enquiry.name, enquiry).catch(() => {});
   } catch (_) {}
 

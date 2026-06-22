@@ -299,15 +299,15 @@ export default function Profile() {
                   <div>
                     <label className="label">Phone</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">+971</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">+91</span>
                       <input
                         className="input !pl-14"
-                        value={form.phone ? String(form.phone).replace(/^\+?971\s?/, '') : ''}
+                        value={form.phone ? String(form.phone).replace(/^\+?91\s?/, '') : ''}
                         onChange={(e) => {
-                          const val = e.target.value.replace(/^\+?971\s?/, '');
-                          setForm({ ...form, phone: val ? '+971' + val : '' });
+                          const val = e.target.value.replace(/^\+?91\s?/, '');
+                          setForm({ ...form, phone: val ? '+91' + val : '' });
                         }}
-                        placeholder="50 000 0000"
+                        placeholder="98765 43210"
                       />
                     </div>
                   </div>
@@ -516,7 +516,7 @@ export default function Profile() {
                               {i === 0 && <span className="chip bg-green-100 text-green-700 text-[10px] py-0.5">Current</span>}
                             </div>
                             <div className="text-xs text-slate-400 mt-0.5">
-                              IP: {s.ip || '—'} · Last active: {new Date(s.lastActive).toLocaleString('en-AE')}
+                              IP: {s.ip || '—'} · Last active: {new Date(s.lastActive).toLocaleString('en-IN')}
                             </div>
                           </div>
                           {i !== 0 && (
@@ -615,9 +615,9 @@ export default function Profile() {
                                 </span>
                                 <h4 className="font-bold text-slate-800 text-sm leading-snug">{item?.title || 'Deleted Item'}</h4>
                                 <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                                  <span>Total: <b>AED {req.totalAmount}</b></span>
+                                  <span>Total: <b>₹{req.totalAmount}</b></span>
                                   <span>•</span>
-                                  <span>Requested: {new Date(req.createdAt).toLocaleDateString()}</span>
+                                  <span>Requested: {new Date(req.createdAt).toLocaleDateString('en-IN')}</span>
                                 </div>
                                 {req.adminNote && (
                                   <div className="mt-2 text-xs bg-rose-50 border border-rose-100 text-rose-700 p-2 rounded-lg flex items-start gap-1.5">
