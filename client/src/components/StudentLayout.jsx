@@ -28,6 +28,8 @@ import {
   MessageSquare,
   Clock,
   BookOpen,
+  Bookmark,
+  Flag,
 } from 'lucide-react';
 
 const navSections = [
@@ -66,6 +68,8 @@ const navSections = [
     items: [
       { to: '/student/profile', label: 'My Profile', icon: User },
       { to: '/student/orders', label: 'My Orders', icon: ShoppingBag },
+      { to: '/student/saved-questions', label: 'Saved Questions', icon: Bookmark },
+      { to: '/student/reported-questions', label: 'Reported Questions', icon: Flag },
     ]
   },
   {
@@ -86,6 +90,29 @@ export default function StudentLayout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
+  const [highestPlan, setHighestPlan] = useState('');
+
+  useEffect(() => {
+    api.get('/enroll/me')
+      .then(res => {
+        const enrolls = res.data || [];
+        if (enrolls.length === 0) {
+          setHighestPlan('Free');
+          return;
+        }
+        const plans = enrolls.map(e => e.planType || 'batch');
+        if (plans.includes('infinity')) {
+          setHighestPlan('Infinity');
+        } else if (plans.includes('pro')) {
+          setHighestPlan('Pro');
+        } else if (plans.includes('batch')) {
+          setHighestPlan('Batch');
+        }
+      })
+      .catch(() => {
+        setHighestPlan('Free');
+      });
+  }, [location.pathname]);
 
 
 
@@ -335,6 +362,11 @@ export default function StudentLayout() {
             </h2>
           </div>
           <div className="flex items-center gap-4">
+            {highestPlan && (
+              <span className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm">
+                ✨ {highestPlan} Plan
+              </span>
+            )}
 
 
             {/* Quick stats indicators */}

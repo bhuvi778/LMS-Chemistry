@@ -32,6 +32,7 @@ import {
   BarChart2,
   Clock,
   Menu,
+  Flag,
 } from 'lucide-react';
 
 const groups = [
@@ -53,6 +54,7 @@ const groups = [
     items: [
       { to: '/admin/test-series', label: 'Test Series', icon: ListChecks },
       { to: '/admin/tests', label: 'Test Bank', icon: ClipboardList },
+      { to: '/admin/reported-questions', label: 'Reported Questions', icon: Flag },
     ],
   },
   {

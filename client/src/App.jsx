@@ -54,6 +54,7 @@ import AdminPushNotifications from './pages/admin/AdminPushNotifications.jsx';
 import AdminPopups from './pages/admin/AdminPopups.jsx';
 import AdminChat from './pages/admin/AdminChat.jsx';
 import AdminRatings from './pages/admin/AdminRatings.jsx';
+import AdminReportedQuestions from './pages/admin/AdminReportedQuestions.jsx';
 import Contact from './pages/Contact.jsx';
 import Feed from './pages/Feed.jsx';
 import SupportChatWidget from './components/SupportChatWidget.jsx';
@@ -171,6 +172,7 @@ export default function App() {
           <Route path="sales/popup" element={<AdminPopups />} />
           <Route path="support/chat" element={<AdminChat />} />
           <Route path="ratings" element={<AdminRatings />} />
+          <Route path="reported-questions" element={<AdminReportedQuestions />} />
           <Route path="stats/streak" element={<AdminStatsStreak />} />
           <Route path="stats/wallet" element={<AdminStatsWallet />} />
           <Route path="stats/refer" element={<AdminStatsRefer />} />

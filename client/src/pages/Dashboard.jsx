@@ -254,7 +254,7 @@ export default function Dashboard() {
                           <span>{new Date(lc.scheduledAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       </div>
-                      {['internal', 'agora_call', 'agora_stream', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet')) ? (
+                      {['internal', 'agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet')) ? (
                         <Link to={`/live/${lc._id}`} className="shrink-0 px-3 py-1.5 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl hover:bg-rose-100 transition whitespace-nowrap">
                           {lc.status === 'live' ? '🔴 Join' : 'Open'}
                         </Link>

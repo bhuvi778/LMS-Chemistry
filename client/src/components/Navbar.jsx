@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import api from '../api/client.js';
 import { Atom, Menu, X, LogOut, LayoutDashboard, ShieldCheck, UserCircle, BookOpen, Trophy, Info, Home, User, Clock, ClipboardList, BookMarked, HelpCircle, ChevronDown, Rss, Mail, Crown } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import NotificationBell from './NotificationBell.jsx';
@@ -28,6 +29,31 @@ export default function Navbar() {
 
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const profileMenuRef = useRef(null);
+
+  const [highestPlan, setHighestPlan] = useState('Free');
+
+  useEffect(() => {
+    if (!user || user.role === 'admin') return;
+    api.get('/enroll/me')
+      .then(res => {
+        const enrolls = res.data || [];
+        if (enrolls.length === 0) {
+          setHighestPlan('Free');
+          return;
+        }
+        const plans = enrolls.map(e => e.planType || 'batch');
+        if (plans.includes('infinity')) {
+          setHighestPlan('Infinity');
+        } else if (plans.includes('pro')) {
+          setHighestPlan('Pro');
+        } else if (plans.includes('batch')) {
+          setHighestPlan('Batch');
+        }
+      })
+      .catch(() => {
+        setHighestPlan('Free');
+      });
+  }, [user]);
 
   const isHome = location.pathname === '/';
 
@@ -146,7 +172,7 @@ export default function Navbar() {
             </>
           ) : (
             <div className="relative flex items-center gap-2" ref={profileMenuRef}>
-              {user.role !== 'admin' && (
+              {user.role !== 'admin' && highestPlan !== 'Pro' && highestPlan !== 'Infinity' && (
                 <Link
                   to="/student/courses"
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
@@ -298,7 +324,7 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  {user.role !== 'admin' && (
+                  {user.role !== 'admin' && highestPlan !== 'Pro' && highestPlan !== 'Infinity' && (
                     <Link
                       to="/student/courses"
                       onClick={() => setOpen(false)}

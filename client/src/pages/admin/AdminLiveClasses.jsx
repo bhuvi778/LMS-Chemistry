@@ -12,7 +12,7 @@ const empty = {
   instructor: 'Ace2Examz Faculty',
   meetLink: '',
   meetingUrl: '',
-  platform: 'internal',
+  platform: 'agora_call',
   scheduledAt: '',
   durationMins: 60,
   isActive: true,
@@ -53,19 +53,12 @@ export default function AdminLiveClasses() {
     e.preventDefault();
     try {
       const payload = { ...editing };
-      if (!payload.course) payload.course = null;
       if (!payload.platform) {
-        payload.platform = payload.useInternalRoom ? 'internal' : 'meet';
+        payload.platform = 'agora_call';
       }
-      if (['zoom', 'meet', 'youtube'].includes(payload.platform)) {
-        payload.useInternalRoom = false;
-        payload.meetLink = payload.meetingUrl || payload.meetLink;
-        payload.meetingUrl = payload.meetLink;
-      } else {
-        payload.useInternalRoom = true;
-        payload.meetLink = '';
-        payload.meetingUrl = '';
-      }
+      payload.useInternalRoom = true;
+      payload.meetLink = '';
+      payload.meetingUrl = '';
       if (editing._id) {
         await api.put(`/admin/live-classes/${editing._id}`, payload);
         toast.success('Live class updated');
@@ -144,57 +137,22 @@ export default function AdminLiveClasses() {
                 </div>
               </div>
               <div>
-                <select className="input" value={editing.platform || (editing.useInternalRoom ? 'internal' : 'meet')} onChange={(e) => {
-                  const val = e.target.value;
-                  set('platform', val);
-                  if (['zoom', 'meet', 'youtube'].includes(val)) {
-                    set('useInternalRoom', false);
-                  } else {
-                    set('useInternalRoom', true);
-                  }
-                }}>
-                  <option value="internal">In-App Room</option>
-                  <option value="agora_call">Agora Video Call (All Participants)</option>
-                  <option value="agora_interactive">Agora Interactive Live Stream (Raise Hand / Co-host)</option>
-                  <option value="agora_broadcast">Agora One-Way Broadcast (No Interaction)</option>
-                  <option value="agora_stream">Agora Stream (Legacy)</option>
-                  <option value="youtube">YouTube Live (Embed / Broadcast)</option>
-                  <option value="zoom">Zoom</option>
-                  <option value="meet">Google Meet</option>
+                <select className="input" value={editing.platform || 'agora_call'} onChange={(e) => set('platform', e.target.value)}>
+                  <option value="agora_call">Ace Video Call (All Participants)</option>
+                  <option value="agora_interactive">Ace Interactive Live Stream (Raise Hand / Co-host)</option>
+                  <option value="agora_broadcast">Ace One-Way Broadcast (No Interaction)</option>
+                  <option value="agora_stream">Ace Stream (Legacy)</option>
                 </select>
               </div>
 
-              {['zoom', 'meet', 'youtube'].includes(editing.platform || (editing.useInternalRoom ? 'internal' : 'meet')) ? (
-                <div>
-                  <label className="label">
-                    {editing.platform === 'zoom' ? 'Zoom Meeting Link *' :
-                     editing.platform === 'meet' ? 'Google Meet Link *' : 'YouTube Live URL / Video ID *'}
-                  </label>
-                  <input required type="text" className="input" value={editing.meetingUrl || editing.meetLink || ''} onChange={(e) => {
-                    set('meetingUrl', e.target.value);
-                    set('meetLink', e.target.value);
-                  }} placeholder={
-                    editing.platform === 'zoom' ? 'https://zoom.us/j/…' :
-                    editing.platform === 'meet' ? 'https://meet.google.com/…' :
-                    'https://youtube.com/live/... or Video ID'
-                  } />
-                </div>
-              ) : (editing.platform === 'internal' || !editing.platform) ? (
-                <div>
-                  <label className="label flex items-center gap-1"><Lock size={12} /> Room Passcode (optional)</label>
-                  <input className="input" value={editing.roomPasscode || ''} onChange={(e) => set('roomPasscode', e.target.value)} placeholder="Leave blank for no passcode" maxLength={20} />
-                  <p className="text-[11px] text-slate-500 mt-1">Enrolled students don't need a passcode by default.</p>
-                </div>
-              ) : (
-                <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-3 text-sm text-teal-800">
-                  <strong>Agora RTC Session:</strong> Dynamic secure tokens will be generated. 
-                  {editing.platform === 'agora_call'
-                    ? ' Everyone can turn on camera/microphone and speak directly (Video Calling).'
-                    : editing.platform === 'agora_interactive'
-                      ? ' Students join as audience but can raise hand to co-host and speak (Interactive).'
-                      : ' One-way broadcast stream from instructor to all students. No interaction.'}
-                </div>
-              )}
+              <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-3 text-sm text-teal-800">
+                <strong>Ace RTC Session:</strong> Dynamic secure tokens will be generated. 
+                {editing.platform === 'agora_call'
+                  ? ' Everyone can turn on camera/microphone and speak directly (Video Calling).'
+                  : editing.platform === 'agora_interactive'
+                    ? ' Students join as audience but can raise hand to co-host and speak (Interactive).'
+                    : ' One-way broadcast stream from instructor to all students. No interaction.'}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Scheduled At *</label>
@@ -283,13 +241,11 @@ function ClassCard({ lc, onEdit, onDelete, past }) {
                 {lc.courseName && <span className="text-[10px] text-slate-500 truncate max-w-[100px]">{lc.courseName}</span>}
                 {lc.courseName && <span className="text-[9px] text-slate-300">•</span>}
                 <span className="text-[9px] font-extrabold bg-brand-50 border border-brand-100 text-brand-700 px-1 py-0.5 rounded uppercase shrink-0">
-                  {lc.platform === 'internal' ? 'In-App Room' : 
-                   lc.platform === 'agora_call' ? 'Agora Call' : 
-                   lc.platform === 'agora_stream' ? 'Agora Stream (Legacy)' : 
-                   lc.platform === 'agora_interactive' ? 'Agora Interactive' : 
-                   lc.platform === 'agora_broadcast' ? 'Agora Broadcast' : 
-                   lc.platform === 'youtube' ? 'YouTube Live' : 
-                   lc.platform || (lc.useInternalRoom ? 'In-App Room' : 'External')}
+                  {lc.platform === 'agora_call' ? 'Ace Call' : 
+                   lc.platform === 'agora_stream' ? 'Ace Stream (Legacy)' : 
+                   lc.platform === 'agora_interactive' ? 'Ace Interactive' : 
+                   lc.platform === 'agora_broadcast' ? 'Ace Broadcast' : 
+                   lc.platform || 'Ace Call'}
                 </span>
               </div>
             </div>

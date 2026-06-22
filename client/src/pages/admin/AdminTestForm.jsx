@@ -34,7 +34,7 @@ const RICH_TEXT_OPTS = {
 const blankQ = () => ({
   _tempId: Math.random().toString(36).slice(2),
   question: '',
-  options: [{ text: '' }, { text: '' }, { text: '' }, { text: '' }],
+  options: [{ text: '' }, { text: '' }, { text: '' }, { text: '' }, { text: '' }],
   correct: 0,
   correctOptions: [],
   correctNumerical: 0,
@@ -48,7 +48,7 @@ const blankQ = () => ({
 });
 
 function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(!q._id);
   // Strip HTML tags for title preview
   const plainText = q.question ? q.question.replace(/<[^>]*>/g, '').slice(0, 60) : '';
   return (
@@ -337,17 +337,23 @@ export default function AdminTestForm() {
       api.get(`/tests/admin/tests/${targetId}`)
         .then(({ data }) => {
           // Normalize questions
-          const questions = (data.questions || []).map((q) => ({
-            ...q,
-            _tempId: q._id || Math.random().toString(36).slice(2),
-            type: q.type || 'mcq',
-            correctOptions: q.correctOptions || [],
-            correctNumerical: q.correctNumerical || 0,
-            videoSolutionUrl: q.videoSolutionUrl || '',
-            options: (q.options || []).map((o) =>
+          const questions = (data.questions || []).map((q) => {
+            const opts = (q.options || []).map((o) =>
               typeof o === 'string' ? { text: o } : o
-            ),
-          }));
+            );
+            while (opts.length < 5) {
+              opts.push({ text: '' });
+            }
+            return {
+              ...q,
+              _tempId: q._id || Math.random().toString(36).slice(2),
+              type: q.type || 'mcq',
+              correctOptions: q.correctOptions || [],
+              correctNumerical: q.correctNumerical || 0,
+              videoSolutionUrl: q.videoSolutionUrl || '',
+              options: opts,
+            };
+          });
           const normalized = {
             ...data,
             questions,
@@ -459,6 +465,62 @@ export default function AdminTestForm() {
       if (uniqueNames.size !== secNames.length) {
         toast.error('Section names must be unique');
         return;
+      }
+    }
+
+    // Validate questions and options
+    for (let i = 0; i < form.questions.length; i++) {
+      const q = form.questions[i];
+      const qNum = i + 1;
+      const plainText = q.question ? q.question.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
+      if (!plainText) {
+        toast.error(`Question ${qNum} text is required`);
+        return;
+      }
+
+      if (q.type === 'mcq' || q.type === 'msq') {
+        if (!q.options || q.options.length < 4) {
+          toast.error(`Question ${qNum} must have at least 4 options`);
+          return;
+        }
+        // Enforce first 4 options are not empty
+        for (let oi = 0; oi < 4; oi++) {
+          const optText = q.options[oi]?.text ? q.options[oi].text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
+          if (!optText) {
+            toast.error(`Question ${qNum}: Option ${String.fromCharCode(65 + oi)} cannot be empty`);
+            return;
+          }
+        }
+        // Check if correct option is set and valid
+        if (q.type === 'mcq') {
+          if (q.correct === undefined || q.correct === null || q.correct < 0 || q.correct >= q.options.length) {
+            toast.error(`Question ${qNum}: Correct option must be selected`);
+            return;
+          }
+          const correctOptText = q.options[q.correct]?.text ? q.options[q.correct].text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
+          if (!correctOptText) {
+            toast.error(`Question ${qNum}: Correct option cannot be an empty option`);
+            return;
+          }
+        } else {
+          // MSQ
+          if (!q.correctOptions || q.correctOptions.length === 0) {
+            toast.error(`Question ${qNum}: At least one correct option must be selected`);
+            return;
+          }
+          for (const oi of q.correctOptions) {
+            const correctOptText = q.options[oi]?.text ? q.options[oi].text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
+            if (!correctOptText) {
+              toast.error(`Question ${qNum}: Selected correct option ${String.fromCharCode(65 + oi)} cannot be empty`);
+              return;
+            }
+          }
+        }
+      } else if (q.type === 'numerical') {
+        if (q.correctNumerical === undefined || q.correctNumerical === null || q.correctNumerical === '' || isNaN(Number(q.correctNumerical))) {
+          toast.error(`Question ${qNum}: Correct numerical value is required`);
+          return;
+        }
       }
     }
 

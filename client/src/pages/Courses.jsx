@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/client.js';
 import CourseCard from '../components/CourseCard.jsx';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 export default function Courses() {
   const [params, setParams] = useSearchParams();
@@ -11,8 +11,7 @@ export default function Courses() {
   const [comboCourses, setComboCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const category = params.get('category') || 'ALL';
-  const typeFilter = params.get('type') || 'ALL';
-  const subCat = params.get('sub') || '';
+  const typeFilter = params.get('type') || 'LIVE';
   const q = params.get('q') || '';
 
   useEffect(() => {
@@ -43,21 +42,19 @@ export default function Courses() {
   // Derive unique sub-categories from loaded courses
   const allSubCats = [...new Set(courses.filter(c => !c.isCombo).flatMap((c) => c.subCategories || []))];
 
-  // Client-side type + subcategory filter
+  // Client-side type filter
   const filteredCourses = courses.filter((c) => {
     if (c.isCombo) return false;
     if (typeFilter === 'LIVE' && c.courseType !== 'live') return false;
-    if (typeFilter === 'RECORDED' && c.courseType !== 'recorded' && c.courseType) return false;
+    if (typeFilter === 'RECORDED' && c.courseType !== 'recorded') return false;
     if (typeFilter === 'FREE' && c.price !== 0) return false;
-    if (subCat && !(c.subCategories || []).includes(subCat)) return false;
     return true;
   });
 
   const TYPE_FILTERS = [
-    { k: 'ALL', l: 'All Types' },
-    { k: 'LIVE', l: '🔴 Live' },
-    { k: 'RECORDED', l: '🎬 Recorded' },
-    { k: 'FREE', l: '🆓 Free' },
+    { k: 'LIVE', l: '🔴 Live Courses' },
+    { k: 'RECORDED', l: '🎬 Recorded Courses' },
+    { k: 'FREE', l: '🆓 Free Courses' },
   ];
 
   return (
@@ -84,64 +81,36 @@ export default function Courses() {
 
       <section className="section">
         <div className="container-x">
+          {category !== 'ALL' && (
+            <div className="flex justify-center mb-4">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-50 border border-brand-100 rounded-full text-xs font-bold text-brand-700">
+                Filtered Category: {category}
+                <button
+                  onClick={() => setParam('category', '')}
+                  className="hover:bg-brand-100 rounded-full p-0.5 text-brand-500 hover:text-brand-700"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            </div>
+          )}
+
           {/* Main Category Filters (Live / Recorded / Free) */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-3">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-3 mb-6 justify-center">
             {TYPE_FILTERS.map((t) => (
               <button
                 key={t.k}
-                onClick={() => setParam('type', t.k === 'ALL' ? '' : t.k)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition ${typeFilter === t.k
-                  ? 'bg-slate-900 text-white shadow-soft'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'
-                  }`}
+                onClick={() => setParam('type', t.k)}
+                className={`px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 shadow-sm border ${
+                  typeFilter === t.k
+                    ? 'bg-gradient-brand text-white border-transparent scale-105 font-black shadow-md'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-350 hover:bg-slate-50'
+                }`}
               >
                 {t.l}
               </button>
             ))}
           </div>
-
-          {/* Subject / Exam Category Filters */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-3">
-            {['ALL', ...categories].map((k) => (
-              <button
-                key={k}
-                onClick={() => setParam('category', k === 'ALL' ? '' : k)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition ${category === k
-                  ? 'bg-gradient-brand text-white shadow-soft'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:border-brand-300'
-                  }`}
-              >
-                {k}
-              </button>
-            ))}
-          </div>
-
-          {/* Sub-Category Filters */}
-          {allSubCats.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-6">
-              <button
-                onClick={() => setParam('sub', '')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${!subCat
-                  ? 'bg-violet-600 text-white shadow-soft'
-                  : 'bg-white border border-violet-200 text-violet-700 hover:border-violet-400'
-                  }`}
-              >
-                All Classes
-              </button>
-              {allSubCats.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setParam('sub', s === subCat ? '' : s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${subCat === s
-                    ? 'bg-violet-600 text-white shadow-soft'
-                    : 'bg-white border border-violet-200 text-violet-700 hover:border-violet-400'
-                    }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
 
           {loading ? (
             <div className="text-center py-20 text-slate-500">Loading…</div>

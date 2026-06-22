@@ -73,9 +73,10 @@ export default function LiveClasses() {
                   </span>
 
                   <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                    {lc.platform === 'youtube' ? 'YouTube Live' :
-                     lc.platform === 'agora_stream' ? 'Agora Live' :
-                     lc.platform === 'agora_call' ? 'Agora Meet' : 'Internal Room'}
+                    {lc.platform === 'agora_stream' ? 'Ace Live' :
+                     lc.platform === 'agora_call' ? 'Ace Meet' :
+                     lc.platform === 'agora_interactive' ? 'Ace Interactive' :
+                     lc.platform === 'agora_broadcast' ? 'Ace Broadcast' : 'Ace Meet'}
                   </span>
                 </div>
 
@@ -124,7 +125,7 @@ export default function LiveClasses() {
 
               {/* Action Button */}
               <div className="p-5 pt-0">
-                {['internal', 'agora_call', 'agora_stream', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet')) ? (
+                {['internal', 'agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet')) ? (
                   <Link
                     to={`/live/${lc._id}`}
                     className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 ${

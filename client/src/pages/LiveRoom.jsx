@@ -717,10 +717,10 @@ export default function LiveRoom() {
               </span>
               <span className="chip text-[10px] bg-brand-50 text-brand-700 uppercase">
                 Platform: {platform === 'internal' ? 'In-App Room' :
-                           platform === 'agora_call' ? 'Agora Call' :
-                           platform === 'agora_stream' ? 'Agora Stream (Legacy)' :
-                           platform === 'agora_interactive' ? 'Agora Interactive' :
-                           platform === 'agora_broadcast' ? 'Agora Broadcast' :
+                           platform === 'agora_call' ? 'Ace Call' :
+                           platform === 'agora_stream' ? 'Ace Stream (Legacy)' :
+                           platform === 'agora_interactive' ? 'Ace Interactive' :
+                           platform === 'agora_broadcast' ? 'Ace Broadcast' :
                            platform === 'youtube' ? 'YouTube Live' : platform}
               </span>
             </div>

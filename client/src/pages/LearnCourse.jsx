@@ -1060,13 +1060,11 @@ function LiveClassesTab({ liveClasses }) {
                       <span className="text-[10px] opacity-70 font-bold uppercase bg-white/10 px-2 py-0.5 rounded-full">Upcoming</span>
                     )}
                     <span className="text-[9px] font-extrabold bg-white/25 text-white px-2 py-0.5 rounded-full uppercase shrink-0">
-                      {lc.platform === 'internal' ? 'In-App Room' : 
-                       lc.platform === 'agora_call' ? 'Agora Call' : 
-                       lc.platform === 'agora_stream' ? 'Agora Stream (Legacy)' : 
-                       lc.platform === 'agora_interactive' ? 'Agora Interactive' : 
-                       lc.platform === 'agora_broadcast' ? 'Agora Broadcast' : 
-                       lc.platform === 'youtube' ? 'YouTube Live' : 
-                       lc.platform || (lc.useInternalRoom ? 'In-App Room' : 'External')}
+                      {lc.platform === 'agora_call' ? 'Ace Call' : 
+                       lc.platform === 'agora_stream' ? 'Ace Stream (Legacy)' : 
+                       lc.platform === 'agora_interactive' ? 'Ace Interactive' : 
+                       lc.platform === 'agora_broadcast' ? 'Ace Broadcast' : 
+                       lc.platform || 'Ace Call'}
                     </span>
                   </div>
                   <h3 className="font-bold text-base leading-snug mt-1">{lc.title}</h3>
@@ -1089,7 +1087,7 @@ function LiveClassesTab({ liveClasses }) {
                   )}
                   {!isPast && (
                     <div className="pt-2">
-                      {['internal', 'agora_call', 'agora_stream', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet')) ? (
+                      {['internal', 'agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet')) ? (
                         <Link
                           to={`/live/${lc._id}`}
                           className={`btn-primary w-full justify-center !py-2 text-sm ${isLive ? '!bg-rose-600 hover:!bg-rose-700' : ''}`}

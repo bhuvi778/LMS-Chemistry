@@ -303,20 +303,14 @@ export const submitAttempt = asyncHandler(async (req, res) => {
           correct++;
           isCorrect = true;
           marksAwarded = q.marks || 4;
-        } else {
+        } else if (numCorrectSelected > 0) {
+          // Partial marking: award marks equal to the number of correct options chosen
           isCorrect = true;
           correct++;
-          if (numCorrectSelected === 3 && totalCorrect === 4) {
-            marksAwarded = 3;
-          } else if (numCorrectSelected === 2) {
-            marksAwarded = 2;
-          } else if (numCorrectSelected === 1) {
-            marksAwarded = 1;
-          } else {
-            isCorrect = false;
-            correct--;
-            marksAwarded = 0;
-          }
+          marksAwarded = numCorrectSelected;
+        } else {
+          isCorrect = false;
+          marksAwarded = 0;
         }
       }
     }

@@ -775,7 +775,7 @@ function LiveClassesTab({ courseId }) {
     scheduledAt: '',
     durationMins: 60,
     instructor: '',
-    platform: 'internal', // internal | zoom | meet | youtube
+    platform: 'agora_call', // agora_call | agora_stream | agora_interactive | agora_broadcast
     meetingUrl: '',
     description: '',
     isActive: true,
@@ -797,14 +797,10 @@ function LiveClassesTab({ courseId }) {
 
   const platformLabel = (p) =>
     ({
-      internal: 'In-App Room',
-      zoom: 'Zoom',
-      meet: 'Google Meet',
-      youtube: 'YouTube Live',
-      agora_call: 'Agora Video Call',
-      agora_stream: 'Agora Stream (Legacy)',
-      agora_interactive: 'Agora Interactive',
-      agora_broadcast: 'Agora Broadcast'
+      agora_call: 'Ace Video Call',
+      agora_stream: 'Ace Stream (Legacy)',
+      agora_interactive: 'Ace Interactive',
+      agora_broadcast: 'Ace Broadcast'
     })[p] || p;
 
   const save = async (e) => {
@@ -887,52 +883,24 @@ function LiveClassesTab({ courseId }) {
               </div>
               <div>
                 <label className="label">Platform</label>
-                <select className="input" value={editing.platform || 'internal'}
+                <select className="input" value={editing.platform || 'agora_call'}
                   onChange={(e) => setEditing((f) => ({ ...f, platform: e.target.value }))}>
-                  <option value="internal">In-App Room</option>
-                  <option value="agora_call">Agora Video Call (All Participants)</option>
-                  <option value="agora_interactive">Agora Interactive Live Stream (Raise Hand / Co-host)</option>
-                  <option value="agora_broadcast">Agora One-Way Broadcast (No Interaction)</option>
-                  <option value="agora_stream">Agora Stream (Legacy)</option>
-                  <option value="youtube">YouTube Live (Embed / Broadcast)</option>
-                  <option value="zoom">Zoom</option>
-                  <option value="meet">Google Meet</option>
+                  <option value="agora_call">Ace Video Call (All Participants)</option>
+                  <option value="agora_interactive">Ace Interactive Live Stream (Raise Hand / Co-host)</option>
+                  <option value="agora_broadcast">Ace One-Way Broadcast (No Interaction)</option>
+                  <option value="agora_stream">Ace Stream (Legacy)</option>
                 </select>
               </div>
             </div>
 
-            {['zoom', 'meet', 'youtube'].includes(editing.platform) && (
-              <div>
-                <label className="label">
-                  {editing.platform === 'zoom' ? 'Zoom Meeting Link *' :
-                   editing.platform === 'meet' ? 'Google Meet Link *' : 'YouTube Live URL / Video ID *'}
-                </label>
-                <input required className="input" value={editing.meetingUrl || ''}
-                  onChange={(e) => setEditing((f) => ({ ...f, meetingUrl: e.target.value }))}
-                  placeholder={
-                    editing.platform === 'zoom' ? 'https://zoom.us/j/…' :
-                    editing.platform === 'meet' ? 'https://meet.google.com/…' :
-                    'https://youtube.com/live/…'
-                  } />
-              </div>
-            )}
-
-            {editing.platform === 'internal' && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700">
-                An in-app room will be automatically created. Students will see a "Join Room" button during the scheduled time.
-              </div>
-            )}
-
-            {['agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast'].includes(editing.platform) && (
-              <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-3 text-sm text-teal-800">
-                <strong>Agora RTC Session:</strong> Dynamic secure tokens will be generated.
-                {editing.platform === 'agora_call'
-                  ? ' Everyone can turn on camera/microphone and speak directly (Video Calling).'
-                  : editing.platform === 'agora_interactive'
-                    ? ' Students join as audience but can raise hand to co-host and speak (Interactive).'
-                    : ' One-way broadcast stream from instructor to all students. No interaction.'}
-              </div>
-            )}
+            <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-3 text-sm text-teal-800">
+              <strong>Ace RTC Session:</strong> Dynamic secure tokens will be generated.
+              {editing.platform === 'agora_call'
+                ? ' Everyone can turn on camera/microphone and speak directly (Video Calling).'
+                : editing.platform === 'agora_interactive'
+                  ? ' Students join as audience but can raise hand to co-host and speak (Interactive).'
+                  : ' One-way broadcast stream from instructor to all students. No interaction.'}
+            </div>
 
             <div>
               <label className="label">Description</label>

@@ -15,6 +15,7 @@ import {
   X,
   ClipboardList,
   User,
+  Bookmark,
 } from 'lucide-react';
 
 // ─── Timer ────────────────────────────────────────────────────────────────────
@@ -207,6 +208,12 @@ export default function TakeTest() {
   const [submitting, setSubmitting] = useState(false);
   const [showSummaryScreen, setShowSummaryScreen] = useState(false);
 
+  const [savedQuestionIds, setSavedQuestionIds] = useState(new Set());
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('wrong_answer');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportingState, setReportingState] = useState(false);
+
   const answersRef = useRef(answers);
   const startTimeRef = useRef(startTime);
 
@@ -235,6 +242,13 @@ export default function TakeTest() {
   }, [answers, test]);
 
   useEffect(() => {
+    api.get('/tests/saved-questions')
+      .then(({ data }) => {
+        const ids = new Set((data || []).map(q => q.questionId));
+        setSavedQuestionIds(ids);
+      })
+      .catch(() => {});
+
     api.get(`/tests/tests/${testId}`)
       .then(({ data }) => {
         setTest(data);
@@ -442,6 +456,66 @@ export default function TakeTest() {
     }
   }, [testId, nav, submitting]);
 
+  const handleToggleSave = async () => {
+    const qObj = questions[current];
+    const isSaved = savedQuestionIds.has(qObj._id);
+    
+    try {
+      if (isSaved) {
+        await api.delete(`/tests/saved-questions/${qObj._id}`);
+        setSavedQuestionIds(prev => {
+          const next = new Set(prev);
+          next.delete(qObj._id);
+          return next;
+        });
+        toast.success('Question removed from Saved Questions');
+      } else {
+        await api.post('/tests/saved-questions', {
+          questionId: qObj._id,
+          testId,
+          questionText: qObj.question,
+          options: qObj.options,
+          correct: qObj.correct,
+          explanation: qObj.explanation,
+          image: qObj.image,
+          testTitle: test.title
+        });
+        setSavedQuestionIds(prev => {
+          const next = new Set(prev);
+          next.add(qObj._id);
+          return next;
+        });
+        toast.success('Question saved successfully');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to update saved question');
+    }
+  };
+
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    const qObj = questions[current];
+    setReportingState(true);
+    try {
+      await api.post('/tests/reported-questions', {
+        questionId: qObj._id,
+        testId,
+        questionText: qObj.question,
+        testTitle: test.title,
+        reason: reportReason,
+        description: reportDescription,
+      });
+      toast.success('Issue reported successfully. Thank you for your feedback!');
+      setShowReportModal(false);
+      setReportReason('wrong_answer');
+      setReportDescription('');
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to submit report');
+    } finally {
+      setReportingState(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -581,9 +655,35 @@ export default function TakeTest() {
                   of {questions.length} Questions
                 </span>
               </div>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 border border-brand-100">
-                +{q?.marks || 4} / {q?.negativeMarks ?? -1}
-              </span>
+              <div className="flex items-center gap-2 md:gap-3">
+                <button
+                  type="button"
+                  onClick={handleToggleSave}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                    savedQuestionIds.has(q?._id)
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-sm'
+                      : 'bg-white hover:bg-slate-50 text-slate-500 border-slate-200 hover:text-slate-700'
+                  }`}
+                  title={savedQuestionIds.has(q?._id) ? 'Remove Bookmark' : 'Save Question'}
+                >
+                  <Bookmark size={13} className={savedQuestionIds.has(q?._id) ? 'fill-current' : ''} />
+                  <span className="hidden sm:inline">{savedQuestionIds.has(q?._id) ? 'Saved' : 'Save'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border bg-white hover:bg-rose-50 text-slate-500 border-slate-200 hover:text-rose-650 hover:border-rose-200"
+                  title="Report an error or issue in this question"
+                >
+                  <Flag size={13} />
+                  <span className="hidden sm:inline">Report</span>
+                </button>
+
+                <span className="text-xs font-bold px-2.5 py-1.5 rounded-full bg-brand-55 text-brand-800 border border-brand-100">
+                  +{q?.marks || 4} / {q?.negativeMarks ?? -1}
+                </span>
+              </div>
             </div>
 
             {/* Question Body */}
@@ -929,6 +1029,79 @@ export default function TakeTest() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Report Question Modal ────────────────────────────────────────────── */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-100 overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <Flag className="text-rose-500" size={18} /> Report Question Issue
+              </h2>
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleReportSubmit} className="p-6 space-y-4">
+              <div className="bg-rose-50/50 border border-rose-100 rounded-xl p-3 text-xs text-rose-800 leading-relaxed font-semibold">
+                Notice an issue? Select the problem category below, and our academic team will review it.
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-550 block mb-1">REASON / ISSUE TYPE</label>
+                <select
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-full border-2 border-slate-200 focus:border-brand-500 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none bg-white transition-all shadow-sm"
+                >
+                  <option value="wrong_answer">Incorrect Answer Key</option>
+                  <option value="wrong_question">Incorrect Question Text</option>
+                  <option value="typo">Typo / Formatting Issue</option>
+                  <option value="image_missing">Image Not Loading</option>
+                  <option value="other">Other Issue</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-550 block mb-1">DESCRIPTION / EXPLANATION</label>
+                <textarea
+                  rows={4}
+                  value={reportDescription}
+                  onChange={(e) => setReportDescription(e.target.value)}
+                  className="w-full border-2 border-slate-200 focus:border-brand-500 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none bg-white transition-all shadow-sm resize-none"
+                  placeholder="Provide details about the issue (e.g. option C is correct instead of A, missing info)..."
+                  required
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-bold text-slate-700 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={reportingState}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
+                >
+                  {reportingState ? <Loader2 size={13} className="animate-spin" /> : <Flag size={13} />}
+                  Submit Report
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
