@@ -606,7 +606,7 @@ export default function TakeTest() {
                       }}
                       className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap shadow-sm border ${
                         isCurrentSection
-                          ? 'bg-brand-650 text-white border-brand-700'
+                          ? 'bg-brand-600 text-white border-brand-700 shadow-md scale-[1.02]'
                           : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                       }`}
                     >
@@ -630,7 +630,7 @@ export default function TakeTest() {
                     }}
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap shadow-sm border ${
                       !q?.section
-                        ? 'bg-brand-650 text-white border-brand-700'
+                        ? 'bg-brand-600 text-white border-brand-700 shadow-md scale-[1.02]'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -688,9 +688,10 @@ export default function TakeTest() {
 
             {/* Question Body */}
             <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-5">
-              <div className="text-[15px] text-slate-800 font-semibold leading-relaxed whitespace-pre-wrap">
-                {q?.question}
-              </div>
+              <div 
+                className="text-[15px] text-slate-800 font-semibold leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: q?.question || '' }}
+              />
 
               {q?.image && (
                 <div className="border border-slate-200 rounded-xl overflow-hidden max-w-xl bg-slate-50 p-2 shadow-inner">
