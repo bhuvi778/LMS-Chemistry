@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema(
     language: { type: String, default: '' },
     city: { type: String, default: '' },
     // Streak & Wallet
-    coins: { type: Number, default: 0 },
+    coins: { type: Number, default: 25 },
     streak: { type: Number, default: 0 },
     longestStreak: { type: Number, default: 0 },
     lastLoginDate: { type: Date },

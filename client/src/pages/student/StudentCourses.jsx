@@ -353,7 +353,7 @@ export default function StudentCourses() {
 
       {extensionModal && (() => {
         const extPrice = extensionModal.course?.extendValidityPrice || 0;
-        const gwFee = extPrice <= 7299 ? 45 : Math.round(extPrice * 0.007 * 100) / 100;
+        const gwFee = Math.round(extPrice * 0.03 * 100) / 100;
         const totalAmount = extPrice > 0 ? Math.round((extPrice + gwFee) * 100) / 100 : 0;
 
         return (

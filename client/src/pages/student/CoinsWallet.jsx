@@ -74,13 +74,13 @@ export default function CoinsWallet() {
   // Sort history by date descending
   history.sort((a, b) => b.rawDate - a.rawDate);
 
-  const inrEquivalent = (currentBalance / 25).toFixed(2);
+  const inrEquivalent = currentBalance.toFixed(2);
 
   const rewards = [
-    { title: '₹10 Discount Voucher', cost: 250, label: 'Discount Voucher' },
-    { title: '₹20 Discount Voucher', cost: 500, label: 'Discount Voucher' },
-    { title: '₹30 Discount Voucher', cost: 750, label: 'Discount Voucher' },
-    { title: '₹50 Discount Voucher', cost: 1250, label: 'Discount Voucher' }
+    { title: '₹250 Discount Voucher', cost: 250, label: 'Discount Voucher' },
+    { title: '₹500 Discount Voucher', cost: 500, label: 'Discount Voucher' },
+    { title: '₹750 Discount Voucher', cost: 750, label: 'Discount Voucher' },
+    { title: '₹1250 Discount Voucher', cost: 1250, label: 'Discount Voucher' }
   ];
 
   const handleRedeem = async (reward) => {
@@ -133,7 +133,7 @@ export default function CoinsWallet() {
                 ≈ ₹{inrEquivalent} INR
               </span>
             </div>
-            <p className="text-xs opacity-75 pt-1">Conversion rate: 25 Coins = ₹1 💰</p>
+            <p className="text-xs opacity-75 pt-1">Conversion rate: 1 Coin = ₹1 💰</p>
           </div>
         </div>
 
@@ -143,12 +143,12 @@ export default function CoinsWallet() {
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">How to earn coins?</h3>
             <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-4 font-medium">
               <li>Daily login attendance: <b>+1 Coin</b></li>
-              <li>Refer & Earn (Per invite): <b>+5 Coins</b></li>
+              <li>Refer & Earn (Per invite): <b>+50 Coins</b></li>
               <li>Daily Test completion: <b>+2 Coins</b></li>
             </ul>
           </div>
           <div className="text-[11px] text-slate-500 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100 mt-3">
-            Conversion Rate: 25 Coins = ₹1
+            Conversion Rate: 1 Coin = ₹1
           </div>
         </div>
       </div>
@@ -194,7 +194,7 @@ export default function CoinsWallet() {
               <span>Refer & Earn</span>
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Invite friends to Ace2Examz! Share your unique referral code. You'll receive <b>5 Coins</b> (equivalent to ₹0.20) as soon as they sign up and verify their email.
+              Invite friends to Ace2Examz! Share your unique referral code. You'll receive <b>50 Coins</b> (equivalent to ₹50) as soon as they sign up and verify their email.
             </p>
             <div className="bg-white rounded-2xl p-3 border border-indigo-100 flex items-center justify-between gap-3 text-xs shadow-sm">
               <span className="font-mono font-black text-indigo-700 uppercase select-all tracking-wider">
@@ -233,7 +233,7 @@ export default function CoinsWallet() {
                     <h4 className="font-bold text-slate-800 text-xs mt-0.5 leading-snug">{reward.title}</h4>
                     <div className="flex items-center gap-1 text-[11px] text-yellow-600 font-bold mt-1">
                       <Coins size={12} />
-                      <span>{reward.cost} Coins (≈ ₹{(reward.cost / 25).toFixed(0)} INR)</span>
+                      <span>{reward.cost} Coins (≈ ₹{reward.cost} INR)</span>
                     </div>
                   </div>
                   {redemptions.some(r => r.itemName === reward.title) ? (
@@ -243,7 +243,7 @@ export default function CoinsWallet() {
                       </span>
                       <button
                         onClick={() => {
-                          toast.success(`Your Voucher Coupon Code: ACE-INR-${reward.cost / 25}-OFFER`, { duration: 6000 });
+                          toast.success(`Your Voucher Coupon Code: ACE-INR-${reward.cost}-OFFER`, { duration: 6000 });
                         }}
                         className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-[10px] rounded-xl text-center shadow-sm"
                       >

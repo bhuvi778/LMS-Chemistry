@@ -212,9 +212,9 @@ export default function TestSeriesDetail() {
   let displayPrice = finalPrice;
   let coinDiscount = 0;
   if (redeemCoins && user) {
-    const maxCoinsNeeded = Math.floor(finalPrice * 25);
+    const maxCoinsNeeded = Math.floor(finalPrice);
     const coinsToRedeem = Math.min(user.coins || 0, maxCoinsNeeded);
-    coinDiscount = coinsToRedeem / 25;
+    coinDiscount = coinsToRedeem;
     displayPrice = Math.max(0, finalPrice - coinDiscount);
   }
 
@@ -448,7 +448,7 @@ export default function TestSeriesDetail() {
                   <Coins className="text-amber-500 animate-pulse" size={16} />
                   <div>
                     <p className="text-xs font-bold text-slate-800">Redeem Ace Coins</p>
-                    <p className="text-[10px] text-slate-500 font-semibold">You have {user.coins} coins (≈ {(user.coins / 25).toFixed(2)} INR)</p>
+                    <p className="text-[10px] text-slate-500 font-semibold">You have {user.coins} coins (≈ {user.coins} INR)</p>
                   </div>
                 </div>
                 <input
@@ -466,12 +466,12 @@ export default function TestSeriesDetail() {
               let baseAmt = initialAmt;
               let coinDiscountVal = 0;
               if (redeemCoins && user.coins >= 250) {
-                const maxCoinsNeeded = Math.floor(initialAmt * 25);
+                const maxCoinsNeeded = Math.floor(initialAmt);
                 const coinsToRedeem = Math.min(user.coins || 0, maxCoinsNeeded);
-                coinDiscountVal = coinsToRedeem / 25;
+                coinDiscountVal = coinsToRedeem;
                 baseAmt = Math.max(0, initialAmt - coinDiscountVal);
               }
-              const gwFee = baseAmt <= 7299 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
+              const gwFee = Math.round(baseAmt * 0.03 * 100) / 100;
               const rzpTotal = Math.round((baseAmt + gwFee) * 100) / 100;
               return (
                 <div className="space-y-3">

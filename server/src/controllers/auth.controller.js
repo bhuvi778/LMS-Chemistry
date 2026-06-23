@@ -243,10 +243,10 @@ export const register = asyncHandler(async (req, res) => {
     referredBy: referrerStudentId,
   });
 
-  // Credit referrer with 5 coins
+  // Credit referrer with 50 coins
   if (referrerId) {
     await User.findByIdAndUpdate(referrerId, {
-      $inc: { coins: 5, referralCount: 1 },
+      $inc: { coins: 50, referralCount: 1 },
     });
   }
 
@@ -499,7 +499,7 @@ export const redeemCoins = asyncHandler(async (req, res) => {
     itemType: 'reward_catalog',
     itemName: title || 'Reward Catalog Item',
     coinsSpent: cost,
-    discountAmount: cost / 25,
+    discountAmount: cost,
   });
 
   res.json(safeUser(user));
@@ -737,10 +737,10 @@ export const googleAuth = asyncHandler(async (req, res) => {
       referredBy: referrerStudentId,
     });
 
-    // Credit referrer with 5 coins
+    // Credit referrer with 50 coins
     if (referrerId) {
       await User.findByIdAndUpdate(referrerId, {
-        $inc: { coins: 5, referralCount: 1 },
+        $inc: { coins: 50, referralCount: 1 },
       });
     }
   } else {

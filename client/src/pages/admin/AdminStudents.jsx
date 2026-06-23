@@ -217,7 +217,7 @@ function AddStudentModal({ onClose, onCreated }) {
               </div>
               <div>
                 <label className="label">Phone <span className="text-slate-400 font-normal">(optional)</span></label>
-                <input value={form.phone} onChange={set('phone')} className="input w-full" placeholder="+971 50 000 0000" />
+                <input value={form.phone} onChange={set('phone')} className="input w-full" placeholder="+91 99999 99999" />
               </div>
               <div>
                 <label className="label flex items-center justify-between">

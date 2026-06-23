@@ -535,13 +535,10 @@ export default function CourseDetail() {
       if (enrollment.validUntil) {
         const startDate = enrollment.createdAt ? new Date(enrollment.createdAt) : new Date();
         const totalMs = new Date(enrollment.validUntil) - startDate;
-        let totalDays = Math.ceil(totalMs / (1000 * 60 * 60 * 24));
-        if (totalDays <= 0) totalDays = 365;
-
         const remainingMs = new Date(enrollment.validUntil) - new Date();
-        const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
-
-        credit = oldPrice * (remainingDays / totalDays);
+        if (totalMs > 0 && remainingMs > 0) {
+          credit = oldPrice * (remainingMs / totalMs);
+        }
       } else {
         credit = oldPrice;
       }
@@ -929,13 +926,10 @@ export default function CourseDetail() {
                     if (enrollment.validUntil) {
                       const startDate = enrollment.createdAt ? new Date(enrollment.createdAt) : new Date();
                       const totalMs = new Date(enrollment.validUntil) - startDate;
-                      let totalDays = Math.ceil(totalMs / (1000 * 60 * 60 * 24));
-                      if (totalDays <= 0) totalDays = 365;
-
                       const remainingMs = new Date(enrollment.validUntil) - new Date();
-                      const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
-
-                      credit = oldPrice * (remainingDays / totalDays);
+                      if (totalMs > 0 && remainingMs > 0) {
+                        credit = oldPrice * (remainingMs / totalMs);
+                      }
                     } else {
                       credit = oldPrice;
                     }
@@ -1066,9 +1060,9 @@ export default function CourseDetail() {
                   let displayPrice = initialBaseAmt;
                   let coinDiscount = 0;
                   if (redeemCoins && user) {
-                    const maxCoinsNeeded = Math.floor(initialBaseAmt * 25);
+                    const maxCoinsNeeded = Math.floor(initialBaseAmt);
                     const coinsToRedeem = Math.min(user.coins || 0, maxCoinsNeeded);
-                    coinDiscount = coinsToRedeem / 25;
+                    coinDiscount = coinsToRedeem;
                     displayPrice = Math.max(0, initialBaseAmt - coinDiscount);
                   }
                   
@@ -1214,7 +1208,7 @@ export default function CourseDetail() {
                           <Coins className="text-amber-500 animate-pulse" size={16} />
                           <div>
                             <p className="text-xs font-bold text-slate-800">Redeem Ace Coins</p>
-                            <p className="text-[10px] text-slate-500 font-semibold">You have {user.coins} coins (≈ {(user.coins / 25).toFixed(2)} INR)</p>
+                            <p className="text-[10px] text-slate-500 font-semibold">You have {user.coins} coins (≈ {user.coins} INR)</p>
                           </div>
                         </div>
                         <input
@@ -1234,12 +1228,12 @@ export default function CourseDetail() {
                       let baseAmt = initialAmt;
                       let coinDiscount = 0;
                       if (redeemCoins && user.coins >= 250) {
-                        const maxCoinsNeeded = Math.floor(initialAmt * 25);
+                        const maxCoinsNeeded = Math.floor(initialAmt);
                         const coinsToRedeem = Math.min(user.coins || 0, maxCoinsNeeded);
-                        coinDiscount = coinsToRedeem / 25;
+                        coinDiscount = coinsToRedeem;
                         baseAmt = Math.max(0, initialAmt - coinDiscount);
                       }
-                      const gwFee = baseAmt <= 7299 ? 45 : Math.round(baseAmt * 0.007 * 100) / 100;
+                      const gwFee = Math.round(baseAmt * 0.03 * 100) / 100;
                       const rzpTotal = Math.round((baseAmt + gwFee) * 100) / 100;
 
                       const seatsLimit = course.plans?.infinity?.seatsLimit || 15;

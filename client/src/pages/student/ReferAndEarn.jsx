@@ -10,7 +10,7 @@ export default function ReferAndEarn() {
   const referralCode = user?.studentId ? `REF-${user.studentId}` : 'REF-INVITE5';
   const referralLink = `${window.location.origin}/register?ref=${user?.studentId || 'INVITE5'}`;
   const referralCount = user?.referralCount || 0;
-  const coinsEarned = referralCount * 5;
+  const coinsEarned = referralCount * 50;
 
   const copyCode = () => {
     navigator.clipboard.writeText(referralCode);
@@ -34,14 +34,14 @@ export default function ReferAndEarn() {
   const steps = [
     { icon: Share2, title: 'Share Your Code', desc: 'Share your unique referral code with friends' },
     { icon: Users, title: 'Friend Signs Up', desc: 'They register using your referral code' },
-    { icon: Coins, title: 'Earn 5 Coins', desc: 'You receive 5 Ace Coins instantly (≈ ₹0.20)' },
+    { icon: Coins, title: 'Earn 50 Coins', desc: 'You receive 50 Ace Coins instantly (≈ ₹50)' },
   ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-2xl font-extrabold text-slate-800">Refer & Earn</h1>
-        <p className="text-sm text-slate-500 mt-1">Invite friends and earn 5 Ace Coins for every successful referral.</p>
+        <p className="text-sm text-slate-500 mt-1">Invite friends and earn 50 Ace Coins for every successful referral.</p>
       </div>
 
       {/* Hero Card */}
@@ -55,8 +55,8 @@ export default function ReferAndEarn() {
               <Gift size={24} />
             </div>
             <div>
-              <h2 className="font-display font-extrabold text-2xl">Earn 5 Coins per Friend</h2>
-              <p className="text-white/80 text-sm">Equivalent to ₹0.20 per referral</p>
+              <h2 className="font-display font-extrabold text-2xl">Earn 50 Coins per Friend</h2>
+              <p className="text-white/80 text-sm">Equivalent to ₹50 per referral</p>
             </div>
           </div>
 
@@ -134,7 +134,7 @@ export default function ReferAndEarn() {
       {/* Terms */}
       <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
         <p className="text-xs text-slate-500 font-medium leading-relaxed">
-          📋 <b>Terms:</b> Referral coins are credited once your friend successfully creates and verifies their account. Conversion rate: 25 Coins = ₹1. There is no limit on referrals.
+          📋 <b>Terms:</b> Referral coins are credited once your friend successfully creates and verifies their account. Conversion rate: 1 Coin = ₹1. There is no limit on referrals.
         </p>
       </div>
     </div>

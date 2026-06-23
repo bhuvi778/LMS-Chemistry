@@ -11,7 +11,7 @@ export default function Courses() {
   const [comboCourses, setComboCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const category = params.get('category') || 'ALL';
-  const typeFilter = params.get('type') || 'LIVE';
+  const typeFilter = params.get('type') || 'ALL';
   const q = params.get('q') || '';
 
   useEffect(() => {
@@ -52,6 +52,7 @@ export default function Courses() {
   });
 
   const TYPE_FILTERS = [
+    { k: 'ALL', l: '📚 All Courses' },
     { k: 'LIVE', l: '🔴 Live Courses' },
     { k: 'RECORDED', l: '🎬 Recorded Courses' },
     { k: 'FREE', l: '🆓 Free Courses' },

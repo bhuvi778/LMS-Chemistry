@@ -172,16 +172,16 @@ export default function Register() {
           <div className="mt-4">
             <label className="label">Phone (optional)</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">+971</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">+91</span>
               <input
-                className="input !pl-14"
+                className="input !pl-12"
                 value={form.phone}
                 onChange={(e) => {
-                  // Strip leading +971 if user types it
-                  const val = e.target.value.replace(/^\+?971\s?/, '');
-                  setForm({ ...form, phone: '+971' + val });
+                  // Strip leading +91 if user types it
+                  const val = e.target.value.replace(/^\+?91\s?/, '');
+                  setForm({ ...form, phone: '+91' + val });
                 }}
-                placeholder="50 000 0000"
+                placeholder="98765 43210"
               />
             </div>
           </div>

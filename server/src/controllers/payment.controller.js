@@ -96,13 +96,11 @@ const calculateUpgradeDetails = (newPlanPrice, existingEnrollment, courseObj) =>
   if (existingEnrollment.validUntil) {
     const startDate = existingEnrollment.createdAt || new Date();
     const totalMs = new Date(existingEnrollment.validUntil) - new Date(startDate);
-    let totalDays = Math.ceil(totalMs / (1000 * 60 * 60 * 24));
-    if (totalDays <= 0) totalDays = 365;
-
     const remainingMs = new Date(existingEnrollment.validUntil) - new Date();
-    const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
 
-    credit = oldPrice * (remainingDays / totalDays);
+    if (totalMs > 0 && remainingMs > 0) {
+      credit = oldPrice * (remainingMs / totalMs);
+    }
   } else {
     // If lifetime (validUntil is null), credit is equal to the full pricePaid
     credit = oldPrice;
@@ -187,23 +185,28 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
 
   // Coupon support (courses and test series)
-  let originalAmount = item.price;
+  let originalAmount = 0;
   if (req.body.isExtension) {
     originalAmount = item.extendValidityPrice || 0;
-  } else if (isCourse && item.plans && item.plans[planType]) {
-    const pConfig = item.plans[planType];
-    if (!pConfig.enabled) {
-      res.status(400);
-      throw new Error(`The selected plan "${planType}" is not enabled for this course`);
-    }
-    originalAmount = pConfig.price;
   } else if (isCourse) {
-    // Fallback for legacy
-    if (planType === 'pro') {
-      originalAmount = Math.round(item.price * 1.25);
-    } else if (planType === 'infinity') {
-      originalAmount = Math.round(item.price * 1.5);
+    if (item.plans && item.plans[planType] && item.plans[planType].price > 0) {
+      const pConfig = item.plans[planType];
+      if (!pConfig.enabled) {
+        res.status(400);
+        throw new Error(`The selected plan "${planType}" is not enabled for this course`);
+      }
+      originalAmount = pConfig.price;
+    } else {
+      // Fallback
+      originalAmount = item.price || 0;
+      if (planType === 'pro') {
+        originalAmount = Math.round(originalAmount * 1.25);
+      } else if (planType === 'infinity') {
+        originalAmount = Math.round(originalAmount * 1.5);
+      }
     }
+  } else {
+    originalAmount = item.price || 0;
   }
 
   // Adjust price if upgrading
@@ -236,9 +239,9 @@ export const createOrder = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error('Minimum 250 Ace Coins are required for redemption');
     }
-    const maxCoinsNeeded = Math.floor(finalAmount * 25);
+    const maxCoinsNeeded = Math.floor(finalAmount);
     coinsRedeemed = Math.min(studentUser.coins || 0, maxCoinsNeeded);
-    coinDiscount = coinsRedeemed / 25;
+    coinDiscount = coinsRedeemed;
     finalAmount = Math.max(0, Math.round((finalAmount - coinDiscount) * 100) / 100);
   }
 
@@ -326,10 +329,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     return res.status(201).json({ free: true, enrollment });
   }
 
-  // Internet handling fee: INR 45 flat if <= 7299, else 0.7%
-  const gatewayFee = finalAmount <= 7299
-    ? 45
-    : Math.round(finalAmount * 0.007 * 100) / 100;
+  // Internet handling fee: flat 3%
+  const gatewayFee = Math.round(finalAmount * 0.03 * 100) / 100;
   const chargeAmount = Math.round((finalAmount + gatewayFee) * 100) / 100;
 
   // Create Razorpay order (amount in paise, 1 INR = 100 paise)
@@ -580,14 +581,15 @@ export const validateCoupon = asyncHandler(async (req, res) => {
     if (!item) { res.status(404); throw new Error('Test series not found'); }
   }
 
-  let originalAmount = item.price;
+  let originalAmount = 0;
   if (courseId) {
     const pType = planType || 'batch';
-    if (item.plans && item.plans[pType]) {
+    if (item.plans && item.plans[pType] && item.plans[pType].price > 0) {
       originalAmount = item.plans[pType].price;
     } else {
-      if (pType === 'pro') originalAmount = Math.round(item.price * 1.25);
-      else if (pType === 'infinity') originalAmount = Math.round(item.price * 1.5);
+      originalAmount = item.price || 0;
+      if (pType === 'pro') originalAmount = Math.round(originalAmount * 1.25);
+      else if (pType === 'infinity') originalAmount = Math.round(originalAmount * 1.5);
     }
 
     const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });

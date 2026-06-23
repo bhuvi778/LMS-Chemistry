@@ -51,7 +51,7 @@ export default function AdminStatsWallet() {
     finally { setBusy(false); }
   };
 
-  const inr = (coins) => (coins / 25).toFixed(2);
+  const inr = (coins) => coins.toFixed(2);
 
   return (
     <div className="space-y-6">

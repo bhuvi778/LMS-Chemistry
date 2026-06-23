@@ -50,7 +50,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
     finalBaseAmt = Math.max(0, baseAmount - coinDiscountVal);
   }
 
-  const handlingFee = finalBaseAmt <= 7299 ? 45 : Math.round(finalBaseAmt * 0.007 * 100) / 100;
+  const handlingFee = Math.round(finalBaseAmt * 0.03 * 100) / 100;
   const totalAmount = finalBaseAmt + handlingFee;
 
   if (!isOpen) return null;
@@ -252,7 +252,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
                         setStudentPhone(val);
                       }}
                       className="flex-1 border border-slate-200 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
-                      placeholder="50 000 0000"
+                      placeholder="98765 43210"
                     />
                   </div>
                 </div>

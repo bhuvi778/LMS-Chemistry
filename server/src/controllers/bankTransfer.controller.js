@@ -24,8 +24,7 @@ const calculateValidityEndDate = (validitySystem) => {
 
 // ─── Internet handling fee calculation ───────────────────────────────────────
 export const calcHandlingFee = (baseAmount) => {
-  if (baseAmount <= 7299) return 45;
-  return Math.round(baseAmount * 0.007 * 100) / 100; // 0.7%
+  return Math.round(baseAmount * 0.03 * 100) / 100; // 3%
 };
 
 // ─── STUDENT: Submit bank transfer request ────────────────────────────────────
@@ -51,9 +50,9 @@ export const submitBankTransfer = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error('Minimum 250 Ace Coins are required for redemption');
     }
-    const maxCoinsNeeded = Math.floor(finalBaseAmount * 25);
+    const maxCoinsNeeded = Math.floor(finalBaseAmount);
     coinsRedeemed = Math.min(studentUser.coins || 0, maxCoinsNeeded);
-    coinDiscount = coinsRedeemed / 25;
+    coinDiscount = coinsRedeemed;
     finalBaseAmount = Math.max(0, finalBaseAmount - coinDiscount);
   }
 
@@ -231,13 +230,10 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
         if (exists.validUntil) {
           const startDate = exists.createdAt || new Date();
           const totalMs = new Date(exists.validUntil) - new Date(startDate);
-          let totalDays = Math.ceil(totalMs / (1000 * 60 * 60 * 24));
-          if (totalDays <= 0) totalDays = 365;
-
           const remainingMs = new Date(exists.validUntil) - new Date();
-          const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
-
-          credit = oldPrice * (remainingDays / totalDays);
+          if (totalMs > 0 && remainingMs > 0) {
+            credit = oldPrice * (remainingMs / totalMs);
+          }
         } else {
           credit = oldPrice;
         }
