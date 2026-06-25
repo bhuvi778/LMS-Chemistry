@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { BookOpen, Clock, Download, Loader2, ArrowRight, Globe, X } from 'lucide-react';
+import { BookOpen, Clock, Download, ArrowRight, Globe, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import LogoLoader from '../../components/LogoLoader.jsx';
 
 function loadRazorpayScript() {
   return new Promise((resolve) => {
@@ -188,9 +189,8 @@ export default function StudentCourses() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24 text-slate-400">
-          <Loader2 size={32} className="animate-spin text-brand-600 mr-2" />
-          <span className="font-semibold">Loading courses...</span>
+        <div className="bg-white rounded-3xl border border-slate-100 p-12 flex items-center justify-center min-h-[300px]">
+          <LogoLoader size={60} text="Loading courses..." />
         </div>
       ) : activeTab === 'enrolled' ? (
         /* ── My Enrolled Courses ── */

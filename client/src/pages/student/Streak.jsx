@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Flame, Calendar as CalendarIcon, Award, CheckCircle, Zap, Loader2 } from 'lucide-react';
+import { Flame, Calendar as CalendarIcon, Award, CheckCircle, Zap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/client.js';
+import LogoLoader from '../../components/LogoLoader.jsx';
 
 export default function Streak() {
   const { user, setUser } = useAuth();
@@ -94,9 +95,8 @@ export default function Streak() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-slate-400">
-        <Loader2 size={32} className="animate-spin text-brand-600 mr-2" />
-        <span className="font-semibold">Updating streak...</span>
+      <div className="bg-white rounded-3xl border border-slate-100 p-12 flex items-center justify-center min-h-[300px]">
+        <LogoLoader size={60} text="Updating streak..." />
       </div>
     );
   }

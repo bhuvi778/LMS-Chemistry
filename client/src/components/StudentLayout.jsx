@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client.js';
+import toast from 'react-hot-toast';
 import SupportChatWidget from './SupportChatWidget.jsx';
 import NotificationBell from './NotificationBell.jsx';
 import {
@@ -30,6 +31,10 @@ import {
   BookOpen,
   Bookmark,
   Flag,
+  Calendar,
+  Sparkles,
+  ClipboardList,
+  DownloadCloud,
 } from 'lucide-react';
 
 const navSections = [
@@ -50,7 +55,17 @@ const navSections = [
       { to: '/student/live-classes', label: 'Live Classes', icon: Video },
       { to: '/student/practice', label: 'Practice', icon: ListChecks },
       { to: '/student/library', label: 'Library', icon: Library },
+      { to: '/student/downloads', label: 'My Downloads', icon: DownloadCloud },
       { to: '/student/doubts', label: 'Ask Doubts', icon: HelpCircle },
+    ]
+  },
+  {
+    title: 'ACE TRACK',
+    icon: Sparkles,
+    items: [
+      { to: '/student/syllabus-tracker', label: 'Syllabus Tracker', icon: ClipboardList },
+      { to: '/student/planner', label: 'My Planner', icon: Calendar },
+      { to: '/student/mentorship', label: '1:1 Mentorship', icon: Users },
     ]
   },
   {
@@ -112,7 +127,7 @@ export default function StudentLayout() {
       .catch(() => {
         setHighestPlan('Free');
       });
-  }, [location.pathname]);
+  }, []);
 
 
 
@@ -126,7 +141,49 @@ export default function StudentLayout() {
         }
       })
       .catch(() => { });
-  }, [location.pathname]);
+  }, []);
+
+  // Inactivity timeout auto-logout
+  useEffect(() => {
+    if (!user || user.role !== 'student') return;
+
+    // Get timeout duration in minutes, default to 10
+    const timeoutMins = user.studentSessionTimeout || 10;
+    const timeoutMs = timeoutMins * 60 * 1000;
+
+    let timeoutId;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        logout();
+        navigate('/');
+        toast.error(`You have been logged out due to inactivity for ${timeoutMins} minutes.`, {
+          duration: 6000,
+          id: 'inactivity-logout-toast'
+        });
+      }, timeoutMs);
+    };
+
+    // Events to monitor for activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    // Initialize timer
+    resetTimer();
+
+    // Bind events
+    events.forEach(event => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    // Cleanup
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(event => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [user, navigate, logout]);
 
   // Open the group containing the active item automatically
   useEffect(() => {

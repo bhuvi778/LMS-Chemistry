@@ -33,6 +33,10 @@ import {
   adminFreezeStreak,
   deleteStudent,
   revokeStudentSessionSingle,
+  getGlobalSettings,
+  updateGlobalSettings,
+  incrementAppDownloads,
+  getLoginAnalytics,
 } from '../controllers/admin.controller.js';
 
 const router = Router();
@@ -42,11 +46,15 @@ router.use(protect);
 router.get('/live-classes/upcoming', upcomingLiveClasses);
 router.get('/live-classes/all', allLiveClassesForStudent);
 router.get('/live-classes/by-course/:courseId', liveClassesForCourse);
+router.post('/analytics/app-download', incrementAppDownloads);
 
 // Admin-only below
 router.use(adminOnly);
 router.get('/stats', stats);
 router.get('/stats/detail', statsDetail);
+router.get('/settings', getGlobalSettings);
+router.put('/settings', updateGlobalSettings);
+router.get('/login-analytics', getLoginAnalytics);
 
 // ── Gamification Stats (must be before /:id param routes to avoid conflict) ──
 router.get('/gamification/streak', getStreakStats);

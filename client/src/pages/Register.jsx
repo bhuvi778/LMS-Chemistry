@@ -53,7 +53,7 @@ export default function Register() {
     }
   };
 
-  // ── Email Verification Screen ──
+  // ── WhatsApp Verification Screen ──
   if (pendingVerification) {
     return (
       <div className="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2">
@@ -64,10 +64,10 @@ export default function Register() {
               <span className="font-display font-extrabold text-2xl">Ace2Examz</span>
             </div>
             <h2 className="font-display text-4xl font-extrabold leading-tight">
-              Email Verification
+              WhatsApp Verification
             </h2>
             <p className="mt-4 text-white/80">
-              An email verification code was sent to <b>{pendingVerification.email}</b>. Check your inbox.
+              A verification code was sent to your WhatsApp number: <b>{pendingVerification.phone || pendingVerification.email}</b>. Please check your WhatsApp messages.
             </p>
           </div>
           <div className="absolute -top-24 -left-24 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
@@ -75,10 +75,10 @@ export default function Register() {
         <div className="flex items-center justify-center p-6 sm:p-10">
           <form onSubmit={submitVerification} className="w-full max-w-md">
             <div className="flex items-center gap-2 mb-2">
-              <h1 className="font-display text-3xl font-extrabold">Verify Email</h1>
+              <h1 className="font-display text-3xl font-extrabold">Verify WhatsApp</h1>
             </div>
             <p className="text-slate-500 mt-1">
-              We sent a 6-digit verification code to <b>{pendingVerification.email}</b>
+              We sent a 6-digit verification code to WhatsApp: <b>{pendingVerification.phone || pendingVerification.email}</b>
             </p>
 
             <div className="mt-6">
@@ -170,10 +170,11 @@ export default function Register() {
             </div>
           </div>
           <div className="mt-4">
-            <label className="label">Phone (optional)</label>
+            <label className="label">WhatsApp Number <span className="text-red-500 font-bold">*</span></label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">+91</span>
               <input
+                required
                 className="input !pl-12"
                 value={form.phone}
                 onChange={(e) => {
@@ -184,6 +185,7 @@ export default function Register() {
                 placeholder="98765 43210"
               />
             </div>
+            <p className="text-[10px] text-slate-400 mt-1">Required to verify your account and receive class communications via WhatsApp.</p>
           </div>
           <div className="mt-4">
             <label className="label">Password</label>

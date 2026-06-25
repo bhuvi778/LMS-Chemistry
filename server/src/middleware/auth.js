@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import asyncHandler from 'express-async-handler';
+import crypto from 'crypto';
 import User from '../models/User.js';
+import Session from '../models/Session.js';
 
 export const signToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'dev_secret', {
@@ -26,11 +28,20 @@ export const protect = asyncHandler(async (req, res, next) => {
       res.status(401);
       throw new Error('Account has been deactivated. Please contact support.');
     }
+
+    // Verify session is active in the database (concurrency check)
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const activeSession = await Session.findOne({ tokenHash, userId: user._id, isActive: true });
+    if (!activeSession) {
+      res.status(401);
+      throw new Error('Session has expired or logged out from another device.');
+    }
+
     req.user = user;
     next();
   } catch (e) {
     res.status(401);
-    throw new Error('Not authorized, token invalid');
+    throw new Error(e.message || 'Not authorized, token invalid');
   }
 });
 

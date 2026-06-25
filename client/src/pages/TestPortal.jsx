@@ -20,6 +20,7 @@ import {
   Trophy,
   FileText,
   Share2,
+  Coins,
 } from 'lucide-react';
 
 const DIFFICULTY_COLORS = {
@@ -78,12 +79,13 @@ function TestCard({ test, myAttempts = [] }) {
             </div>
           )}
 
-          <div className="flex items-center gap-4 text-xs text-slate-500 mb-4">
+          <div className="flex items-center gap-4 text-xs text-slate-500 mb-4 flex-wrap">
             <span className="flex items-center gap-1"><Clock size={12} /> {test.durationMins} min</span>
             <span className="flex items-center gap-1"><ClipboardList size={12} /> {test.questions?.length || 0} Qs</span>
             {test.totalMarks > 0 && (
               <span className="flex items-center gap-1"><Star size={12} /> {test.totalMarks} marks</span>
             )}
+            <span className="flex items-center gap-1 text-amber-600 font-extrabold bg-amber-50 px-2 py-0.5 rounded border border-amber-150"><Coins size={12} className="text-amber-500 animate-pulse" /> 1 Coin</span>
           </div>
 
           {(test.examTags || []).length > 0 && (

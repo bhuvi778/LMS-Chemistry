@@ -27,6 +27,7 @@ import {
   myReportedQuestions,
   adminListReportedQuestions,
   adminUpdateReport,
+  spendCoinForTest,
 } from '../controllers/test.controller.js';
 
 const router = Router();
@@ -42,6 +43,7 @@ router.get('/course/:courseId', softAuth, getCourseTests);
 
 // ─── Student (authenticated) ─────────────────────────────────────────────────
 router.post('/attempts', protect, submitAttempt);
+router.post('/tests/:id/spend-coin', protect, spendCoinForTest);
 router.get('/attempts/me', protect, myAttempts);
 router.get('/attempts/:id', protect, getAttemptResult);
 // Saved questions

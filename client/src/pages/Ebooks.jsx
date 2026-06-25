@@ -1,146 +1,361 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Download, Lock, Search, ChevronRight } from 'lucide-react';
+import { BookOpen, Download, Lock, Search, ChevronRight, FileText, Bookmark, DownloadCloud, Trash2, HelpCircle } from 'lucide-react';
 import api from '../api/client.js';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Ebooks() {
   const { user } = useAuth();
-  const [ebooks, setEbooks] = useState([]);
+  const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [libraryTab, setLibraryTab] = useState('ebook'); // 'ebook', 'enote', 'emagazine', 'downloads'
+  const [noteSubTab, setNoteSubTab] = useState('all'); // 'all', 'Short Notes', 'Handwritten Notes', 'VVIQ', 'Practice papers', 'Syllabus'
+  const [localDownloads, setLocalDownloads] = useState([]);
 
   useEffect(() => {
-    api.get('/ebooks').then((r) => setEbooks(r.data)).finally(() => setLoading(false));
+    // Load study materials
+    api.get('/ebooks')
+      .then((r) => setMaterials(r.data || []))
+      .finally(() => setLoading(false));
+    
+    // Load local downloads
+    try {
+      const saved = JSON.parse(localStorage.getItem('lms_chemistry_downloads') || '[]');
+      setLocalDownloads(saved);
+    } catch (e) {
+      console.error('Failed to load local downloads', e);
+    }
   }, []);
 
-  const handleDownload = async (eb) => {
-    if (!user) { toast.error('Please login to download ebooks'); return; }
-    if (!eb.hasAccess) { toast.error('Enroll in the related course to access this ebook'); return; }
+  const saveToDownloads = (item) => {
     try {
-      const { data } = await api.get(`/ebooks/${eb._id}/download`);
-      window.open(data.fileUrl, '_blank');
-    } catch (err) {
-      toast.error(err.message || 'Failed to open ebook');
+      const saved = JSON.parse(localStorage.getItem('lms_chemistry_downloads') || '[]');
+      if (!saved.some(i => i._id === item._id)) {
+        const updated = [...saved, { ...item, downloadedAt: new Date().toISOString() }];
+        localStorage.setItem('lms_chemistry_downloads', JSON.stringify(updated));
+        setLocalDownloads(updated);
+      }
+    } catch (e) {
+      console.error('Failed to save to local downloads', e);
     }
   };
 
-  const subjects = [...new Set(ebooks.map((e) => e.subject).filter(Boolean))];
+  const removeFromDownloads = (id) => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('lms_chemistry_downloads') || '[]');
+      const updated = saved.filter(i => i._id !== id);
+      localStorage.setItem('lms_chemistry_downloads', JSON.stringify(updated));
+      setLocalDownloads(updated);
+      toast.success('Removed from my downloads');
+    } catch (e) {
+      console.error('Failed to remove download', e);
+    }
+  };
 
-  const filtered = ebooks.filter((eb) => {
-    const matchSearch = !search || eb.title.toLowerCase().includes(search.toLowerCase()) ||
-      eb.subject?.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === 'all' || (filter === 'free' && eb.isFree) ||
-      (filter === 'enrolled' && eb.hasAccess) || eb.subject === filter;
-    return matchSearch && matchFilter;
-  });
+  const handleDownload = async (eb) => {
+    if (!user) { toast.error('Please login to download files'); return; }
+    if (!eb.hasAccess) { toast.error('Enroll in the related course to access this material'); return; }
+    try {
+      const { data } = await api.get(`/ebooks/${eb._id}/download`);
+      window.open(data.fileUrl, '_blank');
+      // Save to local downloads
+      saveToDownloads(eb);
+    } catch (err) {
+      toast.error(err.message || 'Failed to open file');
+    }
+  };
+
+  // Base filtering by library tab & search
+  const getFilteredMaterials = () => {
+    if (libraryTab === 'downloads') {
+      return localDownloads.filter((eb) => {
+        const matchSearch = !search || eb.title.toLowerCase().includes(search.toLowerCase()) ||
+          eb.subject?.toLowerCase().includes(search.toLowerCase());
+        return matchSearch;
+      });
+    }
+
+    return materials.filter((eb) => {
+      // Check content type
+      const matchType = (eb.contentType || 'ebook') === libraryTab;
+      // Check search
+      const matchSearch = !search || eb.title.toLowerCase().includes(search.toLowerCase()) ||
+        eb.subject?.toLowerCase().includes(search.toLowerCase()) ||
+        eb.chapter?.toLowerCase().includes(search.toLowerCase());
+      
+      // For E-Notes, check subcategory tab
+      if (libraryTab === 'enote') {
+        const matchSub = noteSubTab === 'all' || eb.subCategory === noteSubTab;
+        return matchType && matchSearch && matchSub;
+      }
+
+      return matchType && matchSearch;
+    });
+  };
+
+  const filtered = getFilteredMaterials();
+
+  // Helper to group E-Notes by Subject and Chapter
+  const getGroupedEnotes = (notesList) => {
+    const groups = {}; // subject -> chapter -> array of notes
+    notesList.forEach(note => {
+      const sub = note.subject || 'General Chemistry';
+      const chap = note.chapter || 'General Notes';
+      if (!groups[sub]) groups[sub] = {};
+      if (!groups[sub][chap]) groups[sub][chap] = [];
+      groups[sub][chap].push(note);
+    });
+    return groups;
+  };
+
+  const groupedEnotes = libraryTab === 'enote' ? getGroupedEnotes(filtered) : {};
 
   return (
-    <div>
-      <section className="bg-gradient-soft py-14">
-        <div className="container-x">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-100 text-brand-700 grid place-items-center">
-              <BookOpen size={20} />
-            </div>
-            <div>
-              <h1 className="font-display text-3xl font-extrabold gradient-text">E-Books Library</h1>
-              <p className="text-slate-500 text-sm">Chemistry study materials & notes</p>
-            </div>
+    <div className="w-full max-w-6xl mx-auto space-y-6">
+      {/* Header section */}
+      <section className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-violet-500/10 rounded-full blur-2xl -ml-16 -mb-16"></div>
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
+              Study Hub
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Chemistry Library</h1>
+            <p className="text-slate-300 text-sm max-w-lg">
+              Explore professional Chemistry study resources, textbooks, hand-written notes, exam revision papers, and magazines.
+            </p>
           </div>
         </div>
       </section>
 
-      <section className="section">
-        <div className="container-x">
-          {/* Search + Filter */}
-          <div className="flex flex-col sm:flex-row gap-3 mb-8">
-            <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search ebooks..."
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-300 text-sm"
-              />
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {['all', 'free', 'enrolled', ...subjects].map((s) => (
+      {/* Main Library Tab Bar */}
+      <div className="flex gap-2 p-1 bg-slate-100/80 border border-slate-200/50 rounded-2xl max-w-xl">
+        {[
+          { key: 'ebook', label: 'E-Books', icon: BookOpen },
+          { key: 'enote', label: 'E-Notes', icon: FileText },
+          { key: 'emagazine', label: 'E-Magazines', icon: Bookmark },
+          { key: 'downloads', label: 'My Downloads', icon: DownloadCloud }
+        ].map((tab) => {
+          const TabIcon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => {
+                setLibraryTab(tab.key);
+                setSearch('');
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold rounded-xl transition duration-200 cursor-pointer ${
+                libraryTab === tab.key
+                  ? 'bg-white text-indigo-600 shadow-md font-black'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <TabIcon size={14} />
+              <span className="hidden sm:inline">{tab.label}</span>
+              {tab.key === 'downloads' && localDownloads.length > 0 && (
+                <span className="bg-indigo-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
+                  {localDownloads.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-col gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+        <div className="relative w-full">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={
+              libraryTab === 'enote' 
+                ? "Search notes, subjects, or chapters..." 
+                : "Search files, subjects, or grades..."
+            }
+            className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-semibold bg-slate-50/50"
+          />
+        </div>
+
+        {/* E-Notes Subcategory filters */}
+        {libraryTab === 'enote' && (
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Note Categories:</span>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+              {['all', 'Short Notes', 'Handwritten Notes', 'VVIQ', 'Practice papers', 'Syllabus'].map((sub) => (
                 <button
-                  key={s}
-                  onClick={() => setFilter(s)}
-                  className={`px-3 py-2 rounded-xl text-sm font-medium transition capitalize ${
-                    filter === s ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  key={sub}
+                  onClick={() => setNoteSubTab(sub)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                    noteSubTab === sub
+                      ? 'bg-indigo-600 text-white shadow-sm font-black'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  {s}
+                  {sub === 'all' ? '📁 All Notes' : sub}
                 </button>
               ))}
             </div>
           </div>
+        )}
+      </div>
 
-          {loading ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="card h-64 animate-pulse bg-slate-100" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-20 text-slate-400">
-              <BookOpen size={48} className="mx-auto mb-3 opacity-30" />
-              <p>No ebooks found</p>
-            </div>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {filtered.map((eb) => (
-                <div key={eb._id} className="card overflow-hidden flex flex-col group hover:shadow-lg transition-all">
-                  {/* Cover */}
-                  <div className="relative h-44 bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center overflow-hidden">
-                    {eb.coverImage ? (
-                      <img src={eb.coverImage} alt={eb.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <BookOpen size={48} className="text-white/40" />
-                    )}
-                    {eb.isFree && (
-                      <span className="absolute top-2 left-2 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">FREE</span>
-                    )}
-                    {!eb.hasAccess && (
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <Lock size={28} className="text-white" />
-                      </div>
-                    )}
+      {/* Library Grid / Grouped Content */}
+      {loading ? (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="card h-64 animate-pulse bg-slate-100" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white border border-slate-200/60 border-dashed rounded-3xl p-16 text-center flex flex-col items-center justify-center shadow-xs">
+          <BookOpen size={48} className="text-slate-300 animate-pulse mb-3" />
+          <h3 className="text-xs font-black text-slate-600 uppercase tracking-wider">No materials found</h3>
+          <p className="text-[10px] text-slate-400 mt-1 max-w-xs">
+            {libraryTab === 'downloads' 
+              ? "You haven't opened or downloaded any files yet. Open some materials from the library to save them here!"
+              : "We couldn't find any resources matching your current filters or search term."}
+          </p>
+        </div>
+      ) : libraryTab === 'enote' ? (
+        /* Grouped E-Notes Layout: Grouped by Subject and then Chapter */
+        <div className="space-y-8">
+          {Object.entries(groupedEnotes).map(([subject, chapters]) => (
+            <div key={subject} className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-6">
+              {/* Subject Header */}
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                <span className="text-base">🧪</span>
+                <h2 className="text-sm font-black text-slate-800 tracking-wide uppercase">{subject}</h2>
+                <span className="bg-indigo-50 text-indigo-600 text-[10px] font-black px-2 py-0.5 rounded-full">
+                  {Object.values(chapters).flat().length} Notes
+                </span>
+              </div>
+
+              {/* Chapters inside Subject */}
+              <div className="space-y-6">
+                {Object.entries(chapters).map(([chapter, notes]) => (
+                  <div key={chapter} className="space-y-3">
+                    <h3 className="text-xs font-extrabold text-slate-500 pl-1">
+                      📁 Chapter: {chapter}
+                    </h3>
+                    
+                    {/* Notes Grid for this Chapter */}
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                      {notes.map((eb) => (
+                        <div key={eb._id} className="card overflow-hidden flex flex-col group hover:shadow-md border border-slate-200/80 hover:border-slate-300 transition-all bg-slate-50/10">
+                          {/* Cover */}
+                          <div className="relative h-32 bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center overflow-hidden">
+                            {eb.coverImage ? (
+                              <img src={eb.coverImage} alt={eb.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <FileText size={40} className="text-white/30" />
+                            )}
+                            {eb.isFree && (
+                              <span className="absolute top-2 left-2 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded">FREE</span>
+                            )}
+                            {!eb.hasAccess && (
+                              <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center backdrop-blur-3xs">
+                                <Lock size={22} className="text-white" />
+                              </div>
+                            )}
+                          </div>
+                          {/* Info */}
+                          <div className="p-4 flex-1 flex flex-col">
+                            <span className="text-[9px] font-black text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded w-fit mb-1.5 uppercase">
+                              {eb.subCategory || 'E-Note'}
+                            </span>
+                            <h3 className="font-bold text-xs text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-600 transition">{eb.title}</h3>
+                            
+                            <div className="mt-auto flex items-center justify-between pt-2">
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                {eb.fileSize || 'PDF File'}
+                              </span>
+                              <button
+                                onClick={() => handleDownload(eb)}
+                                className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                                  eb.hasAccess
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-xs'
+                                    : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                                }`}
+                              >
+                                {eb.hasAccess ? <><Download size={11} className="stroke-[3px]" /> Open</> : <><Lock size={11} /> Locked</>}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  {/* Info */}
-                  <div className="p-4 flex-1 flex flex-col">
-                    <h3 className="font-bold text-sm text-slate-900 line-clamp-2 mb-1">{eb.title}</h3>
-                    <div className="flex items-center gap-2 mb-2">
-                      {eb.subject && <span className="text-[11px] bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full font-medium">{eb.subject}</span>}
-                      {eb.grade && <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{eb.grade}</span>}
-                    </div>
-                    {eb.description && <p className="text-xs text-slate-500 line-clamp-2 mb-3">{eb.description}</p>}
-                    <div className="mt-auto flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400">
-                        {eb.pages ? `${eb.pages} pages` : ''} {eb.fileSize ? `· ${eb.fileSize}` : ''}
-                      </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* Regular Grid for E-Books, E-Magazines, and Downloads */
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {filtered.map((eb) => (
+            <div key={eb._id} className="card overflow-hidden flex flex-col group hover:shadow-md border border-slate-200/80 hover:border-slate-300 transition-all bg-white">
+              {/* Cover */}
+              <div className="relative h-44 bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center overflow-hidden">
+                {eb.coverImage ? (
+                  <img src={eb.coverImage} alt={eb.title} className="w-full h-full object-cover" />
+                ) : (
+                  <BookOpen size={44} className="text-white/40" />
+                )}
+                {eb.isFree && (
+                  <span className="absolute top-2 left-2 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded">FREE</span>
+                )}
+                {!eb.hasAccess && (
+                  <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center backdrop-blur-3xs">
+                    <Lock size={24} className="text-white" />
+                  </div>
+                )}
+              </div>
+              {/* Info */}
+              <div className="p-4 flex-1 flex flex-col">
+                <h3 className="font-bold text-xs text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-600 transition">{eb.title}</h3>
+                <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
+                  {eb.subject && <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold">{eb.subject}</span>}
+                  {eb.grade && <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">{eb.grade}</span>}
+                </div>
+                {eb.description && <p className="text-[11px] text-slate-500 line-clamp-2 mb-3 leading-relaxed">{eb.description}</p>}
+                
+                <div className="mt-auto flex items-center justify-between pt-2">
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {eb.pages ? `${eb.pages} p. · ` : ''} {eb.fileSize || 'PDF'}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {libraryTab === 'downloads' && (
                       <button
-                        onClick={() => handleDownload(eb)}
-                        className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
-                          eb.hasAccess
-                            ? 'bg-brand-600 text-white hover:bg-brand-700'
-                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                        }`}
+                        onClick={() => removeFromDownloads(eb._id)}
+                        className="p-1.5 rounded-lg border border-rose-100 hover:border-rose-200 text-rose-400 hover:text-rose-500 hover:bg-rose-50 transition cursor-pointer"
+                        title="Remove from Downloads"
                       >
-                        {eb.hasAccess ? <><Download size={13} /> Open</> : <><Lock size={13} /> Locked</>}
+                        <Trash2 size={12} />
                       </button>
-                    </div>
+                    )}
+                    <button
+                      onClick={() => handleDownload(eb)}
+                      className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                        eb.hasAccess
+                          ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-xs'
+                          : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                      }`}
+                    >
+                      {eb.hasAccess ? <><Download size={11} className="stroke-[3px]" /> Open</> : <><Lock size={11} /> Locked</>}
+                    </button>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          )}
+          ))}
         </div>
-      </section>
+      )}
     </div>
   );
 }

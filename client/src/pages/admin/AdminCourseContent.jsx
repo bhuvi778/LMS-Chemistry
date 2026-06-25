@@ -762,23 +762,39 @@ function LiveClassesTab({ courseId }) {
   const [classes, setClasses] = useState([]);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [courses, setCourses] = useState([]);
 
   const load = () =>
     api.get(`/admin/live-classes?course=${courseId}`)
-      .then((r) => setClasses((r.data.liveClasses || r.data || []).filter((c) => c.course === courseId || c.course?._id === courseId)))
+      .then((r) => {
+        const list = r.data.liveClasses || r.data || [];
+        setClasses(list.filter((c) => {
+          const matchedCourse = c.course === courseId || c.course?._id === courseId;
+          const matchedCourses = c.courses?.some(cid => (cid === courseId || cid?._id === courseId));
+          return matchedCourse || matchedCourses;
+        }));
+      })
       .catch(() => setClasses([]));
 
-  useEffect(() => { load(); }, [courseId]);
+  useEffect(() => {
+    load();
+    api.get('/courses?includeUnpublished=true').then((r) => setCourses(r.data)).catch(() =>
+      api.get('/courses').then((r) => setCourses(r.data)).catch(() => {})
+    );
+  }, [courseId]);
 
   const blank = {
     title: '',
     scheduledAt: '',
     durationMins: 60,
     instructor: '',
-    platform: 'agora_call', // agora_call | agora_stream | agora_interactive | agora_broadcast
+    platform: 'agora_call', // agora_call | agora_stream | agora_interactive | agora_broadcast | youtube | zoom | meet
     meetingUrl: '',
+    meetLink: '',
     description: '',
     isActive: true,
+    courses: [courseId],
+    course: courseId,
   };
 
   const fmtDateTime = (iso) => {
@@ -800,7 +816,10 @@ function LiveClassesTab({ courseId }) {
       agora_call: 'Ace Video Call',
       agora_stream: 'Ace Stream (Legacy)',
       agora_interactive: 'Ace Interactive',
-      agora_broadcast: 'Ace Broadcast'
+      agora_broadcast: 'Ace Broadcast',
+      youtube: 'YouTube Live',
+      zoom: 'Zoom Meeting',
+      meet: 'Google Meet',
     })[p] || p;
 
   const save = async (e) => {
@@ -811,7 +830,19 @@ function LiveClassesTab({ courseId }) {
     }
     setSaving(true);
     try {
-      const payload = { ...editing, course: courseId };
+      const payload = { ...editing };
+      if (!payload.platform) {
+        payload.platform = 'agora_call';
+      }
+      if (['zoom', 'meet', 'youtube'].includes(payload.platform)) {
+        payload.useInternalRoom = false;
+        payload.meetLink = payload.meetingUrl || payload.meetLink || '';
+        payload.meetingUrl = payload.meetLink;
+      } else {
+        payload.useInternalRoom = true;
+        payload.meetLink = '';
+        payload.meetingUrl = '';
+      }
       if (editing._id) {
         await api.put(`/admin/live-classes/${editing._id}`, payload);
         toast.success('Class updated');
@@ -889,17 +920,84 @@ function LiveClassesTab({ courseId }) {
                   <option value="agora_interactive">Ace Interactive Live Stream (Raise Hand / Co-host)</option>
                   <option value="agora_broadcast">Ace One-Way Broadcast (No Interaction)</option>
                   <option value="agora_stream">Ace Stream (Legacy)</option>
+                  <option value="youtube">YouTube Live Stream</option>
+                  <option value="zoom">Zoom Meeting</option>
+                  <option value="meet">Google Meet</option>
                 </select>
               </div>
             </div>
 
+            {['zoom', 'meet', 'youtube'].includes(editing.platform) && (
+              <div>
+                <label className="label">
+                  {editing.platform === 'youtube' ? 'YouTube Stream / Video URL *' : 'Meeting URL *'}
+                </label>
+                <input
+                  required
+                  type="url"
+                  className="input"
+                  value={editing.meetingUrl || editing.meetLink || ''}
+                  onChange={(e) => {
+                    setEditing((f) => ({ ...f, meetingUrl: e.target.value, meetLink: e.target.value }));
+                  }}
+                  placeholder={
+                    editing.platform === 'youtube'
+                      ? 'e.g. https://www.youtube.com/watch?v=...'
+                      : 'e.g. https://zoom.us/j/...'
+                  }
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="label">Linked Courses (Select one or more)</label>
+              <div className="border border-slate-200 rounded-xl p-3 max-h-36 overflow-y-auto space-y-2 bg-slate-55 bg-slate-50">
+                {courses.map((c) => {
+                  const selectedCourses = editing.courses || (editing.course ? [editing.course] : []);
+                  const isSelected = selectedCourses.includes(c._id);
+                  return (
+                    <label key={c._id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-1 rounded transition text-xs">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          let nextCourses = [...selectedCourses];
+                          if (e.target.checked) {
+                            if (!nextCourses.includes(c._id)) nextCourses.push(c._id);
+                          } else {
+                            nextCourses = nextCourses.filter((id) => id !== c._id);
+                          }
+                          setEditing((prev) => ({
+                            ...prev,
+                            courses: nextCourses,
+                            course: nextCourses[0] || null,
+                            courseName: nextCourses.length > 0 
+                              ? courses.find(x => x._id === nextCourses[0])?.title || ''
+                              : ''
+                          }));
+                        }}
+                      />
+                      <span className="text-slate-700">
+                        <span className="font-semibold text-slate-500 mr-1">[{c.category}]</span>
+                        {c.title}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-3 text-sm text-teal-800">
-              <strong>Ace RTC Session:</strong> Dynamic secure tokens will be generated.
+              <strong>Platform Info:</strong>{' '}
               {editing.platform === 'agora_call'
-                ? ' Everyone can turn on camera/microphone and speak directly (Video Calling).'
+                ? 'Ace RTC Session: Everyone can turn on camera/microphone and speak directly (Video Calling).'
                 : editing.platform === 'agora_interactive'
-                  ? ' Students join as audience but can raise hand to co-host and speak (Interactive).'
-                  : ' One-way broadcast stream from instructor to all students. No interaction.'}
+                  ? 'Ace RTC Session: Students join as audience but can raise hand to co-host and speak (Interactive).'
+                  : editing.platform === 'agora_broadcast' || editing.platform === 'agora_stream'
+                    ? 'Ace RTC Session: One-way broadcast stream from instructor to all students. No interaction.'
+                    : editing.platform === 'youtube'
+                      ? 'YouTube Live: Stream will be embedded inside the in-app room for students.'
+                      : `External Platform: Students will be redirected to the provided ${editing.platform} link.`}
             </div>
 
             <div>
@@ -954,6 +1052,11 @@ function LiveClassesTab({ courseId }) {
                     <span className="flex items-center gap-1"><Clock size={11} />{cls.durationMins} min</span>
                   )}
                   <span className="text-violet-600">{platformLabel(cls.platform)}</span>
+                  {cls.courses && cls.courses.length > 1 && (
+                    <span className="text-slate-450 font-semibold" title={cls.courses.map(c => c.title).join(', ')}>
+                      (+{cls.courses.length - 1} other courses)
+                    </span>
+                  )}
                   {cls.instructor && <span>{cls.instructor}</span>}
                 </div>
                 {cls.description && <p className="text-xs text-slate-400 mt-1 line-clamp-1">{cls.description}</p>}
@@ -965,7 +1068,10 @@ function LiveClassesTab({ courseId }) {
                 )}
               </div>
               <div className="flex gap-1 shrink-0">
-                <button onClick={() => setEditing(cls)} className="btn-outline !py-1.5 !px-2.5 text-xs">
+                <button onClick={() => setEditing({
+                  ...cls,
+                  courses: cls.courses?.map(c => c._id || c) || (cls.course ? [cls.course._id || cls.course] : [])
+                })} className="btn-outline !py-1.5 !px-2.5 text-xs">
                   <Edit size={13} />
                 </button>
                 <button onClick={() => del(cls._id)}

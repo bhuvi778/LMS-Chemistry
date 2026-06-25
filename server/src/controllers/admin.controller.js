@@ -10,6 +10,7 @@ import Payment from '../models/Payment.js';
 import Doubt from '../models/Doubt.js';
 import TestSeries from '../models/TestSeries.js';
 import TestSeriesEnrollment from '../models/TestSeriesEnrollment.js';
+import SystemSetting from '../models/SystemSetting.js';
 import { notifyMany } from './notification.controller.js';
 import { signToken } from '../middleware/auth.js';
 import { sendPasswordResetEmail } from '../services/email.js';
@@ -30,17 +31,19 @@ const calculateValidityEndDate = (validitySystem) => {
 };
 
 export const stats = asyncHandler(async (_req, res) => {
-  const [students, courses, enrollments, revenueAgg] = await Promise.all([
+  const [students, courses, enrollments, revenueAgg, downloadSetting] = await Promise.all([
     User.countDocuments({ role: 'student' }),
     Course.countDocuments(),
     Enrollment.countDocuments(),
     Enrollment.aggregate([{ $group: { _id: null, total: { $sum: '$pricePaid' } } }]),
+    SystemSetting.findOne({ key: 'appDownloadsCount' }),
   ]);
   res.json({
     students,
     courses,
     enrollments,
     revenue: revenueAgg[0]?.total || 0,
+    appDownloads: downloadSetting ? Number(downloadSetting.value || 0) : 0,
   });
 });
 
@@ -164,16 +167,29 @@ export const allEnrollments = asyncHandler(async (_req, res) => {
 
 // ── Live Classes ────────────────────────────────────────────────
 export const getLiveClasses = asyncHandler(async (_req, res) => {
-  const list = await LiveClass.find().populate('course', 'title category').sort({ scheduledAt: 1 });
+  const list = await LiveClass.find()
+    .populate('course', 'title category')
+    .populate('courses', 'title category')
+    .sort({ scheduledAt: 1 });
   res.json(list);
 });
 
 export const createLiveClass = asyncHandler(async (req, res) => {
   const lc = await LiveClass.create(req.body);
-  // Notify all enrolled students of the linked course
-  if (lc.course) {
-    const enrollments = await Enrollment.find({ course: lc.course }).select('student');
-    const userIds = enrollments.map((e) => e.student);
+  // Notify all enrolled students of all linked courses
+  const courseIds = [];
+  if (lc.course) courseIds.push(lc.course);
+  if (lc.courses && lc.courses.length > 0) {
+    lc.courses.forEach((c) => {
+      const cid = c.toString();
+      if (!courseIds.map(x => x.toString()).includes(cid)) {
+        courseIds.push(c);
+      }
+    });
+  }
+  if (courseIds.length > 0) {
+    const enrollments = await Enrollment.find({ course: { $in: courseIds } }).select('student');
+    const userIds = [...new Set(enrollments.map((e) => e.student.toString()))];
     if (userIds.length) {
       const link = lc.useInternalRoom ? `/live/${lc._id}` : (lc.meetLink || '');
       await notifyMany(userIds, {
@@ -189,8 +205,13 @@ export const createLiveClass = asyncHandler(async (req, res) => {
 });
 
 export const updateLiveClass = asyncHandler(async (req, res) => {
-  const lc = await LiveClass.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  const lc = await LiveClass.findById(req.params.id);
   if (!lc) return res.status(404).json({ message: 'Not found' });
+  Object.assign(lc, req.body);
+  if (req.body.courses !== undefined) {
+    lc.courses = req.body.courses;
+  }
+  await lc.save();
   res.json(lc);
 });
 
@@ -206,7 +227,13 @@ export const upcomingLiveClasses = asyncHandler(async (req, res) => {
   if (req.user && req.user.role !== 'admin') {
     const myEnrolls = await Enrollment.find({ student: req.user._id }).select('course');
     const myCourseIds = myEnrolls.map((e) => e.course);
-    courseFilter = { $or: [{ course: null }, { course: { $in: myCourseIds } }] };
+    courseFilter = {
+      $or: [
+        { course: null, courses: { $size: 0 } },
+        { course: { $in: myCourseIds } },
+        { courses: { $in: myCourseIds } }
+      ]
+    };
   }
   const baseQuery = {
     isActive: true,
@@ -215,6 +242,7 @@ export const upcomingLiveClasses = asyncHandler(async (req, res) => {
   const query = courseFilter ? { ...baseQuery, ...courseFilter } : baseQuery;
   const list = await LiveClass.find(query)
     .populate('course', 'title category')
+    .populate('courses', 'title category')
     .sort({ scheduledAt: 1 })
     .limit(20);
   res.json(list);
@@ -226,12 +254,19 @@ export const allLiveClassesForStudent = asyncHandler(async (req, res) => {
   if (req.user && req.user.role !== 'admin') {
     const myEnrolls = await Enrollment.find({ student: req.user._id }).select('course');
     const myCourseIds = myEnrolls.map((e) => e.course);
-    courseFilter = { $or: [{ course: null }, { course: { $in: myCourseIds } }] };
+    courseFilter = {
+      $or: [
+        { course: null, courses: { $size: 0 } },
+        { course: { $in: myCourseIds } },
+        { courses: { $in: myCourseIds } }
+      ]
+    };
   }
 
   const now = new Date();
   const allClasses = await LiveClass.find({ isActive: true, ...courseFilter })
     .populate('course', 'title category')
+    .populate('courses', 'title category')
     .sort({ scheduledAt: -1 })
     .limit(100);
 
@@ -568,7 +603,13 @@ export const revokeStudentSessionSingle = asyncHandler(async (req, res) => {
 
 // ── Course-scoped live classes for student (Course detail page) ─
 export const liveClassesForCourse = asyncHandler(async (req, res) => {
-  const list = await LiveClass.find({ course: req.params.courseId, isActive: true })
+  const list = await LiveClass.find({
+    $or: [
+      { course: req.params.courseId },
+      { courses: req.params.courseId }
+    ],
+    isActive: true
+  })
     .sort({ scheduledAt: -1 })
     .limit(50);
   res.json(list);
@@ -694,4 +735,64 @@ export const adminExtendEnrollmentValidity = asyncHandler(async (req, res) => {
   }
   await enrollment.save();
   res.json({ ok: true, enrollment });
+});
+
+export const getGlobalSettings = asyncHandler(async (_req, res) => {
+  const settings = await SystemSetting.find();
+  const map = {};
+  settings.forEach((s) => {
+    map[s.key] = s.value;
+  });
+  if (map.maxSessions === undefined) map.maxSessions = 5;
+  if (map.studentSessionTimeout === undefined) map.studentSessionTimeout = 10;
+  if (map.appDownloadsCount === undefined) map.appDownloadsCount = 0;
+  res.json(map);
+});
+
+export const updateGlobalSettings = asyncHandler(async (req, res) => {
+  const { key, value } = req.body;
+  if (!key) {
+    res.status(400);
+    throw new Error('Key is required');
+  }
+  let setting = await SystemSetting.findOne({ key });
+  if (!setting) {
+    setting = new SystemSetting({ key });
+  }
+  setting.value = value;
+  await setting.save();
+  res.json(setting);
+});
+
+export const incrementAppDownloads = asyncHandler(async (_req, res) => {
+  let setting = await SystemSetting.findOne({ key: 'appDownloadsCount' });
+  if (!setting) {
+    setting = new SystemSetting({ key: 'appDownloadsCount', value: 0 });
+  }
+  setting.value = Number(setting.value || 0) + 1;
+  await setting.save();
+  res.json({ ok: true, appDownloadsCount: setting.value });
+});
+
+export const getLoginAnalytics = asyncHandler(async (_req, res) => {
+  const downloadSetting = await SystemSetting.findOne({ key: 'appDownloadsCount' });
+  const appDownloads = downloadSetting ? Number(downloadSetting.value || 0) : 0;
+
+  const sessions = await Session.find()
+    .populate('userId', 'name email studentId')
+    .sort({ createdAt: -1 })
+    .limit(30)
+    .lean();
+
+  const loginLogs = sessions.map((s) => ({
+    _id: s._id,
+    studentName: s.userId?.name || 'Unknown Student',
+    studentEmail: s.userId?.email || 'N/A',
+    studentId: s.userId?.studentId || 'N/A',
+    deviceInfo: s.deviceInfo,
+    ip: s.ip,
+    loginTime: s.createdAt,
+  }));
+
+  res.json({ appDownloads, loginLogs });
 });

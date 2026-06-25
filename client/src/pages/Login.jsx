@@ -27,6 +27,7 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [otp, setOtp] = useState('');
   const [loginMethod, setLoginMethod] = useState('password'); // 'password' or 'otp'
+  const [channel, setChannel] = useState('sms'); // 'sms' or 'whatsapp'
 
   useEffect(() => {
     if (user) {
@@ -39,8 +40,12 @@ export default function Login() {
     e.preventDefault();
     if (loginMethod === 'otp') {
       try {
-        await requestOtpLogin(form.email);
-        toast.success('Login OTP code sent to your email');
+        await requestOtpLogin(form.email, channel);
+        if (/^\+?\d+$/.test(form.email.trim())) {
+          toast.success(`Login OTP sent via ${channel === 'whatsapp' ? 'WhatsApp' : 'SMS'}`);
+        } else {
+          toast.success('Login OTP code sent to your email');
+        }
       } catch (err) {
         toast.error(err.message);
       }
@@ -177,6 +182,8 @@ export default function Login() {
 
   // ── Login with OTP Verification Screen ──
   if (pendingOtpLogin) {
+    const targetVal = pendingOtpLogin.method === 'phone' ? pendingOtpLogin.phone : pendingOtpLogin.email;
+    const destName = pendingOtpLogin.method === 'phone' ? 'phone' : 'email inbox';
     return (
       <div className="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2">
         <div className="hidden lg:flex relative items-center justify-center bg-gradient-brand text-white p-12">
@@ -189,7 +196,7 @@ export default function Login() {
               Sign in with OTP
             </h2>
             <p className="mt-4 text-white/80">
-              An OTP was sent to <b>{pendingOtpLogin.email}</b>. Check your inbox to verify and open your account.
+              An OTP was sent to <b>{targetVal}</b>. Check your {destName} to verify and open your account.
             </p>
           </div>
           <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
@@ -201,7 +208,7 @@ export default function Login() {
               <h1 className="font-display text-3xl font-extrabold">Enter OTP</h1>
             </div>
             <p className="text-slate-500 mt-1">
-              We sent a 6-digit login OTP code to <b>{pendingOtpLogin.email}</b>
+              We sent a 6-digit login OTP code to <b>{targetVal}</b>
             </p>
 
             <div className="mt-6">
@@ -323,19 +330,48 @@ export default function Login() {
           <p className="text-slate-500 mt-1">Enter your credentials to continue.</p>
 
           <div className="mt-6">
-            <label className="label">Email</label>
+            <label className="label">{loginMethod === 'otp' ? 'Email or Phone Number' : 'Email'}</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
-                type="email"
+                type={loginMethod === 'otp' ? 'text' : 'email'}
                 required
                 className="input !pl-10"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="you@example.com"
+                placeholder={loginMethod === 'otp' ? 'you@example.com or +919876543210' : 'you@example.com'}
               />
             </div>
           </div>
+          {loginMethod === 'otp' && /^\+?\d+$/.test(form.email.trim()) && (
+            <div className="mt-4">
+              <label className="label">Send OTP via</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-sm text-slate-600 font-semibold cursor-pointer">
+                  <input
+                    type="radio"
+                    name="channel"
+                    value="sms"
+                    checked={channel === 'sms'}
+                    onChange={() => setChannel('sms')}
+                    className="text-brand-600 focus:ring-brand-500"
+                  />
+                  SMS (Text)
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-600 font-semibold cursor-pointer">
+                  <input
+                    type="radio"
+                    name="channel"
+                    value="whatsapp"
+                    checked={channel === 'whatsapp'}
+                    onChange={() => setChannel('whatsapp')}
+                    className="text-brand-600 focus:ring-brand-500"
+                  />
+                  WhatsApp
+                </label>
+              </div>
+            </div>
+          )}
           {loginMethod === 'password' && (
             <div className="mt-4">
               <div className="flex justify-between items-center mb-1">

@@ -39,7 +39,13 @@ export const getLearningContent = asyncHandler(async (req, res) => {
       .sort({ order: 1 })
       .select('-questions.correct -questions.explanation') // hide answers for student
       .lean(),
-    LiveClass.find({ course: courseId, isActive: true })
+    LiveClass.find({
+      $or: [
+        { course: courseId },
+        { courses: courseId }
+      ],
+      isActive: true
+    })
       .sort({ scheduledAt: 1 })
       .lean(),
   ]);

@@ -182,7 +182,7 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
           {/* ─── STEP 1 ─── */}
           {step === 1 && (
             <>
-               {/* Amount Summary */}
+              {/* Amount Summary */}
               <div className="bg-slate-50 rounded-xl p-4 space-y-2">
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Payment Summary</h3>
                 <div className="flex justify-between text-sm">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Atom, Mail, Phone, MapPin, Youtube, Instagram, Twitter, Facebook, ArrowRight, Zap, Loader2 } from 'lucide-react';
 import api from '../api/client.js';
@@ -7,6 +7,13 @@ import toast from 'react-hot-toast';
 export default function Footer() {
   const [subEmail, setSubEmail] = useState('');
   const [subLoading, setSubLoading] = useState(false);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    api.get('/categories')
+      .then(res => setCategories(res.data))
+      .catch(() => {});
+  }, []);
 
   const handleSubscribe = async (e) => {
     e.preventDefault();
@@ -86,14 +93,17 @@ export default function Footer() {
         <div>
           <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wider">Exams</h4>
           <ul className="space-y-2.5 text-sm">
-            {['CBSE', 'JEE', 'NEET'].map(x => (
-              <li key={x}>
-                <Link to={`/courses?category=${x}`} className="hover:text-white hover:translate-x-1 inline-flex items-center gap-1.5 transition-all group">
-                  <span className="w-1 h-1 rounded-full bg-brand-500 group-hover:w-2 transition-all" />
-                  {x} Chemistry
-                </Link>
-              </li>
-            ))}
+            {(categories.length > 0 ? categories : [{ name: 'CBSE' }, { name: 'JEE' }, { name: 'NEET' }]).slice(0, 5).map(cat => {
+              const name = cat.name || cat;
+              return (
+                <li key={name}>
+                  <Link to={`/courses?category=${encodeURIComponent(name)}`} className="hover:text-white hover:translate-x-1 inline-flex items-center gap-1.5 transition-all group">
+                    <span className="w-1 h-1 rounded-full bg-brand-500 group-hover:w-2 transition-all" />
+                    {name} Chemistry
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
 

@@ -6,6 +6,7 @@ const liveClassSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
     course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', default: null },
+    courses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
     courseName: { type: String, default: '' },
     instructor: { type: String, default: 'Ace2Examz Faculty' },
     // External provider link (Zoom/Meet/YouTube) — optional
@@ -34,6 +35,15 @@ const liveClassSchema = new mongoose.Schema(
 );
 
 liveClassSchema.pre('save', function (next) {
+  // Sync courses list with course for backward compatibility
+  if (this.courses && this.courses.length > 0) {
+    this.course = this.courses[0];
+  } else if (this.course) {
+    this.courses = [this.course];
+  } else {
+    this.courses = [];
+  }
+
   // Sync new platform fields with older useInternalRoom/meetLink fields
   if (this.platform) {
     if (['zoom', 'meet', 'youtube'].includes(this.platform)) {

@@ -16,6 +16,7 @@ import {
   ClipboardList,
   User,
   Bookmark,
+  Coins,
 } from 'lucide-react';
 
 // ─── Timer ────────────────────────────────────────────────────────────────────
@@ -60,6 +61,7 @@ function Timer({ totalSecs, onExpire }) {
 
 // ─── Instructions Modal ───────────────────────────────────────────────────────
 function InstructionsModal({ test, onStart }) {
+  const { user } = useAuth();
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-100">
@@ -86,6 +88,17 @@ function InstructionsModal({ test, onStart }) {
               </div>
             ))}
           </div>
+          
+          {user?.role !== 'admin' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-950 leading-relaxed shadow-sm">
+              <div className="font-bold mb-1.5 flex items-center gap-1.5 text-amber-800">
+                <Coins size={14} className="text-amber-600 animate-bounce" /> Attempt Cost: 1 Ace Coin
+              </div>
+              <div className="text-amber-800 font-medium">
+                Starting this test will deduct <span className="font-extrabold text-amber-950">1 Ace Coin</span> from your wallet. You currently have <span className="font-extrabold text-indigo-900">{user?.coins || 0} Ace Coins</span>.
+              </div>
+            </div>
+          )}
           
           {test.maxQuestionsToAttempt > 0 && (
             <div className="bg-blue-55 border border-blue-200 rounded-xl p-4 mb-5 text-sm text-blue-900 leading-relaxed shadow-sm">
@@ -192,7 +205,7 @@ const isQuestionAttempted = (selected, type) => {
 
 export default function TakeTest() {
   const { testId } = useParams();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const nav = useNavigate();
 
   const [test, setTest] = useState(null);
@@ -275,7 +288,32 @@ export default function TakeTest() {
       .finally(() => setLoading(false));
   }, [testId, nav]);
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    if (user?.role !== 'admin') {
+      if ((user?.coins || 0) < 1) {
+        toast.error('Insufficient Ace Coins! Attempting this test costs 1 Ace Coin. Go to your Coins Wallet or complete daily planner goals to earn more.');
+        return;
+      }
+      if (!window.confirm('Attempting this test will deduct 1 Ace Coin from your wallet. Do you want to spend 1 coin and start?')) {
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        const { data } = await api.post(`/tests/tests/${testId}/spend-coin`);
+        if (setUser && data.coins !== undefined) {
+          setUser(prev => prev ? { ...prev, coins: data.coins } : null);
+        }
+        toast.success('1 Ace Coin spent to attempt test 🪙');
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to deduct coin. Please try again.');
+        setLoading(false);
+        return;
+      } finally {
+        setLoading(false);
+      }
+    }
+    
     setStarted(true);
     setStartTime(Date.now());
   };

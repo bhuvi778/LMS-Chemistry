@@ -175,11 +175,18 @@ export const AuthProvider = ({ children }) => {
     setPendingOtpLogin(null);
   };
 
-  const requestOtpLogin = async (email) => {
+  const requestOtpLogin = async (identifier, channel = 'sms') => {
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/login-otp-request', { email });
-      setPendingOtpLogin({ tempToken: data.tempToken, email: data.email });
+      const payload = {};
+      if (/^\+?\d{9,15}$/.test(identifier.trim())) {
+        payload.phone = identifier.trim();
+        payload.channel = channel;
+      } else {
+        payload.email = identifier.trim();
+      }
+      const { data } = await api.post('/auth/login-otp-request', payload);
+      setPendingOtpLogin({ tempToken: data.tempToken, email: data.email, phone: data.phone, method: data.method });
       return data;
     } finally {
       setLoading(false);

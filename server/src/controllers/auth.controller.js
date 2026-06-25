@@ -5,9 +5,11 @@ import nodemailer from 'nodemailer';
 import User from '../models/User.js';
 import Session from '../models/Session.js';
 import OTP from '../models/OTP.js';
+import SystemSetting from '../models/SystemSetting.js';
 import CoinRedemption from '../models/CoinRedemption.js';
 import { signToken } from '../middleware/auth.js';
 import { sendWelcomeEmail } from '../services/email.js';
+import { sendSmsOtp, sendWhatsappOtp } from '../services/smsWhatsapp.js';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const genStudentId = () =>
@@ -109,7 +111,10 @@ const clientIp = (req) =>
 /** Create/persist a session, enforcing the per-user max */
 const createSession = async (userId, token, req) => {
   const user = await User.findById(userId);
-  const maxSessions = user?.maxSessions || 5;
+  const globalSetting = await SystemSetting.findOne({ key: 'maxSessions' });
+  const globalMax = globalSetting && globalSetting.value !== undefined ? Number(globalSetting.value) : 5;
+  const maxSessions = user && user.maxSessions !== undefined ? user.maxSessions : globalMax;
+  
   const count = await Session.countDocuments({ userId, isActive: true });
   if (count >= maxSessions) {
     const oldest = await Session.findOne({ userId, isActive: true }).sort({ createdAt: 1 });
@@ -208,14 +213,19 @@ const sendResetPasswordOtpEmail = async (email, code, name = '') => {
 
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password, phone, referralCode } = req.body;
-  if (!name || !email || !password) {
+  if (!name || !email || !password || !phone) {
     res.status(400);
-    throw new Error('Name, email and password are required');
+    throw new Error('Name, email, password and WhatsApp number are required');
   }
   const exists = await User.findOne({ email });
   if (exists) {
     res.status(400);
     throw new Error('Email already registered');
+  }
+  const phoneExists = await User.findOne({ phone });
+  if (phoneExists) {
+    res.status(400);
+    throw new Error('WhatsApp number already registered');
   }
   const hashed = await bcrypt.hash(password, 10);
 
@@ -240,6 +250,7 @@ export const register = asyncHandler(async (req, res) => {
     plainPassword: password,
     studentId: genStudentId(),
     isEmailVerified: false,
+    isWhatsappVerified: false,
     referredBy: referrerStudentId,
   });
 
@@ -250,26 +261,29 @@ export const register = asyncHandler(async (req, res) => {
     });
   }
 
-  // Generate Email Verification OTP (only for students)
+  // Generate WhatsApp Verification OTP (only for students)
   if (user.role === 'student') {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const codeHash = await bcrypt.hash(code, 10);
-    await OTP.deleteMany({ userId: user._id, purpose: 'email_verification' });
+    await OTP.deleteMany({ userId: user._id, purpose: 'whatsapp_verification' });
     await OTP.create({
       userId: user._id,
       email: user.email,
       codeHash,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 mins
-      purpose: 'email_verification',
+      purpose: 'whatsapp_verification',
     });
-    await sendVerificationEmail(user.email, code, user.name);
+    
+    // Send OTP via WhatsApp
+    await sendWhatsappOtp(user.phone, code);
 
     const tempToken = signToken({ _id: user._id, role: user.role });
-    return res.status(201).json({ requiresVerification: true, tempToken, email: user.email });
+    return res.status(201).json({ requiresVerification: true, tempToken, email: user.email, phone: user.phone });
   }
 
   // Non-students bypass verification
   user.isEmailVerified = true;
+  user.isWhatsappVerified = true;
   await user.save();
   const token = signToken(user);
   await createSession(user._id, token, req);
@@ -361,7 +375,7 @@ export const verifyOtp = asyncHandler(async (req, res) => {
 export const verifyEmailSignup = asyncHandler(async (req, res) => {
   const { code } = req.body;
   const userId = req.user._id;
-  const record = await OTP.findOne({ userId, purpose: 'email_verification', used: false });
+  const record = await OTP.findOne({ userId, purpose: { $in: ['email_verification', 'whatsapp_verification'] }, used: false });
   if (!record) {
     res.status(400);
     throw new Error('No pending verification code found.');
@@ -377,14 +391,17 @@ export const verifyEmailSignup = asyncHandler(async (req, res) => {
   }
   await OTP.findByIdAndUpdate(record._id, { used: true });
   
-  let user = await User.findByIdAndUpdate(userId, { isEmailVerified: true }, { new: true });
+  let user = await User.findByIdAndUpdate(userId, { 
+    isEmailVerified: true, 
+    isWhatsappVerified: true 
+  }, { new: true });
   user = await updateUserStreakAndCoins(user);
   const token = signToken(user);
   await createSession(user._id, token, req);
   
   // Send welcome email (non-blocking)
   sendWelcomeEmail(user.email, user.name, user.studentId).catch(() => {});
-  
+
   res.json({ ...safeUser(user), token });
 });
 
@@ -473,7 +490,14 @@ export const me = asyncHandler(async (req, res) => {
   if (user) {
     user = await updateUserStreakAndCoins(user);
   }
-  res.json(safeUser(user));
+  const responseData = safeUser(user);
+  
+  if (user && user.role === 'student') {
+    const timeoutSetting = await SystemSetting.findOne({ key: 'studentSessionTimeout' });
+    responseData.studentSessionTimeout = timeoutSetting ? Number(timeoutSetting.value) : 10;
+  }
+  
+  res.json(responseData);
 });
 
 export const redeemCoins = asyncHandler(async (req, res) => {
@@ -782,31 +806,66 @@ export const deleteMe = asyncHandler(async (req, res) => {
 });
 
 export const sendLoginOtp = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  if (!email) {
+  const { email, phone, channel } = req.body;
+  if (!email && !phone) {
     res.status(400);
-    throw new Error('Email is required');
+    throw new Error('Email or phone number is required');
   }
-  const emailLower = email.toLowerCase().trim();
 
-  let user = await User.findOne({ email: emailLower });
+  let isPhone = false;
+  let targetVal = '';
+  if (phone) {
+    isPhone = true;
+    targetVal = phone.trim();
+  } else {
+    const trimmed = email.trim();
+    if (/^\+?\d{9,15}$/.test(trimmed)) {
+      isPhone = true;
+      targetVal = trimmed;
+    } else {
+      targetVal = trimmed.toLowerCase();
+    }
+  }
+
+  let user;
   let isNewUser = false;
 
-  if (!user) {
-    // Register a new user automatically with student role
-    isNewUser = true;
-    const name = emailLower.split('@')[0];
-    const rawPass = crypto.randomBytes(16).toString('hex');
-    const hashed = await bcrypt.hash(rawPass, 10);
-    
-    user = await User.create({
-      name,
-      email: emailLower,
-      password: hashed,
-      plainPassword: 'OTP Auto-Generated',
-      studentId: genStudentId(),
-      isEmailVerified: false,
-    });
+  if (isPhone) {
+    user = await User.findOne({ phone: targetVal });
+    if (!user) {
+      isNewUser = true;
+      const name = 'Student-' + targetVal.slice(-4);
+      const emailVal = `phone_${targetVal.replace('+', '')}@ace2examz.com`;
+      const rawPass = crypto.randomBytes(16).toString('hex');
+      const hashed = await bcrypt.hash(rawPass, 10);
+      user = await User.create({
+        name,
+        email: emailVal,
+        phone: targetVal,
+        password: hashed,
+        plainPassword: 'OTP Auto-Generated',
+        studentId: genStudentId(),
+        isEmailVerified: true,
+        isWhatsappVerified: true,
+      });
+    }
+  } else {
+    user = await User.findOne({ email: targetVal });
+    if (!user) {
+      isNewUser = true;
+      const name = targetVal.split('@')[0];
+      const rawPass = crypto.randomBytes(16).toString('hex');
+      const hashed = await bcrypt.hash(rawPass, 10);
+      user = await User.create({
+        name,
+        email: targetVal,
+        password: hashed,
+        plainPassword: 'OTP Auto-Generated',
+        studentId: genStudentId(),
+        isEmailVerified: false,
+        isWhatsappVerified: false,
+      });
+    }
   }
 
   if (user.isActive === false) {
@@ -818,7 +877,7 @@ export const sendLoginOtp = asyncHandler(async (req, res) => {
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const codeHash = await bcrypt.hash(code, 10);
 
-  // We use purpose 'login_otp'
+  // Store in OTP collection with purpose 'login_otp'
   await OTP.deleteMany({ userId: user._id, purpose: 'login_otp' });
   await OTP.create({
     userId: user._id,
@@ -828,8 +887,16 @@ export const sendLoginOtp = asyncHandler(async (req, res) => {
     purpose: 'login_otp',
   });
 
-  // Send OTP email
-  await sendOtpEmail(user.email, code, user.name);
+  // Dispatch OTP
+  if (isPhone) {
+    if (channel === 'whatsapp') {
+      await sendWhatsappOtp(user.phone, code);
+    } else {
+      await sendSmsOtp(user.phone, code);
+    }
+  } else {
+    await sendOtpEmail(user.email, code, user.name);
+  }
 
   // Return tempToken for verification
   const tempToken = signToken({ _id: user._id, role: user.role });
@@ -837,7 +904,9 @@ export const sendLoginOtp = asyncHandler(async (req, res) => {
     success: true,
     tempToken,
     email: user.email,
+    phone: user.phone,
     isNewUser,
+    method: isPhone ? 'phone' : 'email',
   });
 });
 
@@ -863,8 +932,9 @@ export const verifyLoginOtp = asyncHandler(async (req, res) => {
   await OTP.findByIdAndUpdate(record._id, { used: true });
 
   let user = await User.findById(userId);
-  if (!user.isEmailVerified) {
+  if (!user.isEmailVerified || !user.isWhatsappVerified) {
     user.isEmailVerified = true;
+    user.isWhatsappVerified = true;
     await user.save();
     // Send welcome email (non-blocking)
     sendWelcomeEmail(user.email, user.name, user.studentId).catch(() => {});
@@ -876,5 +946,9 @@ export const verifyLoginOtp = asyncHandler(async (req, res) => {
 
   res.json({ ...safeUser(user), token });
 });
+
+
+
+
 
 

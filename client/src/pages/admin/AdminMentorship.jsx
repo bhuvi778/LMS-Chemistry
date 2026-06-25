@@ -1,0 +1,888 @@
+import { useState, useEffect } from 'react';
+import api from '../../api/client.js';
+import toast from 'react-hot-toast';
+import { 
+  Users, 
+  Calendar, 
+  Clock, 
+  ExternalLink, 
+  CheckCircle2, 
+  Star,
+  FileText,
+  AlertCircle,
+  X,
+  Phone,
+  Mail,
+  Plus,
+  Trash2,
+  Edit,
+  Layers,
+  PlusCircle,
+  Check
+} from 'lucide-react';
+
+export default function AdminMentorship() {
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('Pending'); // 'Pending', 'Scheduled', 'Completed', 'Cancelled', 'Settings'
+
+  // Availability Settings States
+  const [settingsList, setSettingsList] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [editingSettingId, setEditingSettingId] = useState(null);
+  const [targetType, setTargetType] = useState('global');
+  const [targetId, setTargetId] = useState('global');
+  const [enabled, setEnabled] = useState(true);
+  const [availableDates, setAvailableDates] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [dateInput, setDateInput] = useState('');
+  const [slotInput, setSlotInput] = useState('');
+
+  // Modals state
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  
+  // Schedule form states
+  const [mentorName, setMentorName] = useState('');
+  const [meetingLink, setMeetingLink] = useState('');
+  const [sessionDate, setSessionDate] = useState('');
+  const [sessionSlot, setSessionSlot] = useState('');
+
+  // Complete session form states
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [sessionNotes, setSessionNotes] = useState('');
+  const [studyPlan, setStudyPlan] = useState('');
+
+  const fetchSettingsData = async () => {
+    try {
+      setSettingsLoading(true);
+      const [settingsRes, coursesRes, categoriesRes] = await Promise.all([
+        api.get('/ace-track/mentorship/settings/all'),
+        api.get('/courses?includeUnpublished=true').catch(() => api.get('/courses')),
+        api.get('/categories').catch(() => ({ data: [] }))
+      ]);
+      setSettingsList(settingsRes.data);
+      setCourses(coursesRes.data);
+      setCategories(categoriesRes.data);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load availability settings');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'Settings') {
+      fetchSettingsData();
+    }
+  }, [activeTab]);
+
+  const handleEditSetting = (setting) => {
+    setEditingSettingId(setting._id);
+    setTargetType(setting.targetType);
+    setTargetId(setting.targetId);
+    setEnabled(setting.enabled);
+    setAvailableDates(setting.availableDates || []);
+    setAvailableSlots(setting.availableSlots || []);
+    setDateInput('');
+    setSlotInput('');
+    setShowSettingsModal(true);
+  };
+
+  const handleAddSetting = () => {
+    setEditingSettingId(null);
+    setTargetType('course');
+    setTargetId(courses[0]?._id || '');
+    setEnabled(true);
+    setAvailableDates([]);
+    setAvailableSlots([]);
+    setDateInput('');
+    setSlotInput('');
+    setShowSettingsModal(true);
+  };
+
+  const handleTargetTypeChange = (type) => {
+    setTargetType(type);
+    if (type === 'course') {
+      setTargetId(courses[0]?._id || '');
+    } else if (type === 'category') {
+      setTargetId(categories[0]?.name || '');
+    } else {
+      setTargetId('global');
+    }
+  };
+
+  const handleSaveSetting = async (e) => {
+    e.preventDefault();
+    if (targetType !== 'global' && !targetId) {
+      toast.error('Please select a target course or category');
+      return;
+    }
+    try {
+      await api.put('/ace-track/mentorship/settings', {
+        targetType,
+        targetId,
+        enabled,
+        availableDates,
+        availableSlots
+      });
+      toast.success('Mentorship availability settings saved successfully! 💾');
+      setShowSettingsModal(false);
+      fetchSettingsData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save settings');
+    }
+  };
+
+  const handleDeleteSetting = async (id, targetName) => {
+    if (!window.confirm(`Are you sure you want to delete the custom override for "${targetName}"? It will fall back to using Global default settings.`)) return;
+    try {
+      await api.delete(`/ace-track/mentorship/settings/${id}`);
+      toast.success('Custom override deleted successfully. Switched back to Global default.');
+      fetchSettingsData();
+    } catch (err) {
+      toast.error('Failed to delete custom override');
+    }
+  };
+
+  const handleAddDate = () => {
+    if (!dateInput) return;
+    if (availableDates.includes(dateInput)) {
+      toast.error('Date already added');
+      return;
+    }
+    setAvailableDates(prev => [...prev, dateInput].sort());
+    setDateInput('');
+  };
+
+  const handleAddSlot = () => {
+    if (!slotInput.trim()) return;
+    if (availableSlots.includes(slotInput.trim())) {
+      toast.error('Time slot already added');
+      return;
+    }
+    setAvailableSlots(prev => [...prev, slotInput.trim()]);
+    setSlotInput('');
+  };
+
+  const handleRemoveDate = (date) => {
+    setAvailableDates(prev => prev.filter(d => d !== date));
+  };
+
+  const handleRemoveSlot = (slot) => {
+    setAvailableSlots(prev => prev.filter(s => s !== slot));
+  };
+
+  const getSettingTargetName = (setting) => {
+    if (setting.targetType === 'global') return 'Global Default';
+    if (setting.targetType === 'course') {
+      const matched = courses.find(c => c._id === setting.targetId);
+      return matched ? `Course: ${matched.title}` : `Course ID: ${setting.targetId}`;
+    }
+    if (setting.targetType === 'category') {
+      return `Category: ${setting.targetId}`;
+    }
+    return 'Unknown';
+  };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/ace-track/mentorship');
+      setBookings(res.data);
+    } catch (error) {
+      toast.error('Failed to load mentorship requests');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenSchedule = (booking) => {
+    setSelectedBooking(booking);
+    setMentorName(booking.mentorName || 'Admin Mentor');
+    setMeetingLink(booking.meetingLink || '');
+    setSessionDate(new Date(booking.preferredDate).toISOString().split('T')[0]);
+    setSessionSlot(booking.preferredTimeSlot);
+    setShowScheduleModal(true);
+  };
+
+  const handleScheduleSubmit = async (e) => {
+    e.preventDefault();
+    if (!mentorName || !sessionDate || !sessionSlot) {
+      toast.error('Please enter mentor name, date and time slot');
+      return;
+    }
+
+    try {
+      await api.put(`/ace-track/mentorship/${selectedBooking._id}`, {
+        status: 'Scheduled',
+        mentorName,
+        meetingLink,
+        preferredDate: sessionDate,
+        preferredTimeSlot: sessionSlot
+      });
+
+      toast.success('Mentorship session scheduled! 📅');
+      setShowScheduleModal(false);
+      setSelectedBooking(null);
+      fetchBookings();
+    } catch (error) {
+      toast.error('Failed to schedule session');
+    }
+  };
+
+  const handleOpenComplete = (booking) => {
+    setSelectedBooking(booking);
+    setSessionNotes(booking.sessionNotes || '');
+    setStudyPlan(booking.studyPlan || '');
+    setShowCompleteModal(true);
+  };
+
+  const handleCompleteSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/ace-track/mentorship/${selectedBooking._id}`, {
+        status: 'Completed',
+        sessionNotes,
+        studyPlan
+      });
+
+      toast.success('Session finalized and marked Completed! 🎉');
+      setShowCompleteModal(false);
+      setSelectedBooking(null);
+      fetchBookings();
+    } catch (error) {
+      toast.error('Failed to complete session');
+    }
+  };
+
+  const handleUpdateStatus = async (id, status) => {
+    if (!window.confirm(`Are you sure you want to change status to ${status}?`)) return;
+    try {
+      await api.put(`/ace-track/mentorship/${id}`, { status });
+      toast.success(`Session status updated to ${status}`);
+      fetchBookings();
+    } catch (error) {
+      toast.error('Failed to update status');
+    }
+  };
+
+  const filteredBookings = bookings.filter(b => b.status === activeTab);
+
+  return (
+    <div className="space-y-8 w-full max-w-5xl">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex items-center gap-3">
+          <Users className="text-indigo-600 w-8 h-8" />
+          <div>
+            <h1 className="text-sm font-black text-slate-800">1:1 Mentorship Requests Manager</h1>
+            <p className="text-[11px] text-slate-400">Schedule mentor slots, write notes, and review ratings</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin border-b border-slate-200">
+        {['Pending', 'Scheduled', 'Completed', 'Cancelled', 'Settings'].map(status => (
+          <button
+            key={status}
+            onClick={() => setActiveTab(status)}
+            className={`px-5 py-3 rounded-t-xl text-xs font-bold shrink-0 transition-all cursor-pointer border-b-2 ${
+              activeTab === status
+                ? 'border-indigo-600 text-indigo-600 font-black bg-indigo-50/30'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            {status === 'Pending' && 'Pending Requests'}
+            {status === 'Scheduled' && 'Scheduled Sessions'}
+            {status === 'Completed' && 'Completed Sessions'}
+            {status === 'Cancelled' && 'Cancelled Sessions'}
+            {status === 'Settings' && 'Availability Settings'}
+            
+            {status !== 'Settings' && (
+              <span className="ml-2 bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md text-[10px]">
+                {bookings.filter(b => b.status === status).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* List / Settings */}
+      {activeTab === 'Settings' ? (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div>
+              <h3 className="text-xs font-black text-slate-850">Mentorship Slots Configuration</h3>
+              <p className="text-[10px] text-slate-400">Set active booking dates & slots globally, or override them per course/category.</p>
+            </div>
+            <button
+              onClick={handleAddSetting}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer transition"
+            >
+              <Plus size={14} /> Add Custom Override
+            </button>
+          </div>
+
+          {settingsLoading ? (
+            <div className="text-center py-8 text-xs text-slate-400">Loading settings...</div>
+          ) : (
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-150/80 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <tr>
+                    <th className="p-4">Target Scope</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4">Available Dates</th>
+                    <th className="p-4">Available Slots</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {settingsList.map((setting) => {
+                    const targetName = getSettingTargetName(setting);
+                    return (
+                      <tr key={setting._id} className="hover:bg-slate-50/50 transition">
+                        <td className="p-4 font-bold text-slate-800">
+                          {targetName}
+                          {setting.targetType === 'global' && (
+                            <span className="ml-2 px-1.5 py-0.5 bg-indigo-50 text-[9px] text-indigo-600 rounded font-black border border-indigo-100/50">Default</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            setting.enabled 
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                              : 'bg-rose-50 text-rose-700 border border-rose-100'
+                          }`}>
+                            {setting.enabled ? 'Bookings Open' : 'Bookings Closed'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-slate-500 font-medium">
+                          {setting.availableDates?.length || 0} dates configured
+                        </td>
+                        <td className="p-4 text-slate-500 font-medium">
+                          {setting.availableSlots?.length || 0} slots configured
+                        </td>
+                        <td className="p-4 text-right flex justify-end gap-2">
+                          <button
+                            onClick={() => handleEditSetting(setting)}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer transition"
+                            title="Edit Availability"
+                          >
+                            Edit
+                          </button>
+                          {setting.targetType !== 'global' && (
+                            <button
+                              onClick={() => handleDeleteSetting(setting._id, targetName)}
+                              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl font-bold cursor-pointer transition"
+                              title="Delete Override"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {settingsList.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-slate-400">
+                        No mentorship settings configured yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {loading ? (
+            <div className="text-center py-8 text-xs text-slate-400">Loading requests...</div>
+          ) : filteredBookings.length === 0 ? (
+            <div className="bg-white border border-slate-200 border-dashed rounded-2xl p-10 text-center flex flex-col items-center justify-center">
+              <Users className="text-slate-300 w-12 h-12 mb-3" />
+              <h3 className="text-xs font-bold text-slate-600">No Sessions Found</h3>
+              <p className="text-[10px] text-slate-400 mt-0.5">There are no mentorship sessions in this tab.</p>
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              {filteredBookings.map(booking => {
+              const studentName = booking.student?.name || 'Anonymous Student';
+              const studentEmail = booking.student?.email || '';
+              const studentId = booking.student?.studentId || '';
+              const studentPhone = booking.student?.phone || '';
+              const preferredDateStr = new Date(booking.preferredDate).toLocaleDateString('en-IN', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+              });
+
+              return (
+                <div key={booking._id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-4 hover:shadow-xs transition duration-200">
+                  {/* Header: Student Info */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 text-sm font-black flex items-center justify-center shadow-inner">
+                        {studentName[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-800">{studentName}</h3>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400 mt-0.5 font-medium">
+                          <span>ID: {studentId}</span>
+                          <span className="flex items-center gap-1"><Mail size={10} /> {studentEmail}</span>
+                          {studentPhone && <span className="flex items-center gap-1"><Phone size={10} /> {studentPhone}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold font-mono">
+                      Requested: {new Date(booking.createdAt).toLocaleDateString('en-IN')}
+                    </div>
+                  </div>
+
+                  {/* Booking content: Focus Topic */}
+                  <div className="space-y-2">
+                    <div className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">Subject & Doubt Details</div>
+                    <div className="text-xs font-bold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-150/40">
+                      Topic: {booking.subject}
+                    </div>
+                    <p className="text-xs text-slate-600 pl-1 leading-relaxed">{booking.description}</p>
+                  </div>
+
+                  {/* Date and Time slots requested */}
+                  <div className="grid sm:grid-cols-2 gap-4 border-t border-b border-slate-150/30 py-3 text-xs">
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Requested Date</span>
+                      <span className="font-semibold text-slate-700">{preferredDateStr}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Requested Time Slot</span>
+                      <span className="font-semibold text-slate-700">{booking.preferredTimeSlot}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions / Admin feedback notes */}
+                  {booking.status === 'Pending' && (
+                    <div className="flex flex-wrap gap-2 items-center pt-2">
+                      <button
+                        onClick={() => handleOpenSchedule(booking)}
+                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer transition"
+                      >
+                        Schedule Slot
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(booking._id, 'Cancelled')}
+                        className="px-4 py-2.5 border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-xl text-xs font-bold cursor-pointer transition"
+                      >
+                        Cancel Request
+                      </button>
+                    </div>
+                  )}
+
+                  {booking.status === 'Scheduled' && (
+                    <div className="space-y-4 pt-2">
+                      <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3.5 space-y-2 text-xs">
+                        <div className="font-bold text-indigo-900">Scheduled Details:</div>
+                        <div className="grid sm:grid-cols-2 gap-2 text-[11px] text-slate-700">
+                          <div><span className="font-bold">Mentor Name:</span> {booking.mentorName}</div>
+                          <div><span className="font-bold">Meeting Link:</span> {booking.meetingLink ? <a href={booking.meetingLink} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-bold inline-flex items-center gap-0.5">Join Call <ExternalLink size={10} /></a> : 'None Added'}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <button
+                          onClick={() => handleOpenComplete(booking)}
+                          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer transition"
+                        >
+                          Mark Completed (Add Notes)
+                        </button>
+                        <button
+                          onClick={() => handleOpenSchedule(booking)}
+                          className="px-4 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold cursor-pointer transition"
+                        >
+                          Reschedule / Edit Link
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus(booking._id, 'Cancelled')}
+                          className="px-4 py-2.5 text-rose-500 hover:bg-rose-50 rounded-xl text-xs font-bold cursor-pointer transition"
+                        >
+                          Cancel Session
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {booking.status === 'Completed' && (
+                    <div className="space-y-4 border-t border-slate-100 pt-3 text-xs">
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {booking.sessionNotes && (
+                          <div>
+                            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block mb-1">Your Session Notes/Feedback</span>
+                            <p className="p-3 bg-slate-50 rounded-xl border border-slate-200/50 text-slate-600 whitespace-pre-line leading-relaxed">
+                              {booking.sessionNotes}
+                            </p>
+                          </div>
+                        )}
+                        {booking.studyPlan && (
+                          <div>
+                            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block mb-1">Uploaded Study Plan / Materials</span>
+                            <p className="p-3 bg-slate-50 rounded-xl border border-slate-200/50 text-slate-600 whitespace-pre-line leading-relaxed">
+                              {booking.studyPlan}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Ratings left by student */}
+                      {booking.rating ? (
+                        <div className="flex items-center gap-2 bg-amber-50/50 border border-amber-100/60 p-3 rounded-xl">
+                          <span className="font-bold text-slate-600">Student Rating:</span>
+                          <div className="flex items-center text-amber-400">
+                            {[...Array(booking.rating)].map((_, i) => (
+                              <Star key={i} size={13} fill="currentColor" />
+                            ))}
+                            {[...Array(5 - booking.rating)].map((_, i) => (
+                              <Star key={i} size={13} />
+                            ))}
+                          </div>
+                          {booking.studentFeedback && (
+                            <span className="text-slate-500 italic ml-2">"{booking.studentFeedback}"</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded-lg inline-block">
+                          Awaiting Student Rating/Review
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* Schedule / Reschedule Modal */}
+      {showScheduleModal && selectedBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md border border-slate-200 shadow-2xl animate-fade-in space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-800">Schedule Mentorship Call</h3>
+              <button 
+                onClick={() => { setShowScheduleModal(false); setSelectedBooking(null); }}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleScheduleSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Assign Mentor Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Dr. Satish Roy..."
+                  value={mentorName}
+                  onChange={(e) => setMentorName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Meeting Link (Zoom / Google Meet)</label>
+                <input
+                  type="url"
+                  placeholder="https://meet.google.com/..."
+                  value={meetingLink}
+                  onChange={(e) => setMeetingLink(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Confirmed Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={sessionDate}
+                    onChange={(e) => setSessionDate(e.target.value)}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Time Slot</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 10:00 AM - 11:00 AM"
+                    value={sessionSlot}
+                    onChange={(e) => setSessionSlot(e.target.value)}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowScheduleModal(false); setSelectedBooking(null); }}
+                  className="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-500 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-600/10 cursor-pointer"
+                >
+                  Schedule Slot
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Complete session & write notes Modal */}
+      {showCompleteModal && selectedBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md border border-slate-200 shadow-2xl animate-fade-in space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-800">Finalize & Complete Session</h3>
+              <button 
+                onClick={() => { setShowCompleteModal(false); setSelectedBooking(null); }}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCompleteSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Mentor Notes & Feedback (For Student)</label>
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="Summarize discussion, highlight student's weak/strong points, write feedback..."
+                  value={sessionNotes}
+                  onChange={(e) => setSessionNotes(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-semibold text-slate-700 resize-none leading-normal"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Recommended Study Plan / Resource URL</label>
+                <textarea
+                  rows={3}
+                  placeholder="Paste PDF link, study notes URL, or write a custom bulleted study plan..."
+                  value={studyPlan}
+                  onChange={(e) => setStudyPlan(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-semibold text-slate-700 resize-none leading-normal"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowCompleteModal(false); setSelectedBooking(null); }}
+                  className="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-500 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/10 cursor-pointer"
+                >
+                  Complete Session
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Availability Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg border border-slate-200 shadow-2xl animate-fade-in space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-800">
+                {editingSettingId ? 'Edit Mentorship Availability' : 'Create Custom Availability Override'}
+              </h3>
+              <button 
+                onClick={() => setShowSettingsModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSetting} className="space-y-4">
+              {/* Target Selector */}
+              {editingSettingId ? (
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-150/55">
+                  <span className="text-[10px] font-black text-slate-400 uppercase block mb-0.5">Configured Target Scope</span>
+                  <span className="text-xs font-bold text-slate-700">
+                    {targetType === 'global' ? 'Global Default Settings' : targetType === 'course' ? `Course Override: ${courses.find(c => c._id === targetId)?.title || targetId}` : `Category Override: ${targetId}`}
+                  </span>
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Target Scope Level</label>
+                    <select
+                      value={targetType}
+                      onChange={(e) => handleTargetTypeChange(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700 bg-white"
+                    >
+                      <option value="course">Specific Course Override</option>
+                      <option value="category">Specific Category Override</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Select Target Item</label>
+                    {targetType === 'course' ? (
+                      <select
+                        value={targetId}
+                        onChange={(e) => setTargetId(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700 bg-white"
+                      >
+                        {courses.map(c => (
+                          <option key={c._id} value={c._id}>{c.title}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <select
+                        value={targetId}
+                        onChange={(e) => setTargetId(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700 bg-white"
+                      >
+                        {categories.map(cat => (
+                          <option key={cat._id} value={cat.name}>{cat.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Enabled Switch */}
+              <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-150/50">
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">Open for Bookings</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">If disabled, students will see mentorship as closed/unavailable for this scope.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEnabled(!enabled)}
+                  className={`w-12 h-6 rounded-full transition-colors relative flex items-center shrink-0 cursor-pointer ${enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                >
+                  <span className={`w-4 h-4 rounded-full bg-white transition-transform absolute ${enabled ? 'right-1' : 'left-1'}`} />
+                </button>
+              </div>
+
+              {/* Dates Input Section */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Available Dates</label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={dateInput}
+                    onChange={(e) => setDateInput(e.target.value)}
+                    className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddDate}
+                    className="px-4 py-2.5 bg-slate-950 hover:bg-slate-850 text-white text-xs font-bold rounded-xl shrink-0 cursor-pointer transition"
+                  >
+                    + Add Date
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2 min-h-[60px] max-h-[100px] overflow-y-auto p-2 border border-dashed border-slate-200 rounded-xl bg-slate-50/40">
+                  {availableDates.map(date => (
+                    <span key={date} className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-lg font-bold border border-indigo-100">
+                      {new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      <button type="button" onClick={() => handleRemoveDate(date)} className="text-indigo-400 hover:text-indigo-600 font-bold ml-1 text-sm select-none">×</button>
+                    </span>
+                  ))}
+                  {availableDates.length === 0 && (
+                    <span className="text-[10px] text-slate-400 italic p-1">No dates added yet</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Time Slots Input Section */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Available Time Slots</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. 10:00 AM - 11:00 AM or 4:00 PM"
+                    value={slotInput}
+                    onChange={(e) => setSlotInput(e.target.value)}
+                    className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-700"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSlot(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddSlot}
+                    className="px-4 py-2.5 bg-slate-950 hover:bg-slate-850 text-white text-xs font-bold rounded-xl shrink-0 cursor-pointer transition"
+                  >
+                    + Add Slot
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2 min-h-[60px] max-h-[100px] overflow-y-auto p-2 border border-dashed border-slate-200 rounded-xl bg-slate-50/40">
+                  {availableSlots.map(slot => (
+                    <span key={slot} className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-lg font-bold border border-emerald-100">
+                      {slot}
+                      <button type="button" onClick={() => handleRemoveSlot(slot)} className="text-emerald-400 hover:text-emerald-600 font-bold ml-1 text-sm select-none">×</button>
+                    </span>
+                  ))}
+                  {availableSlots.length === 0 && (
+                    <span className="text-[10px] text-slate-400 italic p-1">No slots added yet</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-500 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-600/10 cursor-pointer"
+                >
+                  Save Settings
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

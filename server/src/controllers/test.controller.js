@@ -6,6 +6,8 @@ import Enrollment from '../models/Enrollment.js';
 import SavedQuestion from '../models/SavedQuestion.js';
 import ReportedQuestion from '../models/ReportedQuestion.js';
 import CourseTest from '../models/CourseTest.js';
+import User from '../models/User.js';
+import CoinRedemption from '../models/CoinRedemption.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const makeSlug = (title) =>
@@ -356,7 +358,7 @@ export const submitAttempt = asyncHandler(async (req, res) => {
 // ─── STUDENT: My Attempts ─────────────────────────────────────────────────────
 export const myAttempts = asyncHandler(async (req, res) => {
   const attempts = await TestAttempt.find({ user: req.user._id })
-    .populate('test', 'title difficulty durationMins totalMarks')
+    .populate('test', 'title difficulty durationMins totalMarks isDailyTest')
     .sort({ submittedAt: -1 });
 
   const attemptsObj = attempts.map(a => a.toObject());
@@ -513,5 +515,42 @@ export const adminUpdateReport = asyncHandler(async (req, res) => {
   );
   if (!report) { res.status(404); throw new Error('Report not found'); }
   res.json(report);
+});
+
+// ─── STUDENT: Spend 1 Coin to Attempt a Test ──────────────────────────────────
+export const spendCoinForTest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  const test = await Test.findById(id);
+  if (!test) {
+    res.status(404);
+    throw new Error('Test not found');
+  }
+
+  // Deduct 1 coin (admins are exempt)
+  if (user.role !== 'admin') {
+    if ((user.coins || 0) < 1) {
+      res.status(400);
+      throw new Error('Insufficient Ace Coins. Attempting this test costs 1 Ace Coin.');
+    }
+    user.coins = (user.coins || 0) - 1;
+    await user.save();
+
+    // Log coin spend redemption
+    await CoinRedemption.create({
+      student: user._id,
+      itemType: 'test_attempt',
+      itemId: test._id,
+      itemName: `Attempted Test: ${test.title}`,
+      coinsSpent: 1,
+    });
+  }
+
+  res.json({ ok: true, coins: user.coins });
 });
 

@@ -9,6 +9,7 @@ const empty = {
   description: '',
   courseName: '',
   course: '',
+  courses: [],
   instructor: 'Ace2Examz Faculty',
   meetLink: '',
   meetingUrl: '',
@@ -56,9 +57,15 @@ export default function AdminLiveClasses() {
       if (!payload.platform) {
         payload.platform = 'agora_call';
       }
-      payload.useInternalRoom = true;
-      payload.meetLink = '';
-      payload.meetingUrl = '';
+      if (['zoom', 'meet', 'youtube'].includes(payload.platform)) {
+        payload.useInternalRoom = false;
+        payload.meetLink = payload.meetingUrl || payload.meetLink || '';
+        payload.meetingUrl = payload.meetLink;
+      } else {
+        payload.useInternalRoom = true;
+        payload.meetLink = '';
+        payload.meetingUrl = '';
+      }
       if (editing._id) {
         await api.put(`/admin/live-classes/${editing._id}`, payload);
         toast.success('Live class updated');
@@ -84,6 +91,14 @@ export default function AdminLiveClasses() {
 
   const upcoming = list.filter((lc) => new Date(lc.scheduledAt) >= new Date());
   const past = list.filter((lc) => new Date(lc.scheduledAt) < new Date());
+
+  const handleEdit = (lc) => {
+    setEditing({
+      ...lc,
+      scheduledAt: lc.scheduledAt,
+      courses: lc.courses?.map(c => c._id || c) || (lc.course ? [lc.course._id || lc.course] : [])
+    });
+  };
 
   return (
     <div>
@@ -116,42 +131,97 @@ export default function AdminLiveClasses() {
                 <label className="label">Description</label>
                 <textarea className="input min-h-[70px]" value={editing.description} onChange={(e) => set('description', e.target.value)} placeholder="What will be covered…" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Linked Course (optional)</label>
-                  <select className="input" value={editing.course || ''} onChange={(e) => {
-                    const c = courses.find((x) => x._id === e.target.value);
-                    set('course', e.target.value || null);
-                    if (c) set('courseName', c.title);
-                    else set('courseName', '');
-                  }}>
-                    <option value="">— Select course —</option>
-                    {courses.map((c) => (
-                      <option key={c._id} value={c._id}>{c.category} · {c.title}</option>
-                    ))}
-                  </select>
+
+              <div>
+                <label className="label">Linked Courses (Select one or more)</label>
+                <div className="border border-slate-200 rounded-xl p-3 max-h-36 overflow-y-auto space-y-2 bg-slate-50">
+                  {courses.map((c) => {
+                    const selectedCourses = editing.courses || (editing.course ? [editing.course] : []);
+                    const isSelected = selectedCourses.includes(c._id);
+                    return (
+                      <label key={c._id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-1 rounded transition text-xs">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            let nextCourses = [...selectedCourses];
+                            if (e.target.checked) {
+                              if (!nextCourses.includes(c._id)) nextCourses.push(c._id);
+                            } else {
+                              nextCourses = nextCourses.filter((id) => id !== c._id);
+                            }
+                            setEditing((prev) => ({
+                              ...prev,
+                              courses: nextCourses,
+                              course: nextCourses[0] || null,
+                              courseName: nextCourses.length > 0 
+                                ? courses.find(x => x._id === nextCourses[0])?.title || ''
+                                : ''
+                            }));
+                          }}
+                        />
+                        <span className="text-slate-700">
+                          <span className="font-semibold text-slate-500 mr-1">[{c.category}]</span>
+                          {c.title}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Instructor</label>
                   <input className="input" value={editing.instructor} onChange={(e) => set('instructor', e.target.value)} />
                 </div>
-              </div>
-              <div>
-                <select className="input" value={editing.platform || 'agora_call'} onChange={(e) => set('platform', e.target.value)}>
-                  <option value="agora_call">Ace Video Call (All Participants)</option>
-                  <option value="agora_interactive">Ace Interactive Live Stream (Raise Hand / Co-host)</option>
-                  <option value="agora_broadcast">Ace One-Way Broadcast (No Interaction)</option>
-                  <option value="agora_stream">Ace Stream (Legacy)</option>
-                </select>
+                <div>
+                  <label className="label">Platform</label>
+                  <select className="input" value={editing.platform || 'agora_call'} onChange={(e) => set('platform', e.target.value)}>
+                    <option value="agora_call">Ace Video Call (All Participants)</option>
+                    <option value="agora_interactive">Ace Interactive Live Stream (Raise Hand / Co-host)</option>
+                    <option value="agora_broadcast">Ace One-Way Broadcast (No Interaction)</option>
+                    <option value="agora_stream">Ace Stream (Legacy)</option>
+                    <option value="youtube">YouTube Live Stream</option>
+                    <option value="zoom">Zoom Meeting</option>
+                    <option value="meet">Google Meet</option>
+                  </select>
+                </div>
               </div>
 
+              {['zoom', 'meet', 'youtube'].includes(editing.platform) && (
+                <div>
+                  <label className="label">
+                    {editing.platform === 'youtube' ? 'YouTube Stream / Video URL *' : 'Meeting URL *'}
+                  </label>
+                  <input
+                    required
+                    type="url"
+                    className="input"
+                    value={editing.meetingUrl || editing.meetLink || ''}
+                    onChange={(e) => {
+                      setEditing((f) => ({ ...f, meetingUrl: e.target.value, meetLink: e.target.value }));
+                    }}
+                    placeholder={
+                      editing.platform === 'youtube'
+                        ? 'e.g. https://www.youtube.com/watch?v=...'
+                        : 'e.g. https://zoom.us/j/...'
+                    }
+                  />
+                </div>
+              )}
+
               <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-3 text-sm text-teal-800">
-                <strong>Ace RTC Session:</strong> Dynamic secure tokens will be generated. 
+                <strong>Platform Info:</strong>{' '}
                 {editing.platform === 'agora_call'
-                  ? ' Everyone can turn on camera/microphone and speak directly (Video Calling).'
+                  ? 'Ace RTC Session: Everyone can turn on camera/microphone and speak directly (Video Calling).'
                   : editing.platform === 'agora_interactive'
-                    ? ' Students join as audience but can raise hand to co-host and speak (Interactive).'
-                    : ' One-way broadcast stream from instructor to all students. No interaction.'}
+                    ? 'Ace RTC Session: Students join as audience but can raise hand to co-host and speak (Interactive).'
+                    : editing.platform === 'agora_broadcast' || editing.platform === 'agora_stream'
+                      ? 'Ace RTC Session: One-way broadcast stream from instructor to all students. No interaction.'
+                      : editing.platform === 'youtube'
+                        ? 'YouTube Live: Stream will be embedded inside the in-app room for students.'
+                        : `External Platform: Students will be redirected to the provided ${editing.platform} link.`}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -167,18 +237,28 @@ export default function AdminLiveClasses() {
                 <input type="checkbox" checked={editing.isActive} onChange={(e) => set('isActive', e.target.checked)} />
                 <span className="text-sm font-medium">Active (visible to students)</span>
               </label>
-              {editing.course && (() => {
-                const c = courses.find((x) => x._id === editing.course);
-                const cnt = c?.studentsEnrolled || 0;
+
+              {((editing.courses && editing.courses.length > 0) || editing.course) && (() => {
+                const selectedIds = editing.courses || (editing.course ? [editing.course] : []);
+                let totalStudents = 0;
+                let courseNames = [];
+                selectedIds.forEach((id) => {
+                  const c = courses.find((x) => x._id === id);
+                  if (c) {
+                    totalStudents += (c.studentsEnrolled || 0);
+                    courseNames.push(c.title);
+                  }
+                });
                 return (
                   <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-900 flex items-start gap-2">
                     <Bell size={14} className="mt-0.5 shrink-0" />
                     <div>
-                      <b>{cnt > 0 ? `${cnt} enrolled student${cnt !== 1 ? 's' : ''}` : 'All enrolled students'}</b> of <i>{c?.title}</i> will get an in-app notification with the join link the moment you {editing._id ? 'update' : 'schedule'} this class.
+                      <b>{totalStudents > 0 ? `${totalStudents} enrolled student${totalStudents !== 1 ? 's' : ''}` : 'All enrolled students'}</b> of <i>{courseNames.join(', ')}</i> will get an in-app notification with the join link the moment you {editing._id ? 'update' : 'schedule'} this class.
                     </div>
                   </div>
                 );
               })()}
+
               <div className="flex gap-2 pt-2">
                 <button type="submit" className="btn-primary flex-1 justify-center">
                   <Save size={16} /> {editing._id ? 'Update' : 'Schedule'}
@@ -203,7 +283,7 @@ export default function AdminLiveClasses() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {upcoming.map((lc) => (
-              <ClassCard key={lc._id} lc={lc} onEdit={() => setEditing({ ...lc, scheduledAt: lc.scheduledAt })} onDelete={() => del(lc._id)} />
+              <ClassCard key={lc._id} lc={lc} onEdit={() => handleEdit(lc)} onDelete={() => del(lc._id)} />
             ))}
           </div>
         )}
@@ -215,7 +295,7 @@ export default function AdminLiveClasses() {
           <h2 className="font-bold text-lg text-slate-900 mb-4 text-slate-400">Past ({past.length})</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 opacity-60">
             {past.slice(0, 6).map((lc) => (
-              <ClassCard key={lc._id} lc={lc} onEdit={() => setEditing({ ...lc })} onDelete={() => del(lc._id)} past />
+              <ClassCard key={lc._id} lc={lc} onEdit={() => handleEdit(lc)} onDelete={() => del(lc._id)} past />
             ))}
           </div>
         </div>
@@ -237,14 +317,25 @@ function ClassCard({ lc, onEdit, onDelete, past }) {
             </div>
             <div className="min-w-0">
               <div className="font-bold text-sm text-slate-900 leading-tight truncate max-w-[180px]">{lc.title}</div>
-              <div className="flex gap-1.5 items-center mt-1">
-                {lc.courseName && <span className="text-[10px] text-slate-500 truncate max-w-[100px]">{lc.courseName}</span>}
-                {lc.courseName && <span className="text-[9px] text-slate-300">•</span>}
+              <div className="flex gap-1.5 items-center mt-1 flex-wrap">
+                {lc.courses && lc.courses.length > 0 ? (
+                  <span className="text-[10px] text-slate-500 truncate max-w-[150px]" title={lc.courses.map(c => c.title).join(', ')}>
+                    {lc.courses.map(c => c.title).join(', ')}
+                  </span>
+                ) : lc.course?.title || lc.courseName ? (
+                  <span className="text-[10px] text-slate-500 truncate max-w-[150px]">
+                    {lc.course?.title || lc.courseName}
+                  </span>
+                ) : null}
+                <span className="text-[9px] text-slate-300">•</span>
                 <span className="text-[9px] font-extrabold bg-brand-50 border border-brand-100 text-brand-700 px-1 py-0.5 rounded uppercase shrink-0">
                   {lc.platform === 'agora_call' ? 'Ace Call' : 
                    lc.platform === 'agora_stream' ? 'Ace Stream (Legacy)' : 
                    lc.platform === 'agora_interactive' ? 'Ace Interactive' : 
                    lc.platform === 'agora_broadcast' ? 'Ace Broadcast' : 
+                   lc.platform === 'youtube' ? 'YouTube' :
+                   lc.platform === 'zoom' ? 'Zoom' :
+                   lc.platform === 'meet' ? 'Meet' :
                    lc.platform || 'Ace Call'}
                 </span>
               </div>

@@ -4,6 +4,8 @@ import api from '../api/client.js';
 import CourseCard from '../components/CourseCard.jsx';
 import { Search, X } from 'lucide-react';
 
+const CAT_ICONS = ['📘', '🧪', '⚗️', '🔬', '📐', '🧬', '🔭', '💡', '📊', '🎯'];
+
 export default function Courses() {
   const [params, setParams] = useSearchParams();
   const [categories, setCategories] = useState([]);
@@ -11,11 +13,12 @@ export default function Courses() {
   const [comboCourses, setComboCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const category = params.get('category') || 'ALL';
+  const subCategory = params.get('subCategory') || '';
   const typeFilter = params.get('type') || 'ALL';
   const q = params.get('q') || '';
 
   useEffect(() => {
-    api.get('/categories').then((r) => setCategories(r.data.map((c) => c.name || c)));
+    api.get('/categories').then((r) => setCategories(r.data));
   }, []);
 
   useEffect(() => {
@@ -34,20 +37,27 @@ export default function Courses() {
 
   const setParam = (k, v) => {
     const next = new URLSearchParams(params);
-    if (v) next.set(k, v);
-    else next.delete(k);
+    if (v) {
+      next.set(k, v);
+      if (k === 'category') {
+        next.delete('subCategory');
+      }
+    } else {
+      next.delete(k);
+      if (k === 'category') {
+        next.delete('subCategory');
+      }
+    }
     setParams(next);
   };
 
-  // Derive unique sub-categories from loaded courses
-  const allSubCats = [...new Set(courses.filter(c => !c.isCombo).flatMap((c) => c.subCategories || []))];
-
-  // Client-side type filter
+  // Client-side filtering of courses
   const filteredCourses = courses.filter((c) => {
     if (c.isCombo) return false;
     if (typeFilter === 'LIVE' && c.courseType !== 'live') return false;
     if (typeFilter === 'RECORDED' && c.courseType !== 'recorded') return false;
     if (typeFilter === 'FREE' && c.price !== 0) return false;
+    if (subCategory && !(c.subCategories || []).includes(subCategory)) return false;
     return true;
   });
 
@@ -82,22 +92,72 @@ export default function Courses() {
 
       <section className="section">
         <div className="container-x">
+          {/* Exam Category Filters */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3 mb-6 justify-start md:justify-center px-4 md:px-0">
+            <button
+              onClick={() => setParam('category', '')}
+              className={`px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${
+                category === 'ALL'
+                  ? 'bg-gradient-brand text-white border-transparent shadow-soft scale-105 font-black'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-700'
+              }`}
+            >
+              🌐 All Exams
+            </button>
+            {categories.map((c, i) => (
+              <button
+                key={c._id || c.name || c}
+                onClick={() => setParam('category', c.name || c)}
+                className={`px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 ${
+                  category === (c.name || c)
+                    ? 'bg-gradient-brand text-white border-transparent shadow-soft scale-105 font-black'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-700'
+                }`}
+              >
+                <span>{c.icon || CAT_ICONS[i % CAT_ICONS.length]}</span> {c.name || c}
+              </button>
+            ))}
+          </div>
+
+          {/* Sub-Category Filters */}
           {category !== 'ALL' && (
-            <div className="flex justify-center mb-4">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-50 border border-brand-100 rounded-full text-xs font-bold text-brand-700">
-                Filtered Category: {category}
-                <button
-                  onClick={() => setParam('category', '')}
-                  className="hover:bg-brand-100 rounded-full p-0.5 text-brand-500 hover:text-brand-700"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            </div>
+            (() => {
+              const activeCatObj = categories.find((c) => (c.name || c) === category);
+              const subs = activeCatObj?.subcategories || [];
+              if (subs.length === 0) return null;
+              return (
+                <div className="flex flex-wrap gap-2 mb-6 justify-center items-center bg-slate-50 p-3 rounded-2xl border border-slate-100 max-w-3xl mx-auto">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Sub-Categories:</span>
+                  <button
+                    onClick={() => setParam('subCategory', '')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                      !subCategory
+                        ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {subs.map((sub) => (
+                    <button
+                      key={sub}
+                      onClick={() => setParam('subCategory', subCategory === sub ? '' : sub)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                        subCategory === sub
+                          ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-brand-300'
+                      }`}
+                    >
+                      {sub}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()
           )}
 
-          {/* Main Category Filters (Live / Recorded / Free) */}
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-3 mb-6 justify-center">
+          {/* Main Filters (Live / Recorded / Free) */}
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-3 mb-6 justify-start md:justify-center px-4 md:px-0">
             {TYPE_FILTERS.map((t) => (
               <button
                 key={t.k}

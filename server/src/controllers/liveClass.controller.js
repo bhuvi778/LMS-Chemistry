@@ -5,15 +5,29 @@ import { generateAgoraToken } from '../services/agora.js';
 
 /** GET /api/live/:id — for a logged-in user, returns details if they are enrolled (or admin). */
 export const getLiveClass = asyncHandler(async (req, res) => {
-  const lc = await LiveClass.findById(req.params.id).populate('course', 'title category');
+  const lc = await LiveClass.findById(req.params.id)
+    .populate('course', 'title category')
+    .populate('courses', 'title category');
   if (!lc) { res.status(404); throw new Error('Live class not found'); }
   
   const isAdmin = req.user.role === 'admin';
 
-  // Student → must be enrolled in linked course (or no course set)
-  if (!isAdmin && lc.course) {
-    const enrolled = await Enrollment.exists({ student: req.user._id, course: lc.course._id });
-    if (!enrolled) { res.status(403); throw new Error('You are not enrolled in this course'); }
+  // Student → must be enrolled in linked course or any linked courses (or no course set)
+  if (!isAdmin) {
+    const courseIds = [];
+    if (lc.course) courseIds.push(lc.course._id || lc.course);
+    if (lc.courses && lc.courses.length > 0) {
+      lc.courses.forEach((c) => {
+        const cid = (c._id || c).toString();
+        if (!courseIds.map(x => x.toString()).includes(cid)) {
+          courseIds.push(c._id || c);
+        }
+      });
+    }
+    if (courseIds.length > 0) {
+      const enrolled = await Enrollment.exists({ student: req.user._id, course: { $in: courseIds } });
+      if (!enrolled) { res.status(403); throw new Error('You are not enrolled in this course'); }
+    }
   }
 
   const obj = lc.toObject();

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, BookOpen, ToggleLeft, ToggleRight, Upload, Loader2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, BookOpen, ToggleLeft, ToggleRight, Upload, Loader2, X, FileText, Bookmark } from 'lucide-react';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 
-const EMPTY = { title: '', description: '', subject: '', grade: '', coverImage: '', fileUrl: '', fileSize: '', isFree: false, isActive: true, order: 0, courses: [] };
+const EMPTY = { title: '', description: '', subject: '', grade: '', contentType: 'ebook', subCategory: '', chapter: '', coverImage: '', fileUrl: '', fileSize: '', isFree: false, isActive: true, order: 0, courses: [] };
 
 export default function AdminEbooks() {
   const [ebooks, setEbooks] = useState([]);
@@ -15,6 +15,7 @@ export default function AdminEbooks() {
   const [saving, setSaving] = useState(false);
   const [pdfUploading, setPdfUploading] = useState(false);
   const [imgUploading, setImgUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
 
   const load = () => {
     Promise.all([
@@ -37,6 +38,10 @@ export default function AdminEbooks() {
   const save = async (e) => {
     e.preventDefault();
     if (!form.title.trim()) { toast.error('Title is required'); return; }
+    if (form.contentType === 'enote' && !form.subCategory) {
+      toast.error('Please select a Sub Category for E-Note');
+      return;
+    }
     setSaving(true);
     try {
       const payload = { ...form, order: Number(form.order) || 0 };
@@ -67,40 +72,78 @@ export default function AdminEbooks() {
     load();
   };
 
+  const filteredEbooks = ebooks.filter(
+    (eb) => activeTab === 'all' || eb.contentType === activeTab
+  );
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><BookOpen size={22} /> E-Books</h1>
-          <p className="text-slate-500 text-sm">Manage study materials and PDFs</p>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><BookOpen size={22} /> Study Library</h1>
+          <p className="text-slate-500 text-sm">Manage E-Books, E-Notes, and E-Magazines</p>
         </div>
         <button onClick={() => openModal()} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Add Ebook
+          <Plus size={16} /> Add Material
         </button>
+      </div>
+
+      {/* Category Tabs */}
+      <div className="flex gap-2 mb-6 bg-slate-100/80 p-1 rounded-xl max-w-lg border border-slate-200/50">
+        {['all', 'ebook', 'enote', 'emagazine'].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all capitalize ${
+              activeTab === tab
+                ? 'bg-white text-slate-800 shadow-sm font-black'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {tab === 'all' ? 'All Materials' : tab === 'ebook' ? 'E-Books' : tab === 'enote' ? 'E-Notes' : 'E-Magazines'}
+          </button>
+        ))}
       </div>
 
       {loading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => <div key={i} className="card h-32 animate-pulse bg-slate-100" />)}
         </div>
-      ) : ebooks.length === 0 ? (
-        <div className="text-center py-20 text-slate-400">
+      ) : filteredEbooks.length === 0 ? (
+        <div className="text-center py-20 text-slate-400 card border-dashed border-2">
           <BookOpen size={48} className="mx-auto mb-3 opacity-30" />
-          <p>No ebooks yet. Add your first one!</p>
+          <p>No items found in this section.</p>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {ebooks.map((eb) => (
+          {filteredEbooks.map((eb) => (
             <div key={eb._id} className={`card p-4 flex gap-3 ${!eb.isActive ? 'opacity-60' : ''}`}>
               <div className="w-12 h-16 rounded-lg bg-gradient-to-b from-brand-500 to-indigo-600 shrink-0 flex items-center justify-center overflow-hidden">
                 {eb.coverImage ? <img src={eb.coverImage} alt="" className="w-full h-full object-cover" /> : <BookOpen size={20} className="text-white" />}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-sm line-clamp-1">{eb.title}</h3>
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  {eb.subject && <span className="text-[10px] bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded-full">{eb.subject}</span>}
-                  {eb.grade && <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">{eb.grade}</span>}
-                  {eb.isFree && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">FREE</span>}
+                <div className="flex items-center gap-1 flex-wrap mb-1">
+                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded tracking-wide uppercase ${
+                    eb.contentType === 'enote'
+                      ? 'bg-indigo-100 text-indigo-700'
+                      : eb.contentType === 'emagazine'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {eb.contentType || 'ebook'}
+                  </span>
+                  {eb.contentType === 'enote' && eb.subCategory && (
+                    <span className="text-[8px] font-black bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded border border-violet-100">
+                      {eb.subCategory}
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-bold text-slate-800 text-sm line-clamp-1">{eb.title}</h3>
+                {eb.chapter && <p className="text-[10px] text-slate-400 font-bold truncate">Ch: {eb.chapter}</p>}
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  {eb.subject && <span className="text-[10px] bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded-full font-medium">{eb.subject}</span>}
+                  {eb.grade && <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full font-medium">{eb.grade}</span>}
+                  {eb.isFree && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold">FREE</span>}
                 </div>
                 <div className="text-[11px] text-slate-400 mt-1">{eb.downloads || 0} downloads</div>
                 <div className="flex items-center gap-2 mt-2">
@@ -125,13 +168,26 @@ export default function AdminEbooks() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="p-6">
-              <h2 className="text-lg font-bold mb-4">{editing ? 'Edit Ebook' : 'Add New Ebook'}</h2>
+              <h2 className="text-lg font-bold mb-4">{editing ? 'Edit Study Material' : 'Add Study Material'}</h2>
               <form onSubmit={save} className="space-y-3">
                 <div>
                   <label className="label">Title *</label>
                   <input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} className="input" required />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="label">Type</label>
+                    <select
+                      value={form.contentType || 'ebook'}
+                      onChange={(e) => setForm((p) => ({ ...p, contentType: e.target.value, subCategory: '', chapter: '' }))}
+                      className="input"
+                    >
+                      <option value="ebook">E-Book</option>
+                      <option value="enote">E-Note</option>
+                      <option value="emagazine">E-Magazine</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="label">Subject</label>
                     <input value={form.subject} onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))} className="input" placeholder="e.g. Organic" />
@@ -141,6 +197,36 @@ export default function AdminEbooks() {
                     <input value={form.grade} onChange={(e) => setForm((p) => ({ ...p, grade: e.target.value }))} className="input" placeholder="e.g. JEE, Class 11" />
                   </div>
                 </div>
+
+                {form.contentType === 'enote' && (
+                  <div className="grid grid-cols-2 gap-3 border-l-2 border-indigo-500 pl-3 bg-indigo-50/20 p-2.5 rounded-r-xl">
+                    <div>
+                      <label className="label font-bold text-indigo-700">Sub Category *</label>
+                      <select
+                        value={form.subCategory || ''}
+                        onChange={(e) => setForm((p) => ({ ...p, subCategory: e.target.value }))}
+                        className="input border-indigo-200 font-semibold"
+                        required
+                      >
+                        <option value="">Select Sub Category</option>
+                        <option value="Short Notes">Short Notes</option>
+                        <option value="Handwritten Notes">Handwritten Notes</option>
+                        <option value="VVIQ">VVIQ</option>
+                        <option value="Practice papers">Practice papers</option>
+                        <option value="Syllabus">Syllabus</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label font-bold text-indigo-700">Chapter Name</label>
+                      <input
+                        value={form.chapter || ''}
+                        onChange={(e) => setForm((p) => ({ ...p, chapter: e.target.value }))}
+                        className="input border-indigo-200"
+                        placeholder="e.g. Solid State"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* PDF Upload */}
                 <div>
@@ -246,16 +332,30 @@ export default function AdminEbooks() {
                 </div>
                 {courses.length > 0 && (
                   <div>
-                    <label className="label">Restrict to Courses (optional)</label>
-                    <select
-                      multiple
-                      value={form.courses}
-                      onChange={(e) => setForm((p) => ({ ...p, courses: Array.from(e.target.selectedOptions, (o) => o.value) }))}
-                      className="input h-24"
-                    >
-                      {courses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
-                    </select>
-                    <p className="text-[11px] text-slate-400 mt-1">Hold Ctrl/Cmd to select multiple. Leave empty for all enrolled students.</p>
+                    <label className="label block font-semibold text-xs text-slate-700 mb-1.5">Restrict to Courses (optional)</label>
+                    <div className="border border-slate-200 rounded-xl p-3 max-h-36 overflow-y-auto space-y-2 bg-slate-50/50">
+                      {courses.map((c) => {
+                        const isChecked = form.courses.includes(c._id);
+                        return (
+                          <label key={c._id} className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer hover:text-slate-800 transition">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setForm((p) => ({ ...p, courses: [...p.courses, c._id] }));
+                                } else {
+                                  setForm((p) => ({ ...p, courses: p.courses.filter((id) => id !== c._id) }));
+                                }
+                              }}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span>{c.title}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Select the specific batches/courses that can access this file. If none are checked, all enrolled students can access it.</p>
                   </div>
                 )}
                 <div className="flex items-center gap-4">

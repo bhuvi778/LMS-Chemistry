@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client.js';
+import toast from 'react-hot-toast';
 import {
   Users,
   BookOpen,
@@ -15,17 +16,20 @@ import {
   Video,
   HelpCircle,
   TrendingDown,
+  Smartphone,
+  Shield,
+  Laptop,
+  Globe
 } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ students: 0, courses: 0, enrollments: 0, revenue: 0 });
+  const [stats, setStats] = useState({ students: 0, courses: 0, enrollments: 0, revenue: 0, appDownloads: 0 });
   const [detail, setDetail] = useState({
     enrollmentsByCat: [], recentDays: [], topCourses: [], publishedCourses: 0,
     monthlyRevenue: [], studentGrowth: [], doubtStats: { open: 0, answered: 0 },
   });
   const [recent, setRecent] = useState([]);
   const [liveClasses, setLiveClasses] = useState([]);
-
   useEffect(() => {
     api.get('/admin/stats').then((r) => setStats(r.data)).catch(() => {});
     api.get('/admin/stats/detail').then((r) => setDetail(r.data)).catch(() => {});
@@ -38,6 +42,7 @@ export default function AdminDashboard() {
     { label: 'Total Courses', value: stats.courses, icon: BookOpen, color: 'from-violet-500 to-fuchsia-500', sub: `${detail.publishedCourses || 0} live`, link: '/admin/courses' },
     { label: 'Enrollments', value: stats.enrollments.toLocaleString(), icon: FileText, color: 'from-emerald-500 to-teal-500', sub: 'All time', link: '/admin/enrollments' },
     { label: 'Total Revenue', value: `₹ ${(stats.revenue || 0).toLocaleString()}`, icon: DollarSign, color: 'from-amber-500 to-orange-500', sub: 'All-time earned', link: null },
+    { label: 'App Downloads', value: (stats.appDownloads || 0).toLocaleString(), icon: Smartphone, color: 'from-sky-500 to-blue-500', sub: 'App installations', link: null },
   ];
 
   const maxDay = useMemo(() => Math.max(1, ...(detail.recentDays || []).map((d) => d.count)), [detail.recentDays]);
@@ -57,7 +62,7 @@ export default function AdminDashboard() {
         <p className="text-slate-500 text-sm mt-1">Real-time overview — Ace2Examz • {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {kpis.map((k, i) => (
           <div key={i} className="card p-5 relative overflow-hidden group">
             <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${k.color} grid place-items-center text-white mb-3 shadow-soft`}>
@@ -267,6 +272,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
     </div>
   );
 }

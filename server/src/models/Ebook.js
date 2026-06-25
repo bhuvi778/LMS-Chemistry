@@ -6,6 +6,9 @@ const ebookSchema = new mongoose.Schema(
     description: { type: String, default: '' },
     subject: { type: String, default: '' },
     grade: { type: String, default: '' },   // e.g. "Class 11", "JEE", "NEET"
+    contentType: { type: String, enum: ['ebook', 'enote', 'emagazine'], default: 'ebook' },
+    subCategory: { type: String, default: '' }, // For E-Notes: 'Short Notes', 'Handwritten Notes', 'VVIQ', 'Practice papers', 'Syllabus'
+    chapter: { type: String, default: '' },     // For E-Notes chapterwise sorting
     coverImage: { type: String, default: '' },
     fileUrl: { type: String, default: '' },
     fileSize: { type: String, default: '' }, // e.g. "2.3 MB"

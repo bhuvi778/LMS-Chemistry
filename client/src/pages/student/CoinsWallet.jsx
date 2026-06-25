@@ -8,15 +8,23 @@ export default function CoinsWallet() {
   const { user, setUser } = useAuth();
   const currentBalance = user?.coins || 0;
   const [redemptions, setRedemptions] = useState([]);
+  const [plannerGoals, setPlannerGoals] = useState([]);
+  const [testAttempts, setTestAttempts] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
   useEffect(() => {
-    api.get('/auth/coin-redemptions')
-      .then((res) => {
-        setRedemptions(res.data || []);
+    Promise.all([
+      api.get('/auth/coin-redemptions').then(res => res.data).catch(() => []),
+      api.get('/ace-track/planner').then(res => res.data).catch(() => []),
+      api.get('/tests/attempts/me').then(res => res.data).catch(() => [])
+    ])
+      .then(([redData, plannerData, attemptsData]) => {
+        setRedemptions(redData || []);
+        setPlannerGoals(plannerData || []);
+        setTestAttempts(attemptsData || []);
       })
       .catch((err) => {
-        console.error('Error fetching coin redemptions:', err);
+        console.error('Error fetching coin transaction data:', err);
       })
       .finally(() => {
         setLoadingHistory(false);
@@ -55,8 +63,51 @@ export default function CoinsWallet() {
     });
   }
 
-  // 3. Admin Adjustment Difference
-  const totalEarnedSoFar = attendanceCoins;
+  // 3. Completed Planner Goals
+  let plannerCoins = 0;
+  plannerGoals.forEach((goal) => {
+    if (goal.isCompleted && goal.coinAwarded) {
+      plannerCoins += 1;
+      const completedDate = goal.completedAt ? new Date(goal.completedAt) : new Date(goal.updatedAt);
+      history.push({
+        type: 'earn',
+        title: `Planner Goal Completed: ${goal.title}`,
+        date: completedDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+        rawDate: completedDate,
+        amount: 1,
+      });
+    }
+  });
+
+  // 4. Completed Daily Tests
+  let testCoins = 0;
+  const earliestAttempts = {};
+  testAttempts.forEach((attempt) => {
+    if (attempt.test?.isDailyTest) {
+      const testId = attempt.test._id.toString();
+      const attemptDate = new Date(attempt.submittedAt);
+      if (!earliestAttempts[testId] || attemptDate < earliestAttempts[testId].date) {
+        earliestAttempts[testId] = {
+          attempt,
+          date: attemptDate
+        };
+      }
+    }
+  });
+
+  Object.values(earliestAttempts).forEach(({ attempt, date }) => {
+    testCoins += 2;
+    history.push({
+      type: 'earn',
+      title: `Daily Test Completed: ${attempt.test.title}`,
+      date: date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+      rawDate: date,
+      amount: 2,
+    });
+  });
+
+  // 5. Admin Adjustment Difference
+  const totalEarnedSoFar = attendanceCoins + plannerCoins + testCoins;
   const totalSpentSoFar = redemptions.reduce((acc, curr) => acc + curr.coinsSpent, 0);
   const expectedBalance = totalEarnedSoFar - totalSpentSoFar;
 
@@ -145,6 +196,7 @@ export default function CoinsWallet() {
               <li>Daily login attendance: <b>+1 Coin</b></li>
               <li>Refer & Earn (Per invite): <b>+50 Coins</b></li>
               <li>Daily Test completion: <b>+2 Coins</b></li>
+              <li>Planner Goal completion: <b>+1 Coin</b></li>
             </ul>
           </div>
           <div className="text-[11px] text-slate-500 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100 mt-3">

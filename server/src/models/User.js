@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema(
     twoFactorEnabled: { type: Boolean, default: false },
     twoFactorMethod: { type: String, enum: ['email', 'none'], default: 'none' },
     isEmailVerified: { type: Boolean, default: false },
+    isWhatsappVerified: { type: Boolean, default: false },
     passwordSetAt: { type: Date, default: Date.now },
     passwordSetByAdmin: { type: Boolean, default: false },
     // Max 5 concurrent active sessions

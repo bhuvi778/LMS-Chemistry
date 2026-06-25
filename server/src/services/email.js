@@ -243,3 +243,66 @@ export const sendEnquiryReceiptToUser = (email, name, enquiry) =>
       </p>
     `)
   );
+
+export const sendMentorshipRequestAdminEmail = (adminEmail, studentName, details) =>
+  send(
+    adminEmail,
+    `New 1:1 Mentorship Request: ${details.subject} 🎓`,
+    base(`
+      <h2 style="color:#1f2937;margin-top:0">New Mentorship Request Received 🎓</h2>
+      <p style="color:#4b5563">A student has requested a 1:1 mentorship session:</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0">
+        <tr style="background:#f9fafb">
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Student Name</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${studentName}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Subject / Topic</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${details.subject}</td>
+        </tr>
+        <tr style="background:#f9fafb">
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Preferred Date</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${new Date(details.preferredDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Preferred Time Slot</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${details.preferredTimeSlot}</td>
+        </tr>
+        <tr style="background:#f9fafb">
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Details</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${details.description}</td>
+        </tr>
+      </table>
+      <a href="${process.env.CLIENT_URL || 'https://ace2examz.com'}/admin/mentorship"
+         style="display:inline-block;background:#7c3aed;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:8px">
+        Manage Request
+      </a>
+    `)
+  );
+
+export const sendMentorshipRequestStudentEmail = (studentEmail, studentName, details) =>
+  send(
+    studentEmail,
+    `Mentorship Request Submitted: ${details.subject} 🚀`,
+    base(`
+      <h2 style="color:#1f2937;margin-top:0">Mentorship Request Submitted! 🚀</h2>
+      <p style="color:#4b5563">Hi <b>${studentName}</b>,</p>
+      <p style="color:#4b5563">Your request for a 1:1 mentorship session has been submitted successfully. Our team will review it and schedule a call shortly.</p>
+      <h3 style="color:#1f2937;margin-bottom:8px">Request Summary:</h3>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0">
+        <tr style="background:#f9fafb">
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Subject / Topic</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${details.subject}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Preferred Date</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${new Date(details.preferredDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
+        </tr>
+        <tr style="background:#f9fafb">
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Preferred Time Slot</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${details.preferredTimeSlot}</td>
+        </tr>
+      </table>
+      <p style="color:#6b7280;font-size:12px">You will receive an email and a dashboard notification once a mentor is assigned and a meeting link is generated.</p>
+    `)
+  );

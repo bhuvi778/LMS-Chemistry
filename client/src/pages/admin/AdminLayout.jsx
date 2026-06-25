@@ -33,6 +33,7 @@ import {
   Clock,
   Menu,
   Flag,
+  Shield,
 } from 'lucide-react';
 
 const groups = [
@@ -46,6 +47,14 @@ const groups = [
       { to: '/admin/ebooks', label: 'E-Books', icon: BookMarked },
       { to: '/admin/doubts', label: 'Doubts', icon: HelpCircle },
       { to: '/admin/support/chat', label: 'Chat Support', icon: MessageSquare },
+    ],
+  },
+  {
+    title: 'Ace Track',
+    icon: Sparkles,
+    items: [
+      { to: '/admin/syllabus-tracker', label: 'Syllabus Tracker', icon: ClipboardList },
+      { to: '/admin/mentorship', label: '1:1 Mentorship', icon: Users },
     ],
   },
   {
@@ -97,6 +106,13 @@ const groups = [
       { to: '/admin/stats/streak', label: 'Streak Data', icon: Flame },
       { to: '/admin/stats/wallet', label: 'Ace Coin Wallet', icon: Coins },
       { to: '/admin/stats/refer', label: 'Refer & Earn', icon: Share2 },
+    ],
+  },
+  {
+    title: 'Security',
+    icon: Shield,
+    items: [
+      { to: '/admin/security', label: 'Device & Sessions', icon: Shield },
     ],
   },
 ];

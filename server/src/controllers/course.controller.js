@@ -20,6 +20,23 @@ export const listCourses = asyncHandler(async (req, res) => {
   res.json(courses);
 });
 
+export const listPublicCourses = asyncHandler(async (req, res) => {
+  const { category, q, featured } = req.query;
+  const filter = { isPublished: true };
+
+  if (category && category !== 'ALL') {
+    filter.$or = [{ category }, { categories: category }];
+  }
+  if (featured === 'true') filter.isFeatured = true;
+  if (q) filter.title = { $regex: q, $options: 'i' };
+
+  const courses = await Course.find(filter)
+    .select('title slug category categories subject language thumbnail shortDescription description price mrp plans validity courseType totalLessons instructor rating studentsEnrolled highlights createdAt')
+    .sort({ createdAt: -1 });
+
+  res.json(courses);
+});
+
 export const getCategories = asyncHandler(async (_req, res) => {
   const cats = await Category.find().sort({ name: 1 }).lean();
   // Return array of category names for backward compat

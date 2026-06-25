@@ -2,6 +2,7 @@ import { Routes, Route, useLocation, Navigate, useParams } from 'react-router-do
 import { useEffect } from 'react';
 import toast from 'react-hot-toast';
 import Navbar from './components/Navbar.jsx';
+import api from './api/client.js';
 
 function LearnRedirect() {
   const { courseId } = useParams();
@@ -91,12 +92,25 @@ import StudentPrivacyPolicy from './pages/student/PrivacyPolicy.jsx';
 import AskPrepiify from './pages/student/AskPrepiify.jsx';
 import SupportChat from './pages/student/SupportChat.jsx';
 import StudentLiveClasses from './pages/student/LiveClasses.jsx';
+import SyllabusTracker from './pages/student/SyllabusTracker.jsx';
+import MyPlanner from './pages/student/MyPlanner.jsx';
+import Mentorship from './pages/student/Mentorship.jsx';
+import Downloads from './pages/student/Downloads.jsx';
+import AdminSyllabusTracker from './pages/admin/AdminSyllabusTracker.jsx';
+import AdminMentorship from './pages/admin/AdminMentorship.jsx';
+import AdminSecurity from './pages/admin/AdminSecurity.jsx';
 
 
 export default function App() {
   useEffect(() => {
     // Block context menu (right click)
     const blockContextMenu = (e) => e.preventDefault();
+
+    // Track PWA installation
+    const trackPwaInstall = () => {
+      api.post('/admin/analytics/app-download').catch(() => {});
+    };
+    window.addEventListener('appinstalled', trackPwaInstall);
 
     // Block keyboard combinations (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U, Ctrl+S, Ctrl+P)
     const blockShortcuts = (e) => {
@@ -127,6 +141,7 @@ export default function App() {
       document.removeEventListener('contextmenu', blockContextMenu);
       document.removeEventListener('keydown', blockShortcuts);
       document.removeEventListener('keyup', blockPrintScreen);
+      window.removeEventListener('appinstalled', trackPwaInstall);
     };
   }, []);
 
@@ -176,6 +191,9 @@ export default function App() {
           <Route path="stats/streak" element={<AdminStatsStreak />} />
           <Route path="stats/wallet" element={<AdminStatsWallet />} />
           <Route path="stats/refer" element={<AdminStatsRefer />} />
+          <Route path="syllabus-tracker" element={<AdminSyllabusTracker />} />
+          <Route path="mentorship" element={<AdminMentorship />} />
+          <Route path="security" element={<AdminSecurity />} />
         </Route>
 
         {/* Student layout routes (no global navbar/footer) */}
@@ -194,6 +212,7 @@ export default function App() {
           <Route path="courses" element={<StudentCourses />} />
           <Route path="practice" element={<TestPortal />} />
           <Route path="library" element={<Ebooks />} />
+          <Route path="downloads" element={<Downloads />} />
           <Route path="live-classes" element={<StudentLiveClasses />} />
           <Route path="boosters" element={<Boosters />} />
           <Route path="streak" element={<Streak />} />
@@ -209,6 +228,9 @@ export default function App() {
           <Route path="doubts" element={<AskDoubt />} />
           <Route path="support" element={<SupportChat />} />
           <Route path="learn/:courseId" element={<LearnCourse />} />
+          <Route path="syllabus-tracker" element={<SyllabusTracker />} />
+          <Route path="planner" element={<MyPlanner />} />
+          <Route path="mentorship" element={<Mentorship />} />
         </Route>
 
         {/* Live class room (no navbar/footer chrome) */}

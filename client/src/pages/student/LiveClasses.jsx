@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Video, Calendar, Clock, Loader2, Play, ExternalLink, HelpCircle } from 'lucide-react';
+import { Video, Calendar, Clock, Play, ExternalLink, HelpCircle } from 'lucide-react';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
+import LogoLoader from '../../components/LogoLoader.jsx';
 
 export default function LiveClasses() {
   const [loading, setLoading] = useState(true);
@@ -76,7 +77,10 @@ export default function LiveClasses() {
                     {lc.platform === 'agora_stream' ? 'Ace Live' :
                      lc.platform === 'agora_call' ? 'Ace Meet' :
                      lc.platform === 'agora_interactive' ? 'Ace Interactive' :
-                     lc.platform === 'agora_broadcast' ? 'Ace Broadcast' : 'Ace Meet'}
+                     lc.platform === 'agora_broadcast' ? 'Ace Broadcast' :
+                     lc.platform === 'youtube' ? 'YouTube Live' :
+                     lc.platform === 'zoom' ? 'Zoom' :
+                     lc.platform === 'meet' ? 'Google Meet' : 'Ace Meet'}
                   </span>
                 </div>
 
@@ -86,7 +90,7 @@ export default function LiveClasses() {
                     {lc.title}
                   </h3>
                   {lc.description && (
-                    <p className="text-xs text-slate-450 leading-relaxed line-clamp-2">
+                    <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
                       {lc.description}
                     </p>
                   )}
@@ -115,11 +119,15 @@ export default function LiveClasses() {
                       {lc.durationMins && ` (${lc.durationMins} Mins)`}
                     </span>
                   </div>
-                  {!isFree && lc.course?.title && (
-                    <div className="text-[11px] text-slate-405 font-medium truncate pt-1">
+                  {!isFree && (lc.courses && lc.courses.length > 0 ? (
+                    <div className="text-[11px] text-slate-500 font-medium truncate pt-1" title={lc.courses.map(c => c.title).join(', ')}>
+                      Courses: {lc.courses.map(c => c.title).join(', ')}
+                    </div>
+                  ) : lc.course?.title ? (
+                    <div className="text-[11px] text-slate-500 font-medium truncate pt-1">
                       Course: {lc.course.title}
                     </div>
-                  )}
+                  ) : null)}
                 </div>
               </div>
 
@@ -176,9 +184,8 @@ export default function LiveClasses() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24 text-slate-400">
-          <Loader2 size={32} className="animate-spin text-brand-600 mr-2" />
-          <span className="font-semibold">Loading live classes...</span>
+        <div className="bg-white rounded-3xl border border-slate-100 p-12 flex items-center justify-center min-h-[300px]">
+          <LogoLoader size={60} text="Loading live classes..." />
         </div>
       ) : (
         <div className="space-y-6">
