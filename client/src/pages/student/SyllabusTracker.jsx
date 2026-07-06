@@ -197,6 +197,7 @@ export default function SyllabusTracker() {
           if (subTopic.hasDpp) { totalItems++; if (comp.includes('dpp')) completedItems++; }
           if (subTopic.hasDppVideo) { totalItems++; if (comp.includes('dppVideo')) completedItems++; }
           if (subTopic.hasMockTest) { totalItems++; if (comp.includes('mockTest')) completedItems++; }
+          if (subTopic.hasPyq) { totalItems++; if (comp.includes('pyq')) completedItems++; }
         });
       });
     });
@@ -220,6 +221,7 @@ export default function SyllabusTracker() {
         if (subTopic.hasDpp) { totalItems++; if (comp.includes('dpp')) completedItems++; }
         if (subTopic.hasDppVideo) { totalItems++; if (comp.includes('dppVideo')) completedItems++; }
         if (subTopic.hasMockTest) { totalItems++; if (comp.includes('mockTest')) completedItems++; }
+        if (subTopic.hasPyq) { totalItems++; if (comp.includes('pyq')) completedItems++; }
       });
     });
 
@@ -244,6 +246,7 @@ export default function SyllabusTracker() {
             if (subTopic.hasDpp) { totalItems++; if (comp.includes('dpp')) completedItems++; }
             if (subTopic.hasDppVideo) { totalItems++; if (comp.includes('dppVideo')) completedItems++; }
             if (subTopic.hasMockTest) { totalItems++; if (comp.includes('mockTest')) completedItems++; }
+            if (subTopic.hasPyq) { totalItems++; if (comp.includes('pyq')) completedItems++; }
           });
         });
       });
@@ -492,6 +495,7 @@ export default function SyllabusTracker() {
                                 { type: 'dpp', label: 'DPPs', icon: BookOpen, enabled: subTopic.hasDpp, color: 'text-sky-600 bg-sky-50 border-sky-100' },
                                 { type: 'dppVideo', label: 'DPP Video', icon: Play, enabled: subTopic.hasDppVideo, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
                                 { type: 'mockTest', label: 'Mock Test', icon: Award, enabled: subTopic.hasMockTest, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                                { type: 'pyq', label: 'PYQs', icon: FileCheck, enabled: subTopic.hasPyq, color: 'text-fuchsia-600 bg-fuchsia-50 border-fuchsia-100' },
                               ];
 
                               const enabledCount = resources.filter(r => r.enabled).length;

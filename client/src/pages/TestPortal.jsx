@@ -21,7 +21,11 @@ import {
   FileText,
   Share2,
   Coins,
+  XCircle,
+  Repeat,
 } from 'lucide-react';
+import MyMistakes from './student/MyMistakes.jsx';
+import RevisionQueue from './student/RevisionQueue.jsx';
 
 const DIFFICULTY_COLORS = {
   basic: { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
@@ -449,7 +453,7 @@ export default function TestPortal() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-xl w-fit">
+        <div className="flex flex-wrap gap-1 mb-6 bg-slate-100 p-1 rounded-xl w-fit">
           <button
             onClick={() => setTab('tests')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition ${
@@ -465,6 +469,22 @@ export default function TestPortal() {
             }`}
           >
             <Layers size={15} /> Test Series ({filteredSeries.length})
+          </button>
+          <button
+            onClick={() => setTab('mistakes')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition ${
+              tab === 'mistakes' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <XCircle size={15} /> Mistakes
+          </button>
+          <button
+            onClick={() => setTab('revision')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition ${
+              tab === 'revision' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Repeat size={15} /> Revision Queue
           </button>
         </div>
 
@@ -618,6 +638,10 @@ export default function TestPortal() {
               <div key={n} className="bg-white rounded-2xl border border-slate-100 h-64 animate-pulse" />
             ))}
           </div>
+        ) : tab === 'mistakes' ? (
+          <MyMistakes />
+        ) : tab === 'revision' ? (
+          <RevisionQueue />
         ) : tab === 'tests' ? (
           filteredTests.length === 0 ? (
             <div className="text-center py-16 text-slate-400">

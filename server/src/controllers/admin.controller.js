@@ -175,8 +175,24 @@ export const getLiveClasses = asyncHandler(async (_req, res) => {
 });
 
 export const createLiveClass = asyncHandler(async (req, res) => {
-  const lc = await LiveClass.create(req.body);
-  // Notify all enrolled students of all linked courses
+  const body = { ...req.body };
+  // Sanitize: empty string course is not a valid ObjectId
+  if (!body.course || body.course === '') body.course = null;
+  if (!body.courses || !Array.isArray(body.courses)) body.courses = [];
+  // Filter out empty string course IDs
+  body.courses = body.courses.filter(c => c && c !== '');
+  
+  const lc = await LiveClass.create(body);
+  const link = lc.useInternalRoom ? `/live/${lc._id}` : (lc.meetLink || '');
+  const notifPayload = {
+    title: `New Live Class: ${lc.title}`,
+    message: `Scheduled at ${new Date(lc.scheduledAt).toLocaleString('en-IN')} · ${lc.durationMins} min · ${lc.instructor}`,
+    type: 'live_class',
+    link,
+    refId: lc._id,
+  };
+
+  // Collect course IDs from the saved live class
   const courseIds = [];
   if (lc.course) courseIds.push(lc.course);
   if (lc.courses && lc.courses.length > 0) {
@@ -187,18 +203,20 @@ export const createLiveClass = asyncHandler(async (req, res) => {
       }
     });
   }
+
   if (courseIds.length > 0) {
+    // Linked class: notify enrolled students of those specific courses
     const enrollments = await Enrollment.find({ course: { $in: courseIds } }).select('student');
     const userIds = [...new Set(enrollments.map((e) => e.student.toString()))];
     if (userIds.length) {
-      const link = lc.useInternalRoom ? `/live/${lc._id}` : (lc.meetLink || '');
-      await notifyMany(userIds, {
-        title: `New Live Class: ${lc.title}`,
-        message: `Scheduled at ${new Date(lc.scheduledAt).toLocaleString('en-IN')} · ${lc.durationMins} min · ${lc.instructor}`,
-        type: 'live_class',
-        link,
-        refId: lc._id,
-      });
+      await notifyMany(userIds, notifPayload);
+    }
+  } else {
+    // No linked course: this is an open/broadcast class — notify ALL active students
+    const allStudents = await User.find({ role: 'student' }).select('_id');
+    const userIds = allStudents.map(u => u._id.toString());
+    if (userIds.length) {
+      await notifyMany(userIds, notifPayload);
     }
   }
   res.status(201).json(lc);
@@ -207,9 +225,15 @@ export const createLiveClass = asyncHandler(async (req, res) => {
 export const updateLiveClass = asyncHandler(async (req, res) => {
   const lc = await LiveClass.findById(req.params.id);
   if (!lc) return res.status(404).json({ message: 'Not found' });
-  Object.assign(lc, req.body);
+  const updates = { ...req.body };
+  // Sanitize: empty string course is not a valid ObjectId
+  if (updates.course === '' || updates.course === undefined) updates.course = null;
+  if (Array.isArray(updates.courses)) {
+    updates.courses = updates.courses.filter(c => c && c !== '');
+  }
+  Object.assign(lc, updates);
   if (req.body.courses !== undefined) {
-    lc.courses = req.body.courses;
+    lc.courses = updates.courses;
   }
   await lc.save();
   res.json(lc);
@@ -222,24 +246,29 @@ export const deleteLiveClass = asyncHandler(async (req, res) => {
 
 // For students: upcoming active live classes scoped to their enrollments
 export const upcomingLiveClasses = asyncHandler(async (req, res) => {
-  // student → only classes for courses they are enrolled in (or with no course)
-  let courseFilter = null;
-  if (req.user && req.user.role !== 'admin') {
-    const myEnrolls = await Enrollment.find({ student: req.user._id }).select('course');
-    const myCourseIds = myEnrolls.map((e) => e.course);
-    courseFilter = {
-      $or: [
-        { course: null, courses: { $size: 0 } },
-        { course: { $in: myCourseIds } },
-        { courses: { $in: myCourseIds } }
-      ]
-    };
-  }
   const baseQuery = {
     isActive: true,
     scheduledAt: { $gte: new Date(Date.now() - 2 * 60 * 60 * 1000) },
   };
-  const query = courseFilter ? { ...baseQuery, ...courseFilter } : baseQuery;
+
+  let query = baseQuery;
+
+  if (req.user && req.user.role !== 'admin') {
+    const myEnrolls = await Enrollment.find({ student: req.user._id }).select('course');
+    const myCourseIds = myEnrolls.map((e) => e.course);
+    // Show classes that:
+    // 1. Have no linked course (open to all) — course is null AND courses array is empty
+    // 2. Are linked to a course the student is enrolled in
+    query = {
+      ...baseQuery,
+      $or: [
+        { course: null, courses: { $size: 0 } },
+        { course: { $in: myCourseIds } },
+        { courses: { $elemMatch: { $in: myCourseIds } } },
+      ],
+    };
+  }
+
   const list = await LiveClass.find(query)
     .populate('course', 'title category')
     .populate('courses', 'title category')
@@ -256,10 +285,12 @@ export const allLiveClassesForStudent = asyncHandler(async (req, res) => {
     const myCourseIds = myEnrolls.map((e) => e.course);
     courseFilter = {
       $or: [
+        // Open classes: no linked course at all (course is null AND courses empty)
         { course: null, courses: { $size: 0 } },
+        // Linked to courses student is enrolled in
         { course: { $in: myCourseIds } },
-        { courses: { $in: myCourseIds } }
-      ]
+        { courses: { $elemMatch: { $in: myCourseIds } } },
+      ],
     };
   }
 
@@ -401,6 +432,7 @@ export const adminEnrollStudent = asyncHandler(async (req, res) => {
   if (existing) {
     existing.planType = pType;
     existing.pricePaid = initialPrice;
+    existing.paymentStatus = 'paid';
     existing.validUntil = calculateValidityEndDate(course.validity);
     existing.createdAt = new Date();
     await existing.save();

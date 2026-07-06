@@ -6,7 +6,8 @@ const subTopicSchema = new mongoose.Schema({
   hasNotes: { type: Boolean, default: true },
   hasDpp: { type: Boolean, default: true },
   hasDppVideo: { type: Boolean, default: true },
-  hasMockTest: { type: Boolean, default: true }
+  hasMockTest: { type: Boolean, default: true },
+  hasPyq: { type: Boolean, default: true }
 });
 
 const topicSchema = new mongoose.Schema({

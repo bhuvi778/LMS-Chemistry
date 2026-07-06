@@ -8,6 +8,7 @@ import ReportedQuestion from '../models/ReportedQuestion.js';
 import CourseTest from '../models/CourseTest.js';
 import User from '../models/User.js';
 import CoinRedemption from '../models/CoinRedemption.js';
+import RevisionQuestion from '../models/RevisionQuestion.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const makeSlug = (title) =>
@@ -305,11 +306,17 @@ export const submitAttempt = asyncHandler(async (req, res) => {
           correct++;
           isCorrect = true;
           marksAwarded = q.marks || 4;
-        } else if (numCorrectSelected > 0) {
-          // Partial marking: award marks equal to the number of correct options chosen
+        } else if (numCorrectSelected > 0 && q.partialMarking !== false) {
           isCorrect = true;
           correct++;
-          marksAwarded = numCorrectSelected;
+          if (q.partialMarkingMethod === 'percentage_based') {
+            // Proportional marking: (C / T) * full_marks
+            const calculated = (numCorrectSelected / totalCorrect) * (q.marks || 4);
+            marksAwarded = Math.round((calculated + Number.EPSILON) * 100) / 100;
+          } else {
+            // 'correct_count': Marks = C
+            marksAwarded = numCorrectSelected;
+          }
         } else {
           isCorrect = false;
           marksAwarded = 0;
@@ -552,5 +559,103 @@ export const spendCoinForTest = asyncHandler(async (req, res) => {
   }
 
   res.json({ ok: true, coins: user.coins });
+});
+
+// ─── STUDENT: My Mistakes ───────────────────────────────────────────────────
+export const getMyMistakes = asyncHandler(async (req, res) => {
+  const attempts = await TestAttempt.find({ user: req.user._id })
+    .populate('test')
+    .sort({ submittedAt: -1 });
+
+  const mistakesMap = new Map();
+
+  for (const attempt of attempts) {
+    let testObj = attempt.test;
+    if (!testObj) {
+      const courseTest = await CourseTest.findById(attempt.toObject().test);
+      if (courseTest) {
+        testObj = {
+          _id: courseTest._id,
+          title: courseTest.title,
+          questions: courseTest.questions
+        };
+      }
+    }
+    if (!testObj || !testObj.questions) continue;
+
+    const questionsMap = new Map();
+    testObj.questions.forEach((q) => {
+      questionsMap.set(q._id.toString(), q);
+    });
+
+    for (const ans of attempt.answers) {
+      if (!ans.isCorrect && ans.selected !== -1 && ans.selected !== null && ans.selected !== undefined) {
+        if (Array.isArray(ans.selected) && ans.selected.length === 0) continue;
+        const qIdStr = ans.questionId ? ans.questionId.toString() : '';
+        const qObj = questionsMap.get(qIdStr);
+        if (qObj && !mistakesMap.has(qIdStr)) {
+          mistakesMap.set(qIdStr, {
+            questionId: qIdStr,
+            testId: testObj._id,
+            testTitle: testObj.title,
+            questionText: qObj.question,
+            options: (qObj.options || []).map(opt => typeof opt === 'string' ? { text: opt } : opt),
+            correct: qObj.correct,
+            correctOptions: qObj.correctOptions,
+            correctNumerical: qObj.correctNumerical,
+            type: qObj.type || 'mcq',
+            explanation: qObj.explanation,
+            image: qObj.image,
+            selected: ans.selected,
+            submittedAt: attempt.submittedAt
+          });
+        }
+      }
+    }
+  }
+
+  const mistakes = Array.from(mistakesMap.values());
+  res.json(mistakes);
+});
+
+// ─── STUDENT: Revision Queue ────────────────────────────────────────────────
+export const getRevisionQueue = asyncHandler(async (req, res) => {
+  const list = await RevisionQuestion.find({ user: req.user._id }).sort({ createdAt: -1 });
+  res.json(list);
+});
+
+export const addToRevisionQueue = asyncHandler(async (req, res) => {
+  const { questionId, testId, questionText, options, correct, correctOptions, correctNumerical, type, explanation, image, testTitle } = req.body;
+  if (!questionId) {
+    res.status(400);
+    throw new Error('questionId is required');
+  }
+
+  const exists = await RevisionQuestion.findOne({ user: req.user._id, questionId });
+  if (exists) {
+    return res.status(200).json(exists);
+  }
+
+  const item = await RevisionQuestion.create({
+    user: req.user._id,
+    testId: testId || null,
+    questionId,
+    questionText,
+    options,
+    correct,
+    correctOptions,
+    correctNumerical,
+    type,
+    explanation,
+    image,
+    testTitle,
+  });
+
+  res.status(201).json(item);
+});
+
+export const removeFromRevisionQueue = asyncHandler(async (req, res) => {
+  await RevisionQuestion.findOneAndDelete({ user: req.user._id, questionId: req.params.questionId });
+  res.json({ ok: true });
 });
 

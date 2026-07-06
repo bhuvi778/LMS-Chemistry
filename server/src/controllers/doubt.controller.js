@@ -23,6 +23,10 @@ export const createDoubt = asyncHandler(async (req, res) => {
         res.status(403);
         throw new Error('You are not enrolled in this course.');
       }
+      if (enrolled.isPaused) {
+        res.status(403);
+        throw new Error('This course is currently paused. Please resume it to ask doubts.');
+      }
     }
 
     // Find highest active plan across all courses
@@ -43,7 +47,7 @@ export const createDoubt = asyncHandler(async (req, res) => {
       const count = await Doubt.countDocuments(filter);
       if (count >= limit) {
         res.status(400);
-        throw new Error(`Your ${plan === 'batch' ? 'Ace Batch' : 'Ace Pro'} plan only allows ${limit} doubt${limit > 1 ? 's' : ''} per day. Upgrade your plan for higher or unlimited doubts!`);
+        throw new Error(`Your ${plan === 'batch' ? 'Ace Starter' : 'Ace Pro'} plan only allows ${limit} doubt${limit > 1 ? 's' : ''} per day. Upgrade your plan for higher or unlimited doubts!`);
       }
     }
   }

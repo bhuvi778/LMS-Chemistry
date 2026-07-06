@@ -243,24 +243,27 @@ export default function CoinsWallet() {
           <div className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 border border-indigo-100 rounded-3xl p-6 shadow-sm space-y-4">
             <h3 className="font-display font-extrabold text-slate-800 text-base border-b border-indigo-100 pb-3 flex items-center gap-2">
               <Trophy size={18} className="text-indigo-600" />
-              <span>Refer & Earn</span>
+              <span>Refer &amp; Earn</span>
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed font-medium">
               Invite friends to Ace2Examz! Share your unique referral code. You'll receive <b>50 Coins</b> (equivalent to ₹50) as soon as they sign up and verify their email.
             </p>
-            <div className="bg-white rounded-2xl p-3 border border-indigo-100 flex items-center justify-between gap-3 text-xs shadow-sm">
-              <span className="font-mono font-black text-indigo-700 uppercase select-all tracking-wider">
-                {user?.studentId ? `REF-${user.studentId}` : 'REF-INVITE5'}
-              </span>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(user?.studentId ? `REF-${user.studentId}` : 'REF-INVITE5');
-                  toast.success('Referral code copied to clipboard!');
-                }}
-                className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
-              >
-                Copy Code
-              </button>
+            <div className="bg-white rounded-2xl p-4 border border-indigo-100 space-y-2 shadow-sm">
+              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Your Referral Code</p>
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-mono font-black text-indigo-700 uppercase select-all tracking-wider text-sm">
+                  {user?.studentId ? `REF-${user.studentId}` : 'REF-INVITE5'}
+                </span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(user?.studentId ? `REF-${user.studentId}` : 'REF-INVITE5');
+                    toast.success('Referral code copied to clipboard!');
+                  }}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition shadow-sm"
+                >
+                  Copy Code
+                </button>
+              </div>
             </div>
           </div>
 
@@ -276,47 +279,61 @@ export default function CoinsWallet() {
               </div>
             )}
             <div className="space-y-3">
-              {rewards.map((reward, i) => (
-                <div key={i} className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                  <div>
-                    <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                      {reward.label}
-                    </span>
-                    <h4 className="font-bold text-slate-800 text-xs mt-0.5 leading-snug">{reward.title}</h4>
-                    <div className="flex items-center gap-1 text-[11px] text-yellow-600 font-bold mt-1">
-                      <Coins size={12} />
-                      <span>{reward.cost} Coins (≈ ₹{reward.cost} INR)</span>
+              {rewards.map((reward, i) => {
+                const isRedeemed = redemptions.some(r => r.itemName === reward.title);
+                const canAfford = currentBalance >= reward.cost && currentBalance >= 250;
+                return (
+                  <div key={i} className={`p-4 rounded-2xl border flex items-center justify-between gap-4 transition ${
+                    isRedeemed
+                      ? 'border-emerald-100 bg-emerald-50/40'
+                      : canAfford
+                        ? 'border-amber-100 bg-gradient-to-r from-amber-50/50 to-yellow-50/30 hover:shadow-sm'
+                        : 'border-slate-100 bg-slate-50/60'
+                  }`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <Coins size={13} className={canAfford || isRedeemed ? 'text-amber-500' : 'text-slate-300'} />
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                          isRedeemed ? 'text-emerald-600' : canAfford ? 'text-amber-600' : 'text-slate-400'
+                        }`}>
+                          {reward.cost} Coins
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-slate-800 text-sm leading-snug">{reward.title}</h4>
+                      <p className="text-[11px] text-slate-400 font-medium mt-0.5">≈ ₹{reward.cost} discount</p>
+                    </div>
+                    <div className="shrink-0">
+                      {isRedeemed ? (
+                        <div className="flex flex-col gap-1.5 items-end">
+                          <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-xl border border-emerald-100">
+                            ✓ Redeemed
+                          </span>
+                          <button
+                            onClick={() => {
+                              toast.success(`Your Voucher Coupon Code: ACE-INR-${reward.cost}-OFFER`, { duration: 6000 });
+                            }}
+                            className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-[10px] rounded-xl text-center shadow-sm transition"
+                          >
+                            View Code
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleRedeem(reward)}
+                          disabled={!canAfford}
+                          className={`px-4 py-2 font-bold text-xs rounded-xl transition shadow-sm ${
+                            canAfford
+                              ? 'bg-slate-900 hover:bg-amber-600 text-white cursor-pointer'
+                              : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                          }`}
+                        >
+                          Redeem
+                        </button>
+                      )}
                     </div>
                   </div>
-                  {redemptions.some(r => r.itemName === reward.title) ? (
-                    <div className="flex flex-col sm:flex-row gap-2 self-start sm:self-center">
-                      <span className="px-3.5 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-xl border border-emerald-100 text-center">
-                        ✓ Redeemed
-                      </span>
-                      <button
-                        onClick={() => {
-                          toast.success(`Your Voucher Coupon Code: ACE-INR-${reward.cost}-OFFER`, { duration: 6000 });
-                        }}
-                        className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-[10px] rounded-xl text-center shadow-sm"
-                      >
-                        View Code
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleRedeem(reward)}
-                      disabled={currentBalance < reward.cost || currentBalance < 250}
-                      className={`px-3.5 py-1.5 font-bold text-[10px] rounded-xl self-start sm:self-center transition shadow-sm ${
-                        (currentBalance < reward.cost || currentBalance < 250)
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-                          : 'bg-slate-900 hover:bg-slate-800 text-white'
-                      }`}
-                    >
-                      Redeem
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

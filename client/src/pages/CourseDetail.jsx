@@ -476,6 +476,18 @@ function SubjectsTab({ courseId, enrolled, onEnroll }) {
   );
 }
 
+const formatTimeToAMPM = (timeStr) => {
+  if (!timeStr) return '';
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return timeStr;
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${hours}:${minutes} ${ampm}`;
+};
+
 export default function CourseDetail() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -562,8 +574,17 @@ export default function CourseDetail() {
       const fetched = r.data;
       setCourse(fetched);
       const courseId = fetched._id;
-      if (fetched.upsell?.enabled && fetched.upsell?.courseId) {
-        api.get(`/courses/${fetched.upsell.courseId}`).then((u) => setUpsellCourse(u.data)).catch(() => {});
+      if (fetched.upsell?.enabled) {
+        const targetType = fetched.upsell.targetType || 'course';
+        if (targetType === 'test_series' && fetched.upsell.testSeriesId) {
+          api.get(`/tests/series/${fetched.upsell.testSeriesId}`)
+            .then((u) => setUpsellCourse(u.data))
+            .catch(() => {});
+        } else if (targetType === 'course' && fetched.upsell.courseId) {
+          api.get(`/courses/${fetched.upsell.courseId}`)
+            .then((u) => setUpsellCourse(u.data))
+            .catch(() => {});
+        }
       }
       if (user) {
         api.get(`/enroll/check/${courseId}`).then((r) => {
@@ -890,9 +911,9 @@ export default function CourseDetail() {
               </label>
               <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-slate-100 border border-slate-200/60">
                 {[
-                  { k: 'batch', l: 'Ace Batch' },
-                  { k: 'pro', l: 'Ace Pro' },
-                  { k: 'infinity', l: 'Ace Infinity' }
+                  { k: 'batch', l: course.plans?.batch?.name || 'Ace Starter' },
+                  { k: 'pro', l: course.plans?.pro?.name || 'Ace Pro' },
+                  { k: 'infinity', l: course.plans?.infinity?.name || 'Ace Infinity' }
                 ].map((p) => {
                   const planConfig = course.plans?.[p.k];
                   const isEnabled = planConfig ? planConfig.enabled : true;
@@ -969,28 +990,34 @@ export default function CourseDetail() {
                 const PLAN_FEATURES = {
                   batch: [
                     { text: '📚 Complete Chemistry Syllabus', included: true },
-                    { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
+                    { text: '📝 Digital Notes & PYQs', included: true },
                     { text: '🧪 Online Practice Test', included: true },
                     { text: '💬 1 Doubt Query Per Day', included: true },
                     { text: '🎥 Interactive Live Classes', included: false },
+                    { text: '🎯 Ace Track', included: false },
+                    { text: '🚀 Upcoming Course & Test Series', included: false },
                     { text: '👑 1-on-1 Personal Mentorship', included: false },
                     { text: '🤖 Ask Prepiify AI Access', included: false },
                   ],
                   pro: [
                     { text: '📚 Complete Chemistry Syllabus', included: true },
-                    { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
+                    { text: '📝 Digital Notes & PYQs', included: true },
                     { text: '🧪 Online Practice Test', included: true },
                     { text: '💬 3 Doubt Queries Per Day', included: true },
                     { text: '🎥 Interactive Live Classes', included: true },
+                    { text: '🎯 Ace Track', included: true },
+                    { text: '🚀 Upcoming Course & Test Series', included: false },
                     { text: '👑 1-on-1 Personal Mentorship', included: false },
                     { text: '🤖 Ask Prepiify AI Access', included: true },
                   ],
                   infinity: [
                     { text: '📚 Complete Chemistry Syllabus', included: true },
-                    { text: '📝 Chapter-wise Digital Notes & PYQs', included: true },
+                    { text: '📝 Digital Notes & PYQs', included: true },
                     { text: '🧪 Online Practice Test', included: true },
                     { text: '💬 Unlimited Doubt Queries', included: true },
                     { text: '🎥 Interactive Live Classes', included: true },
+                    { text: '🎯 Ace Track', included: true },
+                    { text: '🚀 Upcoming Course & Test Series', included: true },
                     { text: '👑 1-on-1 Personal Mentorship', included: true },
                     { text: '🤖 Ask Prepiify AI Access', included: true },
                   ]
@@ -999,7 +1026,7 @@ export default function CourseDetail() {
                 return (
                   <div className="mt-5 bg-slate-50 border border-slate-100 rounded-2xl p-4 shadow-inner animate-fade-in">
                     <div className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3">
-                      {selectedPlan === 'batch' ? 'Ace Batch Features' : selectedPlan === 'pro' ? 'Ace Pro Features' : 'Ace Infinity Features'}
+                      {selectedPlan === 'batch' ? `${course.plans?.batch?.name || 'Ace Starter'} Features` : selectedPlan === 'pro' ? `${course.plans?.pro?.name || 'Ace Pro'} Features` : `${course.plans?.infinity?.name || 'Ace Infinity'} Features`}
                     </div>
                     <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-2.5">
                       {PLAN_FEATURES[selectedPlan].map((feat, fi) => (
@@ -1042,7 +1069,7 @@ export default function CourseDetail() {
                     <div>
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Active Plan</span>
                       <div className="text-xs font-extrabold text-brand-800">
-                        {enrollment.planType === 'batch' ? 'Ace Batch' : enrollment.planType === 'pro' ? 'Ace Pro' : 'Ace Infinity'}
+                        {enrollment.planType === 'batch' ? (course.plans?.batch?.name || 'Ace Starter') : enrollment.planType === 'pro' ? (course.plans?.pro?.name || 'Ace Pro') : (course.plans?.infinity?.name || 'Ace Infinity')}
                       </div>
                     </div>
                     {enrollment.planType !== 'infinity' && (
@@ -1442,6 +1469,89 @@ export default function CourseDetail() {
                   )}
                 </div>
               )}
+
+              {/* Infinity Plan Bundled Content */}
+              {selectedPlan === 'infinity' && course.plans?.infinity && ((course.plans.infinity.courses && course.plans.infinity.courses.length > 0) || (course.plans.infinity.testSeries && course.plans.infinity.testSeries.length > 0)) && (
+                <div className="mb-10 bg-amber-50/50 border border-amber-200 rounded-2xl p-6 sm:p-8 shadow-sm animate-fade-in">
+                  <h3 className="font-display text-lg font-extrabold text-amber-950 flex items-center gap-2 mb-2">
+                    <span>🎁</span> Included with Ace Infinity Plan
+                  </h3>
+                  <p className="text-xs text-amber-800/80 mb-6 font-bold">
+                    Upgrading to the Ace Infinity Plan grants you complimentary, full access to the following premium courses and test series:
+                  </p>
+
+                  {course.plans.infinity.courses && course.plans.infinity.courses.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="font-bold text-amber-900 text-sm mb-3">🎓 Included Batches & Courses ({course.plans.infinity.courses.length})</h4>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {course.plans.infinity.courses.map((cc) => (
+                          <Link
+                            key={cc._id}
+                            to={`/courses/${cc.slug || cc._id}`}
+                            className="bg-white rounded-2xl border border-amber-200/60 p-4 flex gap-4 hover:shadow-md transition-all group"
+                          >
+                            {cc.thumbnail ? (
+                              <img
+                                src={cc.thumbnail}
+                                alt={cc.title}
+                                className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100"
+                              />
+                            ) : (
+                              <div className="w-16 h-16 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm shrink-0">
+                                Course
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                              <h4 className="font-bold text-slate-805 text-sm leading-snug group-hover:text-brand-650 transition-colors line-clamp-2">
+                                {cc.title}
+                              </h4>
+                              <span className="text-[10px] font-bold text-brand-650 hover:underline inline-flex items-center gap-0.5 mt-2">
+                                View Course Details →
+                              </span>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {course.plans.infinity.testSeries && course.plans.infinity.testSeries.length > 0 && (
+                    <div>
+                      <h4 className="font-bold text-amber-900 text-sm mb-3">📝 Included Test Series ({course.plans.infinity.testSeries.length})</h4>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {course.plans.infinity.testSeries.map((ts) => (
+                          <Link
+                            key={ts._id}
+                            to={`/test-series/${ts.slug || ts._id}`}
+                            className="bg-white rounded-2xl border border-amber-200/60 p-4 flex gap-4 hover:shadow-md transition-all group"
+                          >
+                            {ts.thumbnail ? (
+                              <img
+                                src={ts.thumbnail}
+                                alt={ts.title}
+                                className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100"
+                              />
+                            ) : (
+                              <div className="w-16 h-16 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm shrink-0">
+                                Test
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                              <h4 className="font-bold text-slate-850 text-sm leading-snug group-hover:text-brand-650 transition-colors line-clamp-2">
+                                {ts.title}
+                              </h4>
+                              <span className="text-[10px] font-bold text-brand-650 hover:underline inline-flex items-center gap-0.5 mt-2">
+                                View Test Series Details →
+                              </span>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
                 {[
                   { icon: Video,       label: 'Video Classes', value: 'Full HD',                                        color: 'text-brand-600',   bg: 'bg-brand-50'   },
@@ -1461,6 +1571,28 @@ export default function CourseDetail() {
                 ))}
               </div>
 
+              {course.batchInformation && (
+                <div className="mt-6 p-5 bg-gradient-to-r from-brand-50 to-indigo-50 border border-brand-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-fade-in">
+                  <div className="flex items-center gap-3.5 text-center sm:text-left flex-col sm:flex-row">
+                    <div className="w-12 h-12 rounded-2xl bg-brand-500 text-white flex items-center justify-center shadow-md shadow-brand-100 shrink-0">
+                      <FileText size={22} />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-slate-800 text-sm sm:text-base">Batch Information Booklet</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">Download or view the detailed batch details, syllabus, and schedule.</p>
+                    </div>
+                  </div>
+                  <a
+                    href={course.batchInformation}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-primary flex items-center gap-2 text-xs py-2.5 px-5 shadow-lg shadow-brand-100 shrink-0 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                  >
+                    <Download size={14} /> View Batch Info PDF
+                  </a>
+                </div>
+              )}
+
               {/* Plans Comparison Table */}
               <div className="mt-10 border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                 <div className="p-5 border-b border-slate-100 bg-slate-50/50">
@@ -1472,9 +1604,9 @@ export default function CourseDetail() {
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50/30">
                         <th className="p-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Features</th>
-                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-brand-50/20">Ace Batch</th>
-                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-violet-50/20">Ace Pro</th>
-                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-amber-50/20">Ace Infinity</th>
+                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-brand-50/20">{course.plans?.batch?.name || 'Ace Starter'}</th>
+                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-violet-50/20">{course.plans?.pro?.name || 'Ace Pro'}</th>
+                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-amber-50/20">{course.plans?.infinity?.name || 'Ace Infinity'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
@@ -1491,10 +1623,16 @@ export default function CourseDetail() {
                         <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
                       </tr>
                       <tr>
-                        <td className="p-3 text-xs font-semibold text-slate-800">Doubt Support (Ask Prepiify AI)</td>
-                        <td className="p-3 text-center text-slate-500 text-xs font-medium">1 / Week</td>
-                        <td className="p-3 text-center text-slate-500 text-xs font-medium">3 / Week</td>
+                        <td className="p-3 text-xs font-semibold text-slate-800">Doubt Support</td>
+                        <td className="p-3 text-center text-slate-500 text-xs font-medium">1 / Day</td>
+                        <td className="p-3 text-center text-slate-500 text-xs font-medium">3 / Day</td>
                         <td className="p-3 text-center text-emerald-600 font-bold">Unlimited</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 text-xs font-semibold text-slate-800">Ask Prepiify AI</td>
+                        <td className="p-3 text-center text-rose-500 font-bold">✗</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
                       </tr>
                       <tr>
                         <td className="p-3 text-xs font-semibold text-slate-800">Live Interactive Classes</td>
@@ -1506,6 +1644,24 @@ export default function CourseDetail() {
                         <td className="p-3 text-xs font-semibold text-slate-800">1:1 Personal Mentorship</td>
                         <td className="p-3 text-center text-rose-500 font-bold">✗</td>
                         <td className="p-3 text-center text-rose-500 font-bold">✗</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 text-xs font-semibold text-slate-800">Syllabus Tracker</td>
+                        <td className="p-3 text-center text-rose-500 font-bold">✗</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 text-xs font-semibold text-slate-800">Daily Study Planner</td>
+                        <td className="p-3 text-center text-rose-500 font-bold">✗</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 text-xs font-semibold text-slate-800">Study Library (E-Books, Notes & Magazines)</td>
+                        <td className="p-3 text-center text-rose-500 font-bold">✗</td>
+                        <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
                         <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
                       </tr>
                     </tbody>
@@ -1714,7 +1870,7 @@ export default function CourseDetail() {
                         <div>
                           <div className="font-bold text-slate-800">{slot.subject}</div>
                           <div className="text-sm text-slate-500 mt-0.5">
-                            {slot.timeFrom} – {slot.timeTo}
+                            {formatTimeToAMPM(slot.timeFrom)} – {formatTimeToAMPM(slot.timeTo)}
                           </div>
                           <div className="text-xs text-brand-600 font-semibold mt-1">{slot.days}</div>
                         </div>
@@ -1921,11 +2077,19 @@ export default function CourseDetail() {
                       </span>
                     ))}
                     {!upsellCourse.highlights?.length && (
-                      <>
-                        <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Full HD Videos</span>
-                        <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Chapter-wise Tests</span>
-                        <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Lifetime Access</span>
-                      </>
+                      course.upsell?.targetType === 'test_series' ? (
+                        <>
+                          <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> High-Quality Mock Tests</span>
+                          <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Detailed Explanations</span>
+                          <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Performance Analytics</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Full HD Videos</span>
+                          <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Chapter-wise Tests</span>
+                          <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Lifetime Access</span>
+                        </>
+                      )
                     )}
                   </div>
                 </div>
@@ -1953,10 +2117,10 @@ export default function CourseDetail() {
                   )}
 
                   <Link
-                    to={`/courses/${upsellCourse._id}`}
+                    to={course.upsell?.targetType === 'test_series' ? `/test-series/${upsellCourse._id}` : `/courses/${upsellCourse._id}`}
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-brand-500 to-violet-600 text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-lg shadow-brand-900/40 whitespace-nowrap"
                   >
-                    View Course <ArrowRight size={15} />
+                    {course.upsell?.targetType === 'test_series' ? 'View Test Series' : 'View Course'} <ArrowRight size={15} />
                   </Link>
 
                   <p className="text-xs text-white/30 text-center">Trusted by 1000+ students</p>

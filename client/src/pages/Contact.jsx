@@ -57,13 +57,13 @@ export default function Contact() {
                 Connect With Us
               </h2>
               <div className="space-y-4">
-                <a href="mailto:support@ace2examz.com" className="flex items-start gap-3.5 group p-2 rounded-xl hover:bg-slate-50 transition">
+                <a href="mailto:hello@ace2examz.com" className="flex items-start gap-3.5 group p-2 rounded-xl hover:bg-slate-50 transition">
                   <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
                     <Mail size={18} />
                   </div>
                   <div>
                     <div className="text-xs text-slate-400 font-semibold uppercase">Email Us</div>
-                    <div className="text-sm font-semibold text-slate-700 group-hover:text-brand-700">support@ace2examz.com</div>
+                    <div className="text-sm font-semibold text-slate-700 group-hover:text-brand-700">hello@ace2examz.com</div>
                   </div>
                 </a>
 

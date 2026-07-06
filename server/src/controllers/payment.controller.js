@@ -46,7 +46,8 @@ const getRazorpay = () => {
 
 // ─── Coupon validation helper ─────────────────────────────────────────────────
 // Supports new discountCoupons array; falls back to legacy discountCoupon object.
-const applyCoupon = (item, couponCode, basePrice) => {
+// Checks global maxUses and per-user maxUsesPerUser limits.
+const findAndValidateCoupon = async (item, couponCode, basePrice, userId) => {
   const priceToUse = basePrice !== undefined ? basePrice : item.price;
   const normalized = couponCode.trim().toUpperCase();
 
@@ -62,7 +63,40 @@ const applyCoupon = (item, couponCode, basePrice) => {
     (c) => c.isActive && c.code && c.code.trim().toUpperCase() === normalized
   );
 
-  if (!coupon) return { valid: false, discountAmount: 0 };
+  if (!coupon) {
+    return { valid: false, error: 'Invalid or inactive coupon code' };
+  }
+
+  // Check usage limits
+  const Payment = mongoose.model('Payment');
+  if (coupon.maxUses > 0) {
+    const globalUses = await Payment.countDocuments({
+      status: 'paid',
+      couponCode: normalized,
+      $or: [
+        { course: item._id },
+        { testSeries: item._id }
+      ]
+    });
+    if (globalUses >= coupon.maxUses) {
+      return { valid: false, error: 'This coupon has reached its maximum usage limit' };
+    }
+  }
+
+  if (coupon.maxUsesPerUser > 0) {
+    const userUses = await Payment.countDocuments({
+      student: userId,
+      status: 'paid',
+      couponCode: normalized,
+      $or: [
+        { course: item._id },
+        { testSeries: item._id }
+      ]
+    });
+    if (userUses >= coupon.maxUsesPerUser) {
+      return { valid: false, error: 'You have already used this coupon' };
+    }
+  }
 
   let discountAmount = 0;
   if (coupon.discountType === 'percent') {
@@ -223,8 +257,8 @@ export const createOrder = asyncHandler(async (req, res) => {
   let appliedCoupon = '';
 
   if (couponCode) {
-    const result = applyCoupon(item, couponCode, originalAmount);
-    if (!result.valid) { res.status(400); throw new Error('Invalid or inactive coupon code'); }
+    const result = await findAndValidateCoupon(item, couponCode, originalAmount, req.user._id);
+    if (!result.valid) { res.status(400); throw new Error(result.error || 'Invalid or inactive coupon code'); }
     discountAmount = result.discountAmount;
     finalAmount = Math.round((originalAmount - discountAmount) * 100) / 100;
     appliedCoupon = couponCode.trim().toUpperCase();
@@ -599,8 +633,8 @@ export const validateCoupon = asyncHandler(async (req, res) => {
     }
   }
 
-  const result = applyCoupon(item, couponCode, originalAmount);
-  if (!result.valid) { res.status(400); throw new Error('Invalid or inactive coupon code'); }
+  const result = await findAndValidateCoupon(item, couponCode, originalAmount, req.user._id);
+  if (!result.valid) { res.status(400); throw new Error(result.error || 'Invalid or inactive coupon code'); }
 
   res.json({
     valid: true,

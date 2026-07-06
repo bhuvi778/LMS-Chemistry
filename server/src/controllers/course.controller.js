@@ -31,7 +31,7 @@ export const listPublicCourses = asyncHandler(async (req, res) => {
   if (q) filter.title = { $regex: q, $options: 'i' };
 
   const courses = await Course.find(filter)
-    .select('title slug category categories subject language thumbnail shortDescription description price mrp plans validity courseType totalLessons instructor rating studentsEnrolled highlights createdAt')
+    .select('title slug category categories subject language thumbnail shortDescription description price mrp plans validity courseType totalLessons instructor rating studentsEnrolled highlights batchInformation createdAt')
     .sort({ createdAt: -1 });
 
   res.json(courses);
@@ -52,7 +52,9 @@ export const getCourse = asyncHandler(async (req, res) => {
     : Course.findOne({ slug: param });
   const course = await query
     .populate('comboCourses', 'title slug thumbnail price mrp plans isFree courseType')
-    .populate('comboTestSeries', 'title slug thumbnail price mrp isFree');
+    .populate('comboTestSeries', 'title slug thumbnail price mrp isFree')
+    .populate('plans.infinity.courses', 'title slug thumbnail price mrp plans isFree courseType')
+    .populate('plans.infinity.testSeries', 'title slug thumbnail price mrp isFree');
   if (!course) {
     res.status(404);
     throw new Error('Course not found');

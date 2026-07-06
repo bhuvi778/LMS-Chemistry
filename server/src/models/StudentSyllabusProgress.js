@@ -4,7 +4,7 @@ const studentSyllabusProgressSchema = new mongoose.Schema({
   student: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   subTopicId: { type: String, required: true },
   completedItems: {
-    type: [String], // Array containing 'video', 'notes', 'dpp', 'dppVideo', 'mockTest'
+    type: [String], // Array containing 'video', 'notes', 'dpp', 'dppVideo', 'mockTest', 'pyq'
     default: []
   }
 }, { timestamps: true });

@@ -19,7 +19,7 @@ const empty = {
   plans: {
     batch: { enabled: true, price: 0, mrp: 0 },
     pro: { enabled: true, price: 0, mrp: 0 },
-    infinity: { enabled: true, price: 0, mrp: 0, seatsLimit: 10, seatsReserved: 0 }
+    infinity: { enabled: true, price: 0, mrp: 0, seatsLimit: 10, seatsReserved: 0, courses: [], testSeries: [] }
   },
   validity: { type: 'lifetime', durationValue: 12, durationUnit: 'months', endDate: '' },
   startDate: '',
@@ -40,17 +40,18 @@ const empty = {
   comboDescription: '',
   comboCourses: [],
   comboTestSeries: [],
-  allowUpgrade: false,
   allowExtendValidity: false,
+  allowFreeze: false,
   extendValidityPrice: 0,
   extendValidityDurationValue: 1,
   extendValidityDurationUnit: 'months',
-  upsell: { enabled: false, title: '', courseId: '' },
+  upsell: { enabled: false, title: '', courseId: '', testSeriesId: '', targetType: 'course' },
   seo: { metaTitle: '', metaDescription: '' },
   timetable: [],
   demoVideoUrl: '',
   orientationVideoUrl: '',
   telegramJoinLink: '',
+  batchInformation: '',
 };
 
 export default function AdminCourseForm() {
@@ -65,6 +66,7 @@ export default function AdminCourseForm() {
   const [saving, setSaving] = useState(false);
   const [educatorImgUploading, setEducatorImgUploading] = useState(false);
   const [syllabusPdfUploading, setSyllabusPdfUploading] = useState({});
+  const [batchInfoUploading, setBatchInfoUploading] = useState(false);
   const edit = !!id;
 
   useEffect(() => {
@@ -96,6 +98,8 @@ export default function AdminCourseForm() {
           d.discountCoupons = [{ ...d.discountCoupon }];
         }
         if (!d.upsell) d.upsell = empty.upsell;
+        if (!d.upsell.targetType) d.upsell.targetType = 'course';
+        if (!d.upsell.testSeriesId) d.upsell.testSeriesId = '';
         if (!d.seo) d.seo = empty.seo;
         if (!d.faqs) d.faqs = [];
         if (!d.timetable) d.timetable = [];
@@ -116,8 +120,8 @@ export default function AdminCourseForm() {
           d.comboTestSeries = d.comboTestSeries.map((ts) => (typeof ts === 'object' && ts !== null ? ts._id : ts));
         }
         if (d.isCombo === undefined) d.isCombo = false;
-        if (d.allowUpgrade === undefined) d.allowUpgrade = false;
         if (d.allowExtendValidity === undefined) d.allowExtendValidity = false;
+        if (d.allowFreeze === undefined) d.allowFreeze = false;
         if (d.extendValidityPrice === undefined) d.extendValidityPrice = 0;
         if (d.extendValidityDurationValue === undefined) d.extendValidityDurationValue = 1;
         if (d.extendValidityDurationUnit === undefined) d.extendValidityDurationUnit = 'months';
@@ -127,12 +131,22 @@ export default function AdminCourseForm() {
           d.plans = {
             batch: { enabled: true, price: d.price || 0, mrp: d.mrp || 0 },
             pro: { enabled: true, price: Math.round((d.price || 0) * 1.25), mrp: Math.round((d.mrp || 0) * 1.25) },
-            infinity: { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0 }
+            infinity: { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0, courses: [], testSeries: [] }
           };
         } else {
           if (!d.plans.batch) d.plans.batch = { enabled: true, price: d.price || 0, mrp: d.mrp || 0 };
           if (!d.plans.pro) d.plans.pro = { enabled: true, price: Math.round((d.price || 0) * 1.25), mrp: Math.round((d.mrp || 0) * 1.25) };
-          if (!d.plans.infinity) d.plans.infinity = { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0 };
+          if (!d.plans.infinity) d.plans.infinity = { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0, courses: [], testSeries: [] };
+          // Ensure arrays are initialized
+          if (!d.plans.infinity.courses) d.plans.infinity.courses = [];
+          if (!d.plans.infinity.testSeries) d.plans.infinity.testSeries = [];
+        }
+
+        if (d.plans?.infinity?.courses) {
+          d.plans.infinity.courses = d.plans.infinity.courses.map((cc) => (typeof cc === 'object' && cc !== null ? cc._id : cc));
+        }
+        if (d.plans?.infinity?.testSeries) {
+          d.plans.infinity.testSeries = d.plans.infinity.testSeries.map((ts) => (typeof ts === 'object' && ts !== null ? ts._id : ts));
         }
 
         setForm(d);
@@ -380,6 +394,42 @@ export default function AdminCourseForm() {
               <label className="label">Highlights <span className="text-xs text-slate-400 font-normal">(one per line)</span></label>
               <textarea className="input min-h-[90px]" value={(form.highlights || []).join('\n')} onChange={(e) => setList('highlights', e.target.value)} />
             </div>
+
+            <div className="space-y-1 mt-3 text-left">
+              <label className="text-sm font-semibold text-slate-700 block">Batch Information PDF / Attachment (Optional)</label>
+              <div className="flex gap-2">
+                <input
+                  className="input text-sm flex-1"
+                  placeholder="Paste PDF/Doc URL (or upload)..."
+                  value={form.batchInformation || ''}
+                  onChange={(e) => set('batchInformation', e.target.value)}
+                />
+                <label className={`btn-outline cursor-pointer shrink-0 flex items-center gap-1 text-xs ${batchInfoUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  {batchInfoUploading ? <Loader2 size={13} className="animate-spin" /> : <span>📁 Upload PDF</span>}
+                  <input type="file" accept=".pdf,.doc,.docx,.zip,.txt,image/*" className="sr-only" disabled={batchInfoUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 100 * 1024 * 1024) { toast.error('File too large. Max 100 MB.'); return; }
+                      setBatchInfoUploading(true);
+                      try {
+                        const fd = new FormData();
+                        fd.append('file', file);
+                        const { data } = await api.post('/upload/pdf', fd, {
+                          headers: { 'Content-Type': 'multipart/form-data' },
+                        });
+                        set('batchInformation', data.url);
+                        toast.success('Batch Information PDF uploaded successfully');
+                      } catch {
+                        toast.error('Upload failed. Paste a URL instead.');
+                      } finally {
+                        setBatchInfoUploading(false);
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* Syllabus */}
@@ -612,8 +662,25 @@ export default function AdminCourseForm() {
                 
                 {/* Batch Plan */}
                 <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800 text-sm">Batch Plan</span>
+                  <div className="flex items-center gap-3 justify-between">
+                    <div className="flex-1 max-w-[200px]">
+                      <input
+                        type="text"
+                        placeholder="Plan Name"
+                        className="input text-xs py-1.5 px-2.5 font-bold text-slate-800 border-slate-200"
+                        value={form.plans?.batch?.name || 'Batch Plan'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setForm((f) => ({
+                            ...f,
+                            plans: {
+                              ...f.plans,
+                              batch: { ...f.plans?.batch, name: val }
+                            }
+                          }));
+                        }}
+                      />
+                    </div>
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
                       <input
                         type="checkbox"
@@ -679,8 +746,25 @@ export default function AdminCourseForm() {
 
                 {/* Pro Plan */}
                 <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800 text-sm">Pro Plan</span>
+                  <div className="flex items-center gap-3 justify-between">
+                    <div className="flex-1 max-w-[200px]">
+                      <input
+                        type="text"
+                        placeholder="Plan Name"
+                        className="input text-xs py-1.5 px-2.5 font-bold text-slate-800 border-slate-200"
+                        value={form.plans?.pro?.name || 'Pro Plan'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setForm((f) => ({
+                            ...f,
+                            plans: {
+                              ...f.plans,
+                              pro: { ...f.plans?.pro, name: val }
+                            }
+                          }));
+                        }}
+                      />
+                    </div>
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
                       <input
                         type="checkbox"
@@ -744,8 +828,25 @@ export default function AdminCourseForm() {
 
                 {/* Infinity Plan */}
                 <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800 text-sm">Infinity Plan</span>
+                  <div className="flex items-center gap-3 justify-between">
+                    <div className="flex-1 max-w-[200px]">
+                      <input
+                        type="text"
+                        placeholder="Plan Name"
+                        className="input text-xs py-1.5 px-2.5 font-bold text-slate-800 border-slate-200"
+                        value={form.plans?.infinity?.name || 'Infinity Plan'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setForm((f) => ({
+                            ...f,
+                            plans: {
+                              ...f.plans,
+                              infinity: { ...f.plans?.infinity, name: val }
+                            }
+                          }));
+                        }}
+                      />
+                    </div>
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
                       <input
                         type="checkbox"
@@ -823,6 +924,80 @@ export default function AdminCourseForm() {
                           }}
                         />
                       </div>
+
+                      {/* Bundled Courses for Infinity */}
+                      <div className="space-y-1">
+                        <label className="label text-xs font-semibold text-slate-700">Bundle Courses (Free Access)</label>
+                        <div className="border border-slate-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1 bg-white">
+                          {allCourses.filter(c => c._id !== id).map((c) => {
+                            const isChecked = (form.plans?.infinity?.courses || []).includes(c._id);
+                            return (
+                              <label key={c._id} className="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer hover:text-slate-800 transition">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    const currentList = form.plans?.infinity?.courses || [];
+                                    const updatedList = e.target.checked
+                                      ? [...currentList, c._id]
+                                      : currentList.filter(courseId => courseId !== c._id);
+                                    
+                                    setForm(f => ({
+                                      ...f,
+                                      plans: {
+                                        ...f.plans,
+                                        infinity: { ...f.plans?.infinity, courses: updatedList }
+                                      }
+                                    }));
+                                  }}
+                                  className="rounded text-brand-600 focus:ring-brand-500"
+                                />
+                                <span>{c.title}</span>
+                              </label>
+                            );
+                          })}
+                          {allCourses.filter(c => c._id !== id).length === 0 && (
+                            <span className="text-[10px] text-slate-400 block text-center py-2">No other courses available.</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bundled Test Series for Infinity */}
+                      <div className="space-y-1">
+                        <label className="label text-xs font-semibold text-slate-700">Bundle Test Series (Free Access)</label>
+                        <div className="border border-slate-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1 bg-white">
+                          {allTestSeries.map((ts) => {
+                            const isChecked = (form.plans?.infinity?.testSeries || []).includes(ts._id);
+                            return (
+                              <label key={ts._id} className="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer hover:text-slate-800 transition">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    const currentList = form.plans?.infinity?.testSeries || [];
+                                    const updatedList = e.target.checked
+                                      ? [...currentList, ts._id]
+                                      : currentList.filter(tsId => tsId !== ts._id);
+                                    
+                                    setForm(f => ({
+                                      ...f,
+                                      plans: {
+                                        ...f.plans,
+                                        infinity: { ...f.plans?.infinity, testSeries: updatedList }
+                                      }
+                                    }));
+                                  }}
+                                  className="rounded text-brand-600 focus:ring-brand-500"
+                                />
+                                <span>{ts.title}</span>
+                              </label>
+                            );
+                          })}
+                          {allTestSeries.length === 0 && (
+                            <span className="text-[10px] text-slate-400 block text-center py-2">No test series available.</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -842,7 +1017,7 @@ export default function AdminCourseForm() {
                     type="button"
                     onClick={() => setForm((f) => ({
                       ...f,
-                      discountCoupons: [...(f.discountCoupons || []), { code: '', discountType: 'percent', discountValue: 0, isActive: true }],
+                      discountCoupons: [...(f.discountCoupons || []), { code: '', discountType: 'percent', discountValue: 0, isActive: true, maxUses: 0, maxUsesPerUser: 0 }],
                     }))}
                     className="flex items-center gap-1 text-xs font-bold text-brand-600 hover:text-brand-800 transition"
                   >
@@ -919,6 +1094,42 @@ export default function AdminCourseForm() {
                           ),
                         }))}
                       />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-0.5 block">Global Use Limit</label>
+                        <input
+                          type="number"
+                          min="0"
+                          className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-400 font-semibold bg-white"
+                          placeholder="0 (Unlimited)"
+                          value={coupon.maxUses || ''}
+                          onChange={(e) => setForm((f) => ({
+                            ...f,
+                            discountCoupons: f.discountCoupons.map((c, idx) =>
+                              idx === i ? { ...c, maxUses: e.target.value === '' ? 0 : Number(e.target.value) } : c
+                            ),
+                          }))}
+                          title="Global usage limit (0 = unlimited)"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-0.5 block">Limit per Student</label>
+                        <input
+                          type="number"
+                          min="0"
+                          className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-400 font-semibold bg-white"
+                          placeholder="0 (Unlimited)"
+                          value={coupon.maxUsesPerUser || ''}
+                          onChange={(e) => setForm((f) => ({
+                            ...f,
+                            discountCoupons: f.discountCoupons.map((c, idx) =>
+                              idx === i ? { ...c, maxUsesPerUser: e.target.value === '' ? 0 : Number(e.target.value) } : c
+                            ),
+                          }))}
+                          title="Usage limit per student (0 = unlimited)"
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1213,13 +1424,14 @@ export default function AdminCourseForm() {
                 </div>
               </div>
             )}
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={form.allowUpgrade || false} onChange={(e) => set('allowUpgrade', e.target.checked)} />
-              <span className="font-semibold text-sm">Allow upgrade from other courses</span>
-            </label>
+
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={form.allowExtendValidity || false} onChange={(e) => set('allowExtendValidity', e.target.checked)} />
               <span className="font-semibold text-sm">Allow extend validity</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={form.allowFreeze || false} onChange={(e) => set('allowFreeze', e.target.checked)} />
+              <span className="font-semibold text-sm">Allow course freezing</span>
             </label>
             {form.allowExtendValidity && (
               <div className="space-y-3 pl-4 border-l-2 border-brand-200">
@@ -1277,16 +1489,54 @@ export default function AdminCourseForm() {
                   <label className="label text-xs">Upsell Offer Title</label>
                   <input className="input text-sm" placeholder="e.g. Upgrade to Complete Bundle" value={form.upsell?.title || ''} onChange={(e) => setNested('upsell', 'title', e.target.value)} />
                 </div>
-                <div>
-                  <label className="label text-xs">Suggest Course</label>
-                  <select className="input text-sm"
-                    value={form.upsell?.courseId || ''}
-                    onChange={(e) => setNested('upsell', 'courseId', e.target.value)}>
-                    <option value="">— Select a course —</option>
-                    {allCourses.filter((c) => c._id !== id).map((c) => (
-                      <option key={c._id} value={c._id}>{c.title}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="label text-xs">Upsell Item Type</label>
+                    <select
+                      className="input text-sm bg-white"
+                      value={form.upsell?.targetType || 'course'}
+                      onChange={(e) => {
+                        setNested('upsell', 'targetType', e.target.value);
+                        if (e.target.value === 'course') {
+                          setNested('upsell', 'testSeriesId', '');
+                        } else {
+                          setNested('upsell', 'courseId', '');
+                        }
+                      }}
+                    >
+                      <option value="course">Course</option>
+                      <option value="test_series">Test Series</option>
+                    </select>
+                  </div>
+                  {form.upsell?.targetType === 'test_series' ? (
+                    <div>
+                      <label className="label text-xs">Suggest Test Series</label>
+                      <select
+                        className="input text-sm bg-white"
+                        value={form.upsell?.testSeriesId || ''}
+                        onChange={(e) => setNested('upsell', 'testSeriesId', e.target.value)}
+                      >
+                        <option value="">— Select a test series —</option>
+                        {allTestSeries.map((ts) => (
+                          <option key={ts._id} value={ts._id}>{ts.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="label text-xs">Suggest Course</label>
+                      <select
+                        className="input text-sm bg-white"
+                        value={form.upsell?.courseId || ''}
+                        onChange={(e) => setNested('upsell', 'courseId', e.target.value)}
+                      >
+                        <option value="">— Select a course —</option>
+                        {allCourses.filter((c) => c._id !== id).map((c) => (
+                          <option key={c._id} value={c._id}>{c.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

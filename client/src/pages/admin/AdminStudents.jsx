@@ -33,6 +33,9 @@ export default function AdminStudents() {
   const [list, setList] = useState([]);
   const [q, setQ] = useState('');
   const [catFilter, setCatFilter] = useState('ALL');
+  const [courseFilter, setCourseFilter] = useState('ALL');
+  const [planFilter, setPlanFilter] = useState('ALL');
+  const [validityFilter, setValidityFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -51,10 +54,39 @@ export default function AdminStudents() {
     return ['ALL', ...Array.from(cats).sort()];
   }, [list]);
 
+  const uniqueCourses = useMemo(() => {
+    const map = new Map();
+    list.forEach((s) => {
+      s.enrollments?.forEach((e) => {
+        if (e.course) {
+          map.set(e.course._id || e.course.title, e.course.title);
+        }
+      });
+    });
+    return Array.from(map.entries())
+      .map(([id, title]) => ({ id, title }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [list]);
+
   const filtered = useMemo(() => {
     let result = list;
     if (catFilter !== 'ALL') {
       result = result.filter((s) => s.enrollments?.some((e) => e.course?.category === catFilter));
+    }
+    if (courseFilter !== 'ALL') {
+      result = result.filter((s) => s.enrollments?.some((e) => e.course?._id === courseFilter || e.course?.title === courseFilter));
+    }
+    if (planFilter !== 'ALL') {
+      result = result.filter((s) => s.enrollments?.some((e) => e.planType === planFilter));
+    }
+    if (validityFilter !== 'ALL') {
+      const now = new Date();
+      result = result.filter((s) => {
+        const hasActive = s.enrollments?.some(
+          (e) => e.paymentStatus === 'paid' && (!e.validUntil || new Date(e.validUntil) >= now)
+        );
+        return validityFilter === 'ACTIVE' ? hasActive : !hasActive;
+      });
     }
     if (q) {
       const s = q.toLowerCase();
@@ -67,9 +99,9 @@ export default function AdminStudents() {
       );
     }
     return result;
-  }, [list, q, catFilter]);
+  }, [list, q, catFilter, courseFilter, planFilter, validityFilter]);
 
-  useEffect(() => setPage(1), [q, catFilter]);
+  useEffect(() => setPage(1), [q, catFilter, courseFilter, planFilter, validityFilter]);
   const paged = usePaged(filtered, page, PAGE_SIZE);
 
   return (
@@ -83,25 +115,64 @@ export default function AdminStudents() {
             {filtered.length} of {list.length} students{catFilter !== 'ALL' ? ` in ${catFilter}` : ''}
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           <button
             onClick={() => setShowAdd(true)}
             className="btn-primary text-sm flex items-center gap-1.5"
           >
             <UserPlus size={16} /> Add Student
           </button>
+
+          {/* Category Filter */}
           <div className="relative">
             <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <select
               value={catFilter}
               onChange={(e) => setCatFilter(e.target.value)}
-              className="input !pl-8 !py-2 text-sm min-w-[160px]"
+              className="input !pl-8 !py-2 text-sm min-w-[150px]"
             >
               {categories.map((c) => (
                 <option key={c} value={c}>{c === 'ALL' ? 'All Categories' : c}</option>
               ))}
             </select>
           </div>
+
+          {/* Course Filter */}
+          <select
+            value={courseFilter}
+            onChange={(e) => setCourseFilter(e.target.value)}
+            className="input !py-2 text-sm min-w-[140px] max-w-[180px]"
+          >
+            <option value="ALL">All Courses</option>
+            {uniqueCourses.map((c) => (
+              <option key={c.id} value={c.id}>{c.title}</option>
+            ))}
+          </select>
+
+          {/* Plan Level Filter */}
+          <select
+            value={planFilter}
+            onChange={(e) => setPlanFilter(e.target.value)}
+            className="input !py-2 text-sm min-w-[120px]"
+          >
+            <option value="ALL">All Plans</option>
+            <option value="batch">Ace Starter</option>
+            <option value="pro">Ace Pro</option>
+            <option value="infinity">Ace Infinity</option>
+          </select>
+
+          {/* Validity Status Filter */}
+          <select
+            value={validityFilter}
+            onChange={(e) => setValidityFilter(e.target.value)}
+            className="input !py-2 text-sm min-w-[130px]"
+          >
+            <option value="ALL">All Status</option>
+            <option value="ACTIVE">Active Plan</option>
+            <option value="EXPIRED">Inactive / Expired</option>
+          </select>
+
+          {/* Search Input */}
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -345,10 +416,17 @@ function StudentCard({ s, onOpen }) {
         {s.phone && <div className="flex items-center gap-2"><Phone size={12} className="text-slate-400" />{s.phone}</div>}
       </div>
 
-      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-        <span className={`chip text-[10px] ${enrollCount > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-          <BookOpen size={10} className="inline" /> {enrollCount} course{enrollCount !== 1 ? 's' : ''}
-        </span>
+      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex gap-1.5 flex-wrap">
+          <span className={`chip text-[10px] ${enrollCount > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+            <BookOpen size={10} className="inline" /> {enrollCount} course{enrollCount !== 1 ? 's' : ''}
+          </span>
+          {s.enrollments?.filter(e => e.paymentStatus === 'paid' && (!e.validUntil || new Date(e.validUntil) >= new Date())).map((e, idx) => (
+            <span key={idx} className="chip bg-indigo-50 text-indigo-750 text-[9px] uppercase font-bold px-1.5 py-0.5">
+              {e.planType || 'batch'}
+            </span>
+          ))}
+        </div>
         <span className="text-[10px] text-brand-600 font-semibold opacity-0 group-hover:opacity-100 transition">Manage →</span>
       </div>
     </button>
@@ -791,7 +869,7 @@ function StudentModal({ id, onClose, onChanged }) {
                               onChange={(e) => setSelectedPlans(prev => ({ ...prev, [c._id]: e.target.value }))}
                               className="text-xs border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none focus:border-brand-500 font-semibold"
                             >
-                              <option value="batch">Ace Batch</option>
+                              <option value="batch">Ace Starter</option>
                               <option value="pro">Ace Pro</option>
                               <option value="infinity">Ace Infinity</option>
                             </select>
@@ -864,8 +942,8 @@ function StudentModal({ id, onClose, onChanged }) {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className={`chip text-[10px] ${e.paid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {e.paid ? 'Paid' : 'Unpaid'}
+                        <span className={`chip text-[10px] ${e.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {e.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
                         </span>
                         <button
                           disabled={enrollBusy === String(e.course?._id || e.course)}

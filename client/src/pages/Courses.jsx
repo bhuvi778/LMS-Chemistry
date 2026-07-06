@@ -96,7 +96,7 @@ export default function Courses() {
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3 mb-6 justify-start md:justify-center px-4 md:px-0">
             <button
               onClick={() => setParam('category', '')}
-              className={`px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${
+              className={`shrink-0 px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${
                 category === 'ALL'
                   ? 'bg-gradient-brand text-white border-transparent shadow-soft scale-105 font-black'
                   : 'bg-white border border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-700'
@@ -108,7 +108,7 @@ export default function Courses() {
               <button
                 key={c._id || c.name || c}
                 onClick={() => setParam('category', c.name || c)}
-                className={`px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 ${
+                className={`shrink-0 px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 ${
                   category === (c.name || c)
                     ? 'bg-gradient-brand text-white border-transparent shadow-soft scale-105 font-black'
                     : 'bg-white border border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-700'
@@ -130,7 +130,7 @@ export default function Courses() {
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Sub-Categories:</span>
                   <button
                     onClick={() => setParam('subCategory', '')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                    className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
                       !subCategory
                         ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -142,7 +142,7 @@ export default function Courses() {
                     <button
                       key={sub}
                       onClick={() => setParam('subCategory', subCategory === sub ? '' : sub)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                      className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
                         subCategory === sub
                           ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
                           : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-brand-300'
@@ -162,7 +162,7 @@ export default function Courses() {
               <button
                 key={t.k}
                 onClick={() => setParam('type', t.k)}
-                className={`px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 shadow-sm border ${
+                className={`shrink-0 px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 shadow-sm border ${
                   typeFilter === t.k
                     ? 'bg-gradient-brand text-white border-transparent scale-105 font-black shadow-md'
                     : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-350 hover:bg-slate-50'

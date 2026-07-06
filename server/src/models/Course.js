@@ -50,21 +50,26 @@ const courseSchema = new mongoose.Schema(
     mrp: { type: Number, default: 0 },
     plans: {
       batch: {
+        name: { type: String, default: 'Batch Plan' },
         enabled: { type: Boolean, default: true },
         price: { type: Number, default: 0 },
         mrp: { type: Number, default: 0 },
       },
       pro: {
+        name: { type: String, default: 'Pro Plan' },
         enabled: { type: Boolean, default: true },
         price: { type: Number, default: 0 },
         mrp: { type: Number, default: 0 },
       },
       infinity: {
+        name: { type: String, default: 'Infinity Plan' },
         enabled: { type: Boolean, default: true },
         price: { type: Number, default: 0 },
         mrp: { type: Number, default: 0 },
         seatsLimit: { type: Number, default: 10 },
         seatsReserved: { type: Number, default: 0 },
+        courses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+        testSeries: [{ type: mongoose.Schema.Types.ObjectId, ref: 'TestSeries' }],
       },
     },
     // Legacy duration field (backward compat)
@@ -110,6 +115,8 @@ const courseSchema = new mongoose.Schema(
         discountType: { type: String, enum: ['percent', 'amount'], default: 'percent' },
         discountValue: { type: Number, default: 0 },
         isActive: { type: Boolean, default: true },
+        maxUses: { type: Number, default: 0 }, // 0 = unlimited
+        maxUsesPerUser: { type: Number, default: 0 }, // 0 = unlimited
       },
     ],
     // Legacy single-coupon field kept for backward compatibility
@@ -126,15 +133,19 @@ const courseSchema = new mongoose.Schema(
     comboTestSeries: [{ type: mongoose.Schema.Types.ObjectId, ref: 'TestSeries' }],
     allowUpgrade: { type: Boolean, default: false },
     allowExtendValidity: { type: Boolean, default: false },
+    allowFreeze: { type: Boolean, default: false },
     extendValidityPrice: { type: Number, default: 0 },
     extendValidityDurationValue: { type: Number, default: 1 },
     extendValidityDurationUnit: { type: String, enum: ['days', 'months', 'years'], default: 'months' },
     telegramJoinLink: { type: String, default: '' },
+    batchInformation: { type: String, default: '' },
     // Upsell
     upsell: {
       enabled: { type: Boolean, default: false },
       title: { type: String, default: '' },
       courseId: { type: String, default: '' },
+      testSeriesId: { type: String, default: '' },
+      targetType: { type: String, enum: ['course', 'test_series'], default: 'course' },
     },
     // SEO
     seo: {

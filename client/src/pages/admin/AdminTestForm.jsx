@@ -43,8 +43,12 @@ const blankQ = () => ({
   explanation: '',
   marks: 4,
   negativeMarks: -1,
+  partialMarking: true,
+  partialMarkingMethod: 'correct_count',
   image: '',
   section: '',
+  chapter: '',
+  topic: '',
 });
 
 function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
@@ -191,6 +195,9 @@ function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
                         )}
                       </button>
                       <div className="flex-1 border border-slate-200 rounded-lg overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-b border-slate-200 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider select-none">
+                          <span>Option {String.fromCharCode(65 + oi)} {oi === 4 ? <span className="text-amber-600 font-bold normal-case ml-1 text-[9px] bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/60">(Optional)</span> : ''}</span>
+                        </div>
                         <SunEditor
                           key={`opt-${q._tempId || q._id}-${oi}`}
                           defaultValue={opt.text || ''}
@@ -238,6 +245,58 @@ function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
                 className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400"
                 value={q.negativeMarks}
                 onChange={(e) => onChange(idx, 'negativeMarks', Number(e.target.value))}
+              />
+            </div>
+          </div>
+
+          {q.type === 'msq' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+              <div>
+                <label className="text-xs font-semibold text-slate-500 mb-1 block font-bold">PARTIAL MARKING</label>
+                <select
+                  className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400 bg-white font-medium"
+                  value={q.partialMarking !== false ? 'true' : 'false'}
+                  onChange={(e) => onChange(idx, 'partialMarking', e.target.value === 'true')}
+                >
+                  <option value="true">ON (Enabled)</option>
+                  <option value="false">OFF (Disabled)</option>
+                </select>
+              </div>
+              {q.partialMarking !== false && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 mb-1 block font-bold">PARTIAL MARKING METHOD</label>
+                  <select
+                    className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400 bg-white font-medium"
+                    value={q.partialMarkingMethod || 'correct_count'}
+                    onChange={(e) => onChange(idx, 'partialMarkingMethod', e.target.value)}
+                  >
+                    <option value="correct_count">Correct Count (1 mark per option)</option>
+                    <option value="percentage_based">Percentage Based (Proportional to total correct)</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1 block font-bold">CHAPTER (optional)</label>
+              <input
+                type="text"
+                className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400"
+                placeholder="e.g. Chemical Bonding"
+                value={q.chapter || ''}
+                onChange={(e) => onChange(idx, 'chapter', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1 block font-bold">TOPIC (optional)</label>
+              <input
+                type="text"
+                className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400"
+                placeholder="e.g. Hybridization"
+                value={q.topic || ''}
+                onChange={(e) => onChange(idx, 'topic', e.target.value)}
               />
             </div>
           </div>
@@ -351,6 +410,8 @@ export default function AdminTestForm() {
               correctOptions: q.correctOptions || [],
               correctNumerical: q.correctNumerical || 0,
               videoSolutionUrl: q.videoSolutionUrl || '',
+              partialMarking: q.partialMarking !== false,
+              partialMarkingMethod: q.partialMarkingMethod || 'correct_count',
               options: opts,
             };
           });
@@ -450,6 +511,15 @@ export default function AdminTestForm() {
     setTagInput('');
   };
 
+  const isOptionEmpty = (html) => {
+    if (!html) return true;
+    if (html.includes('<img') || html.includes('<svg') || html.includes('<iframe') || html.includes('<audio') || html.includes('<video')) {
+      return false;
+    }
+    const clean = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim();
+    return clean.length === 0;
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     if (!form.title.trim()) { toast.error('Title is required'); return; }
@@ -485,8 +555,7 @@ export default function AdminTestForm() {
         }
         // Enforce first 4 options are not empty
         for (let oi = 0; oi < 4; oi++) {
-          const optText = q.options[oi]?.text ? q.options[oi].text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
-          if (!optText) {
+          if (isOptionEmpty(q.options[oi]?.text)) {
             toast.error(`Question ${qNum}: Option ${String.fromCharCode(65 + oi)} cannot be empty`);
             return;
           }
@@ -497,8 +566,7 @@ export default function AdminTestForm() {
             toast.error(`Question ${qNum}: Correct option must be selected`);
             return;
           }
-          const correctOptText = q.options[q.correct]?.text ? q.options[q.correct].text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
-          if (!correctOptText) {
+          if (isOptionEmpty(q.options[q.correct]?.text)) {
             toast.error(`Question ${qNum}: Correct option cannot be an empty option`);
             return;
           }
@@ -509,8 +577,7 @@ export default function AdminTestForm() {
             return;
           }
           for (const oi of q.correctOptions) {
-            const correctOptText = q.options[oi]?.text ? q.options[oi].text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
-            if (!correctOptText) {
+            if (isOptionEmpty(q.options[oi]?.text)) {
               toast.error(`Question ${qNum}: Selected correct option ${String.fromCharCode(65 + oi)} cannot be empty`);
               return;
             }

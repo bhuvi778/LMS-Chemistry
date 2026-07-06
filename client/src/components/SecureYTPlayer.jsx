@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Loader2 } from 'lucide-react';
 
-export default function SecureYTPlayer({ url, title }) {
+export default function SecureYTPlayer({ url, title, onPlayStateChange }) {
   const containerRef = useRef(null);
   const playerIdRef = useRef(`yt-player-${Math.random().toString(36).slice(2, 11)}`);
   const [player, setPlayer] = useState(null);
@@ -60,8 +60,10 @@ export default function SecureYTPlayer({ url, title }) {
             const state = event.data;
             if (state === 1) {
               setIsPlaying(true);
+              if (onPlayStateChange) onPlayStateChange(true);
             } else {
               setIsPlaying(false);
+              if (onPlayStateChange) onPlayStateChange(false);
             }
           },
         },
@@ -88,6 +90,7 @@ export default function SecureYTPlayer({ url, title }) {
     return () => {
       if (checkInterval) clearInterval(checkInterval);
       document.removeEventListener('fullscreenchange', onFullscreenChange);
+      if (onPlayStateChange) onPlayStateChange(false);
       if (ytPlayer && typeof ytPlayer.destroy === 'function') {
         try {
           ytPlayer.destroy();
@@ -96,6 +99,7 @@ export default function SecureYTPlayer({ url, title }) {
         }
       }
     };
+
   }, [videoId]);
 
   // Sync current time while playing

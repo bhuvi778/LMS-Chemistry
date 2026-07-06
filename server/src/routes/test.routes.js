@@ -28,6 +28,10 @@ import {
   adminListReportedQuestions,
   adminUpdateReport,
   spendCoinForTest,
+  getMyMistakes,
+  getRevisionQueue,
+  addToRevisionQueue,
+  removeFromRevisionQueue,
 } from '../controllers/test.controller.js';
 
 const router = Router();
@@ -50,6 +54,12 @@ router.get('/attempts/:id', protect, getAttemptResult);
 router.post('/saved-questions', protect, saveQuestion);
 router.get('/saved-questions', protect, mySavedQuestions);
 router.delete('/saved-questions/:questionId', protect, unsaveQuestion);
+// Mistakes
+router.get('/my-mistakes', protect, getMyMistakes);
+// Revision Queue
+router.get('/revision-queue', protect, getRevisionQueue);
+router.post('/revision-queue', protect, addToRevisionQueue);
+router.delete('/revision-queue/:questionId', protect, removeFromRevisionQueue);
 // Reported questions
 router.post('/reported-questions', protect, reportQuestion);
 router.get('/reported-questions/me', protect, myReportedQuestions);

@@ -16,14 +16,21 @@ api.interceptors.response.use(
     const status = err.response?.status;
     const url = err.config?.url || '';
 
-    // Only force logout if the token-verification endpoint (/auth/me) returns 401.
-    // This means the token is truly expired or invalid globally.
-    // Other 401s (e.g. accessing a restricted resource) should NOT log the user out.
+    // Only force logout if the token-verification endpoint (/auth/me) returns 401
+    // or if the session has expired / logged out from another device.
     const isAuthEndpoint = url.includes('/auth/me') || url.includes('/auth/verify');
-    if (status === 401 && isAuthEndpoint && localStorage.getItem('token')) {
+    const isSessionExpired = err.response?.data?.message?.includes('Session has expired') || 
+                            err.response?.data?.message?.includes('logged out from another device');
+
+    if (status === 401 && (isAuthEndpoint || isSessionExpired) && localStorage.getItem('token')) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.dispatchEvent(new Event('auth:logout'));
+      
+      // Redirect to login with session expired reason if not already on the login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login?reason=session_expired';
+      }
     }
 
     const msg = err.response?.data?.message || err.message;

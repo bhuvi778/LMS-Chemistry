@@ -18,6 +18,7 @@ import {
   Banknote,
   CreditCard,
   ImageIcon,
+  Library,
   Mail,
   HelpCircle,
   BookMarked,
@@ -44,7 +45,7 @@ const groups = [
       { to: '/admin/categories', label: 'Categories', icon: Layers },
       { to: '/admin/courses', label: 'Courses', icon: BookOpen },
       { to: '/admin/live-classes', label: 'Live Classes', icon: Video },
-      { to: '/admin/ebooks', label: 'E-Books', icon: BookMarked },
+      { to: '/admin/ebooks', label: 'Library', icon: Library },
       { to: '/admin/doubts', label: 'Doubts', icon: HelpCircle },
       { to: '/admin/support/chat', label: 'Chat Support', icon: MessageSquare },
     ],
@@ -54,6 +55,7 @@ const groups = [
     icon: Sparkles,
     items: [
       { to: '/admin/syllabus-tracker', label: 'Syllabus Tracker', icon: ClipboardList },
+      { to: '/admin/exam-counter', label: 'Exam Counter', icon: Clock },
       { to: '/admin/mentorship', label: '1:1 Mentorship', icon: Users },
     ],
   },
@@ -135,10 +137,15 @@ export default function AdminLayout() {
       );
       if (hasActiveChild) initialOpen[group.title] = true;
     });
-    setOpenGroups((prev) => ({ ...initialOpen, ...prev }));
+    setOpenGroups(initialOpen);
   }, [location.pathname]);
 
-  const toggleGroup = (title) => setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }));
+  const toggleGroup = (title) => setOpenGroups((prev) => {
+    const wasOpen = !!prev[title];
+    return {
+      [title]: !wasOpen
+    };
+  });
 
   const currentPageLabel = (() => {
     for (const g of groups) {
@@ -253,7 +260,7 @@ export default function AdminLayout() {
       <aside
         className={`fixed lg:sticky top-0 h-screen w-64 bg-slate-900 text-slate-200 flex flex-col z-40 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
-        style={{ zoom: '1.1' }}
+        style={window.innerWidth >= 1024 ? { zoom: '1.1' } : {}}
       >
         {sidebarNav}
       </aside>

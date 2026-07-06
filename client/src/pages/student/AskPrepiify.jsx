@@ -255,7 +255,7 @@ export default function AskPrepiify() {
           <p className="text-slate-500 text-sm mt-3 leading-relaxed">
             {usage.planType === 'batch' ? (
               <span>
-                <strong>Ask Prepiify AI</strong> is exclusive to our <strong>Pro</strong> and <strong>Infinity</strong> cohorts. Your current <strong>Ace Batch</strong> plan does not include access.
+                <strong>Ask Prepiify AI</strong> is exclusive to our <strong>Pro</strong> and <strong>Infinity</strong> cohorts. Your current <strong>Ace Starter</strong> plan does not include access.
               </span>
             ) : (
               <span>

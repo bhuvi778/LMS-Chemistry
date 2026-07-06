@@ -214,7 +214,23 @@ function QuestionReview({ question, answer }) {
         className="w-full flex items-start gap-3 px-4 py-3.5 text-left"
       >
         {statusStyle.icon}
-        <span className="flex-1 text-sm text-slate-700 font-semibold leading-relaxed" dangerouslySetInnerHTML={{ __html: question.question }} />
+        <div className="flex-1 min-w-0">
+          <div className="text-sm text-slate-700 font-semibold leading-relaxed" dangerouslySetInnerHTML={{ __html: question.question }} />
+          {(question.chapter || question.topic) && (
+            <div className="flex flex-wrap gap-1.5 mt-2 select-none">
+              {question.chapter && (
+                <span className="inline-flex items-center gap-1 text-[9px] font-bold text-indigo-700 bg-indigo-50/80 border border-indigo-100/80 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  📂 {question.chapter}
+                </span>
+              )}
+              {question.topic && (
+                <span className="inline-flex items-center gap-1 text-[9px] font-bold text-violet-700 bg-violet-50/80 border border-violet-100/80 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  🏷️ {question.topic}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
         <span className="text-xs font-bold text-slate-500 flex-shrink-0 mt-0.5 bg-white px-2 py-0.5 rounded border border-slate-200">
           {answer?.marksAwarded > 0 ? `+${answer.marksAwarded}` : answer?.marksAwarded || 0} marks
         </span>
@@ -286,10 +302,17 @@ export default function TestResult() {
   const [attempt, setAttempt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [openPdf, setOpenPdf] = useState(null);
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState('all');
+  const [myAttempts, setMyAttempts] = useState([]);
 
   useEffect(() => {
     api.get(`/tests/attempts/${attemptId}`)
-      .then(({ data }) => setAttempt(data))
+      .then(({ data }) => {
+        setAttempt(data);
+        // Also fetch all attempts for this test to check if retake is allowed
+        return api.get('/tests/attempts/me');
+      })
+      .then(({ data }) => setMyAttempts(data || []))
       .catch((err) => toast.error(err.response?.data?.message || err.message))
       .finally(() => setLoading(false));
   }, [attemptId]);
@@ -318,6 +341,105 @@ export default function TestResult() {
   const avgTimePerQuestion = test?.questions?.length > 0 
     ? Math.round(attempt.timeTakenSecs / test.questions.length) 
     : 0;
+
+  // Chapter & Topic Analysis calculations
+  const chapterAnalysis = {};
+  let hasChaptersOrTopics = false;
+
+  (test?.questions || []).forEach((q) => {
+    const chapter = (q.chapter || '').trim();
+    const topic = (q.topic || '').trim();
+    
+    if (chapter || topic) {
+      hasChaptersOrTopics = true;
+    }
+
+    const chapKey = chapter || 'General / Uncategorized';
+    const topKey = topic || 'General / Uncategorized';
+
+    const ans = attempt.answers.find(
+      (a) => a.questionId?.toString() === q._id?.toString()
+    );
+    const isCorrect = ans ? ans.isCorrect : false;
+    const isAttempted = ans && ans.selected !== -1 && ans.selected !== null && ans.selected !== undefined && ans.selected !== '';
+
+    if (!chapterAnalysis[chapKey]) {
+      chapterAnalysis[chapKey] = {
+        name: chapKey,
+        total: 0,
+        correct: 0,
+        wrong: 0,
+        unattempted: 0,
+        topics: {}
+      };
+    }
+
+    chapterAnalysis[chapKey].total++;
+    if (isCorrect) {
+      chapterAnalysis[chapKey].correct++;
+    } else if (isAttempted) {
+      chapterAnalysis[chapKey].wrong++;
+    } else {
+      chapterAnalysis[chapKey].unattempted++;
+    }
+
+    if (!chapterAnalysis[chapKey].topics[topKey]) {
+      chapterAnalysis[chapKey].topics[topKey] = {
+        name: topKey,
+        total: 0,
+        correct: 0,
+        wrong: 0,
+        unattempted: 0
+      };
+    }
+
+    chapterAnalysis[chapKey].topics[topKey].total++;
+    if (isCorrect) {
+      chapterAnalysis[chapKey].topics[topKey].correct++;
+    } else if (isAttempted) {
+      chapterAnalysis[chapKey].topics[topKey].wrong++;
+    } else {
+      chapterAnalysis[chapKey].topics[topKey].unattempted++;
+    }
+  });
+
+  const chapterList = Object.values(chapterAnalysis).map((chap) => {
+    const attempted = chap.correct + chap.wrong;
+    const accuracy = attempted > 0 ? Math.round((chap.correct / attempted) * 100) : 0;
+    const successRate = Math.round((chap.correct / chap.total) * 100);
+    
+    let status = 'neutral';
+    if (successRate >= 70) {
+      status = 'strong';
+    } else if (successRate < 40) {
+      status = 'weak';
+    }
+
+    const topics = Object.values(chap.topics).map((t) => {
+      const tAttempted = t.correct + t.wrong;
+      const tAccuracy = tAttempted > 0 ? Math.round((t.correct / tAttempted) * 100) : 0;
+      const tSuccessRate = Math.round((t.correct / t.total) * 100);
+      let tStatus = 'neutral';
+      if (tSuccessRate >= 70) {
+        tStatus = 'strong';
+      } else if (tSuccessRate < 40) {
+        tStatus = 'weak';
+      }
+      return { ...t, accuracy: tAccuracy, successRate: tSuccessRate, status: tStatus };
+    });
+
+    return {
+      ...chap,
+      attempted,
+      accuracy,
+      successRate,
+      status,
+      topics
+    };
+  });
+
+  const strongChapters = chapterList.filter(c => c.status === 'strong');
+  const weakChapters = chapterList.filter(c => c.status === 'weak');
 
   // Handle Scorecard Download via Print Layout
   const handlePrintScorecard = () => {
@@ -503,6 +625,123 @@ export default function TestResult() {
           </div>
         </div>
 
+        {/* ─── Syllabus Mastery & Strength Analysis ────────────────────────── */}
+        {hasChaptersOrTopics && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+            <h2 className="font-bold text-slate-800 mb-2 flex items-center gap-2 text-base">
+              <ClipboardList size={18} className="text-brand-600" /> Syllabus Mastery & Strength Analysis
+            </h2>
+            <p className="text-xs text-slate-500 mb-5">
+              Based on your test performance, we have categorized your mastery level for each chapter and topic.
+            </p>
+
+            {/* Analysis Tabs */}
+            <div className="flex border-b border-slate-150 mb-5 gap-1 overflow-x-auto select-none">
+              {[
+                { id: 'all', label: 'All Chapters', count: chapterList.length },
+                { id: 'strong', label: '🎯 Strong Areas', count: strongChapters.length },
+                { id: 'weak', label: '⚠️ Weak Areas', count: weakChapters.length }
+              ].map((t) => {
+                const isActive = activeAnalysisTab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveAnalysisTab(t.id)}
+                    className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 -mb-[2px] transition ${
+                      isActive
+                        ? 'border-brand-600 text-brand-700 bg-brand-50/30'
+                        : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50/50'
+                    }`}
+                  >
+                    {t.label}
+                    <span className={`px-1.5 py-0.5 text-[9px] font-extrabold rounded-full ${
+                      isActive ? 'bg-brand-100 text-brand-800' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {t.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Chapter List */}
+            <div className="space-y-4">
+              {(activeAnalysisTab === 'all' ? chapterList : activeAnalysisTab === 'strong' ? strongChapters : weakChapters).length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-2xl">
+                  No chapters found in this category.
+                </div>
+              ) : (
+                (activeAnalysisTab === 'all' ? chapterList : activeAnalysisTab === 'strong' ? strongChapters : weakChapters).map((chap, ci) => {
+                  const statusColors = {
+                    strong: { text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100', bar: 'bg-emerald-500', label: 'Strongest' },
+                    weak: { text: 'text-rose-700', bg: 'bg-rose-50 border-rose-100', bar: 'bg-rose-500', label: 'Weakest (Needs Focus)' },
+                    neutral: { text: 'text-amber-700', bg: 'bg-amber-50 border-amber-100', bar: 'bg-amber-500', label: 'Neutral (Practice More)' }
+                  }[chap.status];
+
+                  return (
+                    <div key={ci} className="border border-slate-100 rounded-2xl p-4 sm:p-5 hover:shadow-md transition-shadow duration-200">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div>
+                          <h3 className="font-extrabold text-slate-800 text-sm sm:text-base flex items-center gap-1.5">
+                            <span className="text-base sm:text-lg">📁</span> {chap.name}
+                          </h3>
+                          <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">
+                            Accuracy: <span className="font-bold text-slate-700">{chap.accuracy}%</span> ({chap.correct}/{chap.total} correct)
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 self-start sm:self-center">
+                          <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full border ${statusColors.bg} ${statusColors.text}`}>
+                            {statusColors.label}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="space-y-1">
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className={`h-full ${statusColors.bar} transition-all duration-500`} style={{ width: `${chap.successRate}%` }} />
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
+                          <span>Syllabus Covered</span>
+                          <span>{chap.successRate}% Score Rate</span>
+                        </div>
+                      </div>
+
+                      {/* Topics breakdown */}
+                      {chap.topics && chap.topics.length > 0 && (
+                        <div className="mt-4 pt-3 border-t border-slate-50 space-y-2.5">
+                          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subtopics breakdown</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {chap.topics.map((t, ti) => {
+                              const tColors = {
+                                strong: { dot: 'bg-emerald-500', text: 'text-emerald-700 bg-emerald-50/40' },
+                                weak: { dot: 'bg-rose-500', text: 'text-rose-700 bg-rose-50/40' },
+                                neutral: { dot: 'bg-amber-500', text: 'text-amber-700 bg-amber-50/40' }
+                              }[t.status];
+
+                              return (
+                                <div key={ti} className="flex items-center justify-between p-2.5 bg-slate-50/50 hover:bg-slate-50 rounded-xl border border-slate-100/50 transition">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${tColors.dot} shrink-0`} />
+                                    <span className="text-xs font-semibold text-slate-700 truncate">{t.name}</span>
+                                  </div>
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${tColors.text} shrink-0`}>
+                                    {t.correct}/{t.total} Correct
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ─── Detailed Question Review ──────────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
           <h2 className="font-bold text-slate-800 mb-5 flex items-center gap-2 text-base">
@@ -525,12 +764,30 @@ export default function TestResult() {
 
         {/* Action Buttons */}
         <div className="flex gap-3 mt-6 justify-center">
-          <Link
-            to={`/take-test/${test?._id}`}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm"
-          >
-            <Repeat size={15} /> Retake Paper
-          </Link>
+          {(() => {
+            // Only show Retake if admin has enabled reattempts for this test
+            const attemptsAllowed = test?.attemptsAllowed ?? 0;
+            const previousAttempts = myAttempts.filter(
+              (a) => a.test?._id?.toString() === test?._id?.toString() || a.test === test?._id
+            );
+            // attemptsAllowed 0 = unlimited, show retake always
+            // attemptsAllowed > 0 = limited, only show if remaining attempts exist
+            const canRetake = attemptsAllowed === 0 || previousAttempts.length < attemptsAllowed;
+            if (!canRetake) return null;
+            return (
+              <Link
+                to={`/take-test/${test?._id}`}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm"
+              >
+                <Repeat size={15} /> Retake Paper
+                {attemptsAllowed > 0 && (
+                  <span className="text-[10px] bg-brand-100 text-brand-700 px-1.5 py-0.5 rounded-full font-bold">
+                    {attemptsAllowed - previousAttempts.length} left
+                  </span>
+                )}
+              </Link>
+            );
+          })()}
           <Link
             to="/tests"
             className="flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition shadow-md"

@@ -28,11 +28,60 @@ import {
   BookOpen,
   Star,
   BookMarked,
+  Pause,
+  Play,
 } from 'lucide-react';
 import SecureYTPlayer from '../components/SecureYTPlayer.jsx';
 // ─── Video Player ─────────────────────────────────────────────────────────────
-function VideoPlayer({ url, title }) {
+function VideoPlayer({ url, title, courseId }) {
   const { user } = useAuth();
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Heartbeat tracking
+  useEffect(() => {
+    if (!courseId || !url || !isPlaying) return;
+
+    // Track active watching
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        api.post('/enroll/watch-history', {
+          courseId,
+          videoUrl: url,
+          videoTitle: title,
+          incrementSeconds: 10
+        }).catch(err => console.error('Error updating watch history:', err));
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, courseId, url, title]);
+
+  // Handle Bunny iframe postMessage events
+  useEffect(() => {
+    if (!url || (!url.includes('mediadelivery.net') && !url.includes('bunny'))) return;
+    
+    const handleMessage = (event) => {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data && data.event) {
+          if (data.event === 'play') {
+            setIsPlaying(true);
+          } else if (data.event === 'pause') {
+            setIsPlaying(false);
+          }
+        }
+      } catch (e) {
+        // Not JSON
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [url]);
+
+  const handlePlayStateChange = (playing) => {
+    setIsPlaying(playing);
+  };
 
   const watermarkText = user 
     ? `${user.name} | ${user.email} | ${user.phone || ''}` 
@@ -72,7 +121,7 @@ function VideoPlayer({ url, title }) {
   );
   if (ytMatch) {
     playerContent = (
-      <SecureYTPlayer url={url} title={title} />
+      <SecureYTPlayer url={url} title={title} onPlayStateChange={handlePlayStateChange} />
     );
   } else if (url.includes('mediadelivery.net') || url.includes('bunny.net') || url.includes('bunny')) {
     playerContent = (
@@ -87,7 +136,15 @@ function VideoPlayer({ url, title }) {
   } else {
     // Fallback direct video file
     playerContent = (
-      <video className="w-full h-full" controls src={url} title={title}>
+      <video
+        className="w-full h-full"
+        controls
+        src={url}
+        title={title}
+        onPlay={() => handlePlayStateChange(true)}
+        onPause={() => handlePlayStateChange(false)}
+        onEnded={() => handlePlayStateChange(false)}
+      >
         Your browser does not support video playback.
       </video>
     );
@@ -101,8 +158,9 @@ function VideoPlayer({ url, title }) {
   );
 }
 
+
 // ─── Classes Tab ──────────────────────────────────────────────────────────────
-function ClassesTab({ lessons }) {
+function ClassesTab({ lessons, courseId }) {
   const [active, setActive] = useState(0);
   if (!lessons || lessons.length === 0) {
     return (
@@ -117,7 +175,8 @@ function ClassesTab({ lessons }) {
     <div className="grid lg:grid-cols-3 gap-6">
       {/* Player */}
       <div className="lg:col-span-2 space-y-4">
-        <VideoPlayer url={current.videoUrl} title={current.title} />
+        <VideoPlayer url={current.videoUrl} title={current.title} courseId={courseId} />
+
         <div>
           <h2 className="text-xl font-bold text-slate-900">{current.title}</h2>
           {current.duration && (
@@ -1118,7 +1177,7 @@ function LiveClassesTab({ liveClasses }) {
 }
 
 // ─── Video Modal ─────────────────────────────────────────────────────────────
-function VideoModal({ url, title, onClose }) {
+function VideoModal({ url, title, courseId, onClose }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
@@ -1150,13 +1209,14 @@ function VideoModal({ url, title, onClose }) {
           </button>
         </div>
         <div className="p-2 bg-black">
-          <VideoPlayer url={url} title={title} />
+          <VideoPlayer url={url} title={title} courseId={courseId} />
         </div>
       </div>
     </div>,
     document.body
   );
 }
+
 
 // ─── Subjects Tab ─────────────────────────────────────────────────────────────
 function SubjectsTab({ subjects, myAttempts, courseId, onPlayVideo, onViewPdf }) {
@@ -1679,6 +1739,18 @@ function AnnouncementsTab({ announcements, readAnnouncements = [], onToggleRead 
   );
 }
 
+const formatTimeToAMPM = (timeStr) => {
+  if (!timeStr) return '';
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return timeStr;
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${hours}:${minutes} ${ampm}`;
+};
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LearnCourse() {
   const { courseId } = useParams();
@@ -1691,6 +1763,22 @@ export default function LearnCourse() {
   const [myAttempts, setMyAttempts] = useState([]);
   const [activeVideo, setActiveVideo] = useState(null);
   const [openPdf, setOpenPdf] = useState(null);
+  const [resumeBusy, setResumeBusy] = useState(false);
+
+  const handleResume = async () => {
+    if (!data?.enrollment?._id) return;
+    setResumeBusy(true);
+    try {
+      await api.post(`/enroll/resume/${data.enrollment._id}`);
+      toast.success('Course resumed successfully! Welcome back! 🎉');
+      const response = await api.get(`/course-content/learn/${courseId}`);
+      setData(response.data);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to resume course.');
+    } finally {
+      setResumeBusy(false);
+    }
+  };
 
   const handleToggleRead = async (announcementId, isRead) => {
     try {
@@ -1759,6 +1847,51 @@ export default function LearnCourse() {
   const lessons = course.lessons || [];
   const planType = enrollment?.planType || 'batch';
 
+  if (enrollment?.isPaused) {
+    return (
+      <div className="container-x max-w-lg mx-auto my-16 text-center card p-8 border border-amber-200 bg-amber-50/20 shadow-md rounded-3xl animate-fade-in">
+        <div className="w-16 h-16 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center mx-auto mb-4 text-amber-600">
+          <Pause size={32} />
+        </div>
+        <h2 className="font-display text-2xl font-black text-slate-800">Course is Paused</h2>
+        <p className="text-slate-500 text-sm mt-3 leading-relaxed">
+          Your enrollment in <strong>{course.title}</strong> is currently paused. You cannot access course materials, live classes, or ask doubts during this period.
+        </p>
+
+        <div className="my-6 p-4 bg-white border border-amber-100 rounded-2xl text-left text-xs font-semibold text-amber-800 space-y-2 max-w-sm mx-auto shadow-inner">
+          <div className="flex justify-between">
+            <span>Paused on:</span>
+            <span className="text-slate-700">{new Date(enrollment.lastPauseStart).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Min Resume Date:</span>
+            <span className="text-slate-700">{new Date(new Date(enrollment.lastPauseStart).getTime() + 7*24*60*60*1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          </div>
+          <div className="flex justify-between font-bold text-amber-900 border-t border-amber-200 pt-2">
+            <span>Auto-resumes on:</span>
+            <span>{new Date(enrollment.lastPausePlannedResume).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          </div>
+        </div>
+
+        <button
+          onClick={handleResume}
+          disabled={resumeBusy}
+          className="btn bg-gradient-brand text-white font-extrabold px-8 py-3 rounded-2xl text-sm shadow-md hover:-translate-y-0.5 transition-all inline-flex items-center gap-2"
+        >
+          {resumeBusy ? (
+            <>
+              <Loader2 className="animate-spin" size={16} /> Resuming Course...
+            </>
+          ) : (
+            <>
+              <Play size={16} /> Resume Course Now
+            </>
+          )}
+        </button>
+      </div>
+    );
+  }
+
   const tabs = [
     { k: 'announcements', l: `Announcements${course.announcements?.length ? ` (${course.announcements.length})` : ''}`, icon: Bell },
     { k: 'subjects', l: 'All Classes', icon: Layers },
@@ -1768,7 +1901,6 @@ export default function LearnCourse() {
     { k: 'timetable', l: 'Time Table', icon: Calendar },
     { k: 'syllabus', l: 'Syllabus', icon: BookMarked },
     { k: 'test-series', l: 'Test Series', icon: ListChecks },
-    { k: 'ebooks', l: 'E-Books', icon: BookOpen },
     { k: 'about', l: 'About', icon: Info },
     { k: 'reviews', l: 'Reviews & Ratings', icon: Star },
   ];
@@ -1871,6 +2003,28 @@ export default function LearnCourse() {
             </a>
           </div>
         )}
+
+        {course.batchInformation && (
+          <div className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-brand-50 to-indigo-50 border border-brand-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3.5 text-center sm:text-left flex-col sm:flex-row">
+              <div className="w-12 h-12 rounded-2xl bg-brand-500 text-white flex items-center justify-center shadow-md shadow-brand-100 shrink-0">
+                <FileText size={22} />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-slate-800 text-sm sm:text-base">Batch Information Booklet</h4>
+                <p className="text-xs text-slate-500 mt-0.5">Download or view the detailed batch details, syllabus, and schedule.</p>
+              </div>
+            </div>
+            <a
+              href={course.batchInformation}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary flex items-center gap-2 text-xs py-2.5 px-5 shadow-lg shadow-brand-100 shrink-0 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 whitespace-nowrap"
+            >
+              <Download size={14} /> View Batch Info PDF
+            </a>
+          </div>
+        )}
         {tab === 'subjects' && (
           <SubjectsTab
             subjects={subjects}
@@ -1931,7 +2085,7 @@ export default function LearnCourse() {
                       <div>
                         <div className="font-bold text-slate-800">{slot.subject}</div>
                         <div className="text-sm text-slate-500 mt-0.5">
-                          {slot.timeFrom} – {slot.timeTo}
+                          {formatTimeToAMPM(slot.timeFrom)} – {formatTimeToAMPM(slot.timeTo)}
                         </div>
                         <div className="text-xs text-brand-600 font-bold mt-1.5 uppercase tracking-wider">{slot.days}</div>
                       </div>
@@ -1995,7 +2149,7 @@ export default function LearnCourse() {
       </div>
 
       {openPdf && <PdfModal pdf={openPdf} onClose={() => setOpenPdf(null)} />}
-      {activeVideo && <VideoModal url={activeVideo.url} title={activeVideo.title} onClose={() => setActiveVideo(null)} />}
+      {activeVideo && <VideoModal url={activeVideo.url} title={activeVideo.title} courseId={courseId} onClose={() => setActiveVideo(null)} />}
     </div>
   );
 }

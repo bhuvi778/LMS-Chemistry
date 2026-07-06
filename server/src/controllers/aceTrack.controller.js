@@ -176,9 +176,26 @@ export const createSubject = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Subject name is required');
   }
+
+  // Prevent duplicate subject names in the same category (case-insensitive match)
+  const trimmedName = name.trim();
+  const newCategories = categories || [];
+  const existingSubjects = await SyllabusSubject.find({
+    name: { $regex: new RegExp('^' + trimmedName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') }
+  });
+
+  const hasOverlap = existingSubjects.some(sub => 
+    sub.categories.some(cat => newCategories.includes(cat))
+  );
+
+  if (hasOverlap) {
+    res.status(400);
+    throw new Error('A subject with this name already exists for one of the selected categories.');
+  }
+
   const subject = await SyllabusSubject.create({ 
-    name, 
-    categories: categories || [], 
+    name: trimmedName, 
+    categories: newCategories, 
     chapters: [] 
   });
   res.status(201).json(subject);
@@ -191,8 +208,27 @@ export const updateSubject = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Subject not found');
   }
-  if (name !== undefined) subject.name = name;
-  if (categories !== undefined) subject.categories = categories;
+
+  const newName = name !== undefined ? name.trim() : subject.name;
+  const newCategories = categories !== undefined ? categories : subject.categories;
+
+  // Check if there's another subject with the same name that overlaps in categories
+  const duplicateSubjects = await SyllabusSubject.find({
+    _id: { $ne: subject._id },
+    name: { $regex: new RegExp('^' + newName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') }
+  });
+
+  const hasOverlap = duplicateSubjects.some(sub => 
+    sub.categories.some(cat => newCategories.includes(cat))
+  );
+
+  if (hasOverlap) {
+    res.status(400);
+    throw new Error('Another subject with this name already exists for one of the selected categories.');
+  }
+
+  if (name !== undefined) subject.name = newName;
+  if (categories !== undefined) subject.categories = newCategories;
   await subject.save();
   res.json(subject);
 });
@@ -270,7 +306,7 @@ export const deleteTopic = asyncHandler(async (req, res) => {
 });
 
 export const createSubTopic = asyncHandler(async (req, res) => {
-  const { name, hasVideo, hasNotes, hasDpp, hasDppVideo, hasMockTest, subTopicId } = req.body;
+  const { name, hasVideo, hasNotes, hasDpp, hasDppVideo, hasMockTest, hasPyq, subTopicId } = req.body;
   if (!name) {
     res.status(400);
     throw new Error('Subtopic name is required');
@@ -305,6 +341,7 @@ export const createSubTopic = asyncHandler(async (req, res) => {
     subTopic.hasDpp = hasDpp !== undefined ? hasDpp : subTopic.hasDpp;
     subTopic.hasDppVideo = hasDppVideo !== undefined ? hasDppVideo : subTopic.hasDppVideo;
     subTopic.hasMockTest = hasMockTest !== undefined ? hasMockTest : subTopic.hasMockTest;
+    subTopic.hasPyq = hasPyq !== undefined ? hasPyq : subTopic.hasPyq;
   } else {
     // Create new subtopic
     topic.subTopics.push({
@@ -313,7 +350,8 @@ export const createSubTopic = asyncHandler(async (req, res) => {
       hasNotes: hasNotes !== undefined ? hasNotes : true,
       hasDpp: hasDpp !== undefined ? hasDpp : true,
       hasDppVideo: hasDppVideo !== undefined ? hasDppVideo : true,
-      hasMockTest: hasMockTest !== undefined ? hasMockTest : true
+      hasMockTest: hasMockTest !== undefined ? hasMockTest : true,
+      hasPyq: hasPyq !== undefined ? hasPyq : true
     });
   }
 
@@ -338,7 +376,7 @@ export const deleteSubTopic = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Topic not found');
   }
-  topic.subTopics = topic.subTopics.filter(st => st._id.toString() !== subTopicId);
+  topic.subTopics.pull(subTopicId);
   await subject.save();
   res.json(subject);
 });

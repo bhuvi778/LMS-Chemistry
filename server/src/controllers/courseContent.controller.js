@@ -5,9 +5,9 @@ import CourseTest from '../models/CourseTest.js';
 import Enrollment from '../models/Enrollment.js';
 import LiveClass from '../models/LiveClass.js';
 import Test from '../models/Test.js';
+import { autoResumeEnrollmentIfNeeded } from './enroll.controller.js';
 
 // ─── Student: get full learning content for an enrolled course ───────────────
-
 export const getLearningContent = asyncHandler(async (req, res) => {
   const { courseId } = req.params;
 
@@ -18,6 +18,9 @@ export const getLearningContent = asyncHandler(async (req, res) => {
       student: req.user._id,
       course: courseId,
     });
+    if (enrolled) {
+      await autoResumeEnrollmentIfNeeded(enrolled);
+    }
     if (!enrolled) {
       res.status(403);
       throw new Error('You are not enrolled in this course.');
@@ -27,7 +30,9 @@ export const getLearningContent = asyncHandler(async (req, res) => {
       student: req.user._id,
       course: courseId,
     });
-    if (!enrolled) {
+    if (enrolled) {
+      await autoResumeEnrollmentIfNeeded(enrolled);
+    } else {
       enrolled = { planType: 'infinity', pricePaid: 0 };
     }
   }

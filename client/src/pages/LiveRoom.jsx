@@ -146,12 +146,14 @@ export default function LiveRoom() {
   const rerender = () => forceRender((v) => v + 1);
 
   // Fetch live class metadata
+  const [accessError, setAccessError] = useState(null);
   useEffect(() => {
     api.get(`/live/${id}`)
       .then(({ data }) => setMeta(data))
       .catch((err) => {
-        toast.error(err.message || 'Cannot access live class');
-        nav('/dashboard');
+        const msg = err.response?.data?.message || err.message || 'Cannot access live class';
+        setAccessError(msg);
+        toast.error(msg);
       });
   }, [id, nav]);
 
@@ -679,8 +681,24 @@ export default function LiveRoom() {
 
   if (!meta) {
     return (
-      <div className="min-h-screen bg-slate-900 grid place-items-center text-white">
-        <Loader2 className="animate-spin" size={32} />
+      <div className="min-h-screen bg-slate-900 grid place-items-center text-white p-6">
+        {accessError ? (
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
+            <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-4">
+              <PhoneOff size={28} className="text-rose-500" />
+            </div>
+            <h2 className="font-bold text-slate-800 text-xl mb-2">Access Restricted</h2>
+            <p className="text-slate-500 text-sm mb-6">{accessError}</p>
+            <button
+              onClick={() => nav('/student/courses')}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-xl font-semibold text-sm hover:bg-brand-700 transition"
+            >
+              Browse Courses
+            </button>
+          </div>
+        ) : (
+          <Loader2 className="animate-spin" size={32} />
+        )}
       </div>
     );
   }

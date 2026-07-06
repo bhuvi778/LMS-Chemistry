@@ -175,7 +175,7 @@ export const AuthProvider = ({ children }) => {
     setPendingOtpLogin(null);
   };
 
-  const requestOtpLogin = async (identifier, channel = 'sms') => {
+  const requestOtpLogin = async (identifier, channel = 'whatsapp') => {
     setLoading(true);
     try {
       const payload = {};

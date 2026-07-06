@@ -889,11 +889,8 @@ export const sendLoginOtp = asyncHandler(async (req, res) => {
 
   // Dispatch OTP
   if (isPhone) {
-    if (channel === 'whatsapp') {
-      await sendWhatsappOtp(user.phone, code);
-    } else {
-      await sendSmsOtp(user.phone, code);
-    }
+    // Only WhatsApp integration, no SMS
+    await sendWhatsappOtp(user.phone, code);
   } else {
     await sendOtpEmail(user.email, code, user.name);
   }

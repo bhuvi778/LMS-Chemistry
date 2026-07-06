@@ -1,36 +1,110 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Download, Trash2, Library, FileText, Bookmark, ArrowRight, DownloadCloud } from 'lucide-react';
+import { BookOpen, Trash2, FileText, Bookmark, ArrowRight, DownloadCloud, X, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext.jsx';
+
+// In-app PDF viewer modal — files open inside the app, not downloaded to device
+function InAppViewer({ item, onClose }) {
+  const resolveUrl = (url) => {
+    if (!url) return '';
+    // Google Drive file
+    const driveFile = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+    if (driveFile) return `https://drive.google.com/file/d/${driveFile[1]}/preview`;
+    // Generic PDF - use Google Docs viewer
+    if (url.toLowerCase().includes('.pdf')) {
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+    }
+    return url;
+  };
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  const embedUrl = resolveUrl(item.fileUrl);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80" onClick={onClose}>
+      <div
+        className="relative w-full max-w-4xl bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+        style={{ maxHeight: '92vh' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 shrink-0">
+          <h3 className="font-bold text-slate-900 text-sm line-clamp-1 pr-4">{item.title}</h3>
+          <div className="flex items-center gap-2">
+            <a
+              href={item.fileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition"
+              title="Open in new tab"
+            >
+              <ExternalLink size={12} /> Open Tab
+            </a>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 grid place-items-center transition shrink-0"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+        <iframe
+          className="w-full flex-1 rounded-b-2xl"
+          style={{ minHeight: '75vh' }}
+          src={embedUrl}
+          title={item.title}
+          allow="fullscreen"
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function Downloads() {
+  const { user } = useAuth();
   const [downloads, setDownloads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [openItem, setOpenItem] = useState(null); // item to view in-app
+
+  const getDownloadsKey = () => user ? `lms_chemistry_downloads_${user._id}` : 'lms_chemistry_downloads_guest';
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('lms_chemistry_downloads') || '[]');
+      const key = getDownloadsKey();
+      const saved = JSON.parse(localStorage.getItem(key) || '[]');
       setDownloads(saved);
     } catch (e) {
       console.error('Failed to load local downloads', e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const handleOpen = (item) => {
     if (!item.fileUrl) {
       toast.error('File URL not found');
       return;
     }
-    window.open(item.fileUrl, '_blank');
+    setOpenItem(item);
   };
 
   const handleRemove = (id) => {
     try {
-      const saved = JSON.parse(localStorage.getItem('lms_chemistry_downloads') || '[]');
+      const key = getDownloadsKey();
+      const saved = JSON.parse(localStorage.getItem(key) || '[]');
       const updated = saved.filter(i => i._id !== id);
-      localStorage.setItem('lms_chemistry_downloads', JSON.stringify(updated));
+      localStorage.setItem(key, JSON.stringify(updated));
       setDownloads(updated);
       toast.success('Removed from downloads');
     } catch (e) {
@@ -65,7 +139,7 @@ export default function Downloads() {
           <BookOpen size={20} className="text-white/60" />
         )}
       </div>
-      
+
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="space-y-0.5">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -106,8 +180,8 @@ export default function Downloads() {
               onClick={() => handleOpen(item)}
               className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-extrabold rounded-lg shadow-xs transition cursor-pointer"
             >
-              <Download size={10} className="stroke-[3px]" />
-              <span>Open</span>
+              <BookOpen size={10} className="stroke-[3px]" />
+              <span>View</span>
             </button>
           </div>
         </div>
@@ -117,6 +191,9 @@ export default function Downloads() {
 
   return (
     <div className="space-y-8 w-full max-w-5xl">
+      {/* In-app viewer modal */}
+      {openItem && <InAppViewer item={openItem} onClose={() => setOpenItem(null)} />}
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -124,12 +201,12 @@ export default function Downloads() {
             <DownloadCloud size={24} className="text-indigo-600" />
             <span>My Downloads</span>
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Access all your downloaded books, revision notes, and study materials offline inside the app.</p>
+          <p className="text-sm text-slate-500 mt-1">Access all your saved books, revision notes, and study materials — view them right here in the app.</p>
         </div>
-        
+
         <div className="flex items-center gap-1.5 px-4 py-2 bg-indigo-50 text-indigo-700 font-black rounded-2xl text-xs border border-indigo-100/35 shrink-0">
           <DownloadCloud size={14} className="animate-pulse" />
-          <span>{downloads.length} Materials Downloaded</span>
+          <span>{downloads.length} Materials Saved</span>
         </div>
       </div>
 
@@ -140,9 +217,9 @@ export default function Downloads() {
             <DownloadCloud size={28} />
           </div>
           <div className="space-y-1">
-            <h3 className="font-bold text-slate-700 text-base">No Downloads Found</h3>
+            <h3 className="font-bold text-slate-700 text-base">No Saved Materials</h3>
             <p className="text-slate-400 text-xs max-w-sm mx-auto leading-relaxed">
-              You haven't downloaded any study materials yet. Visit the Library to find high-quality books and revision notes!
+              You haven't saved any study materials yet. Visit the Library to find high-quality books and revision notes!
             </p>
           </div>
           <Link
@@ -156,13 +233,13 @@ export default function Downloads() {
       ) : (
         /* Categorized Downloads Lists */
         <div className="space-y-8">
-          
+
           {/* E-Books Section */}
           {ebooks.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
                 <span className="text-base">📚</span>
-                <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">Downloaded E-Books ({ebooks.length})</h2>
+                <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">Saved E-Books ({ebooks.length})</h2>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {ebooks.map(item => (
@@ -177,7 +254,7 @@ export default function Downloads() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
                 <span className="text-base">📝</span>
-                <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">Downloaded E-Notes ({enotes.length})</h2>
+                <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">Saved E-Notes ({enotes.length})</h2>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {enotes.map(item => (
@@ -192,7 +269,7 @@ export default function Downloads() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
                 <span className="text-base">🔖</span>
-                <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">Downloaded E-Magazines ({emagazines.length})</h2>
+                <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">Saved E-Magazines ({emagazines.length})</h2>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {emagazines.map(item => (

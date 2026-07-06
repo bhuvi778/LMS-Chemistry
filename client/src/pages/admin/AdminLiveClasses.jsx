@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Edit, X, Save, Video, Clock, Link as LinkIcon, ExternalLink, Users, Bell, Lock } from 'lucide-react';
+import { Plus, Trash2, Edit, X, Save, Video, Clock, Link as LinkIcon, ExternalLink, Users, Bell, Lock, Circle, StopCircle, PlayCircle } from 'lucide-react';
 import { Link as RouterLink } from 'react-router-dom';
 
 const empty = {
   title: '',
   description: '',
   courseName: '',
-  course: '',
+  course: null,
   courses: [],
   instructor: 'Ace2Examz Faculty',
   meetLink: '',
@@ -65,6 +65,14 @@ export default function AdminLiveClasses() {
         payload.useInternalRoom = true;
         payload.meetLink = '';
         payload.meetingUrl = '';
+      }
+      // Ensure course is null (not empty string) when no courses selected
+      if (!payload.courses || payload.courses.length === 0) {
+        payload.courses = [];
+        payload.course = null;
+        payload.courseName = '';
+      } else {
+        payload.course = payload.courses[0] || null;
       }
       if (editing._id) {
         await api.put(`/admin/live-classes/${editing._id}`, payload);
@@ -306,6 +314,37 @@ export default function AdminLiveClasses() {
 
 function ClassCard({ lc, onEdit, onDelete, past }) {
   const isEmbedRoom = ['internal', 'agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet'));
+  const isAgoraClass = ['agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast'].includes(lc.platform);
+  const [recording, setRecording] = useState(lc.recordingStatus || 'idle');
+  const [recordingUrl, setRecordingUrl] = useState(lc.recordingUrl || null);
+  const [recordingBusy, setRecordingBusy] = useState(false);
+
+  const handleStartRecording = async () => {
+    setRecordingBusy(true);
+    try {
+      await api.post(`/live/${lc._id}/recording/start`);
+      setRecording('recording');
+      toast.success('🔴 Cloud recording started');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to start recording');
+    } finally {
+      setRecordingBusy(false);
+    }
+  };
+
+  const handleStopRecording = async () => {
+    setRecordingBusy(true);
+    try {
+      const res = await api.post(`/live/${lc._id}/recording/stop`);
+      setRecording('stopped');
+      setRecordingUrl(res.data.recordingUrl || null);
+      toast.success('⏹️ Recording stopped' + (res.data.recordingUrl ? ' — file saved!' : ''));
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to stop recording');
+    } finally {
+      setRecordingBusy(false);
+    }
+  };
   
   return (
     <div className={`card overflow-hidden flex flex-col ${past ? 'border-slate-100' : 'border-rose-100'}`}>
@@ -326,7 +365,9 @@ function ClassCard({ lc, onEdit, onDelete, past }) {
                   <span className="text-[10px] text-slate-500 truncate max-w-[150px]">
                     {lc.course?.title || lc.courseName}
                   </span>
-                ) : null}
+                ) : (
+                  <span className="text-[10px] text-emerald-600 font-semibold">Open to All</span>
+                )}
                 <span className="text-[9px] text-slate-300">•</span>
                 <span className="text-[9px] font-extrabold bg-brand-50 border border-brand-100 text-brand-700 px-1 py-0.5 rounded uppercase shrink-0">
                   {lc.platform === 'agora_call' ? 'Ace Call' : 
@@ -338,6 +379,11 @@ function ClassCard({ lc, onEdit, onDelete, past }) {
                    lc.platform === 'meet' ? 'Meet' :
                    lc.platform || 'Ace Call'}
                 </span>
+                {recording === 'recording' && (
+                  <span className="text-[9px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 animate-pulse">
+                    <Circle size={6} className="fill-red-500" /> REC
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -358,8 +404,19 @@ function ClassCard({ lc, onEdit, onDelete, past }) {
         <div className="text-xs text-slate-500 flex items-center gap-1">
           <span className="font-medium">By:</span> {lc.instructor}
         </div>
+        {/* Recording link for past/ended classes */}
+        {(recordingUrl || lc.recordingUrl) && (
+          <a
+            href={recordingUrl || lc.recordingUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 text-[10px] font-bold text-brand-700 hover:text-brand-900 bg-brand-50 border border-brand-100 px-2.5 py-1 rounded-lg w-fit"
+          >
+            <PlayCircle size={12} /> Watch Recording
+          </a>
+        )}
       </div>
-      <div className="px-4 pb-4 flex gap-2">
+      <div className="px-4 pb-4 flex gap-2 flex-wrap">
         {isEmbedRoom ? (
           <RouterLink to={`/live/${lc._id}`} className="btn-primary flex-1 justify-center text-xs py-1.5">
             <Video size={12} /> {lc.status === 'live' ? 'Rejoin Live' : 'Open Room'}
@@ -368,6 +425,28 @@ function ClassCard({ lc, onEdit, onDelete, past }) {
           <a href={lc.meetLink || lc.meetingUrl} target="_blank" rel="noreferrer" className="btn-outline flex-1 justify-center text-xs py-1.5">
             <ExternalLink size={12} /> Join External
           </a>
+        )}
+        {/* Recording controls for Agora classes */}
+        {isAgoraClass && (
+          recording === 'recording' ? (
+            <button
+              onClick={handleStopRecording}
+              disabled={recordingBusy}
+              className="p-2 rounded-lg hover:bg-red-50 text-red-600 border border-red-200 flex items-center gap-1 text-[10px] font-bold"
+              title="Stop Cloud Recording"
+            >
+              <StopCircle size={12} /> Stop REC
+            </button>
+          ) : recording !== 'recording' && !past ? (
+            <button
+              onClick={handleStartRecording}
+              disabled={recordingBusy}
+              className="p-2 rounded-lg hover:bg-rose-50 text-rose-600 border border-rose-200 flex items-center gap-1 text-[10px] font-bold"
+              title="Start Cloud Recording"
+            >
+              <Circle size={12} className="fill-rose-500" /> Record
+            </button>
+          ) : null
         )}
         <button onClick={onEdit} className="p-2 rounded-lg hover:bg-brand-50 text-brand-600"><Edit size={14} /></button>
         <button onClick={onDelete} className="p-2 rounded-lg hover:bg-rose-50 text-rose-500"><Trash2 size={14} /></button>

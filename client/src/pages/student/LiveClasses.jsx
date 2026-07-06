@@ -14,14 +14,12 @@ export default function LiveClasses() {
     api.get('/admin/live-classes/all')
       .then(({ data }) => {
         setClasses(data || { ongoing: [], upcoming: [], past: [] });
-        // Auto-select tab if ongoing has classes
+        // Always default to 'ongoing' (Live & Ongoing) tab
+        // Only auto-switch if there is something live to highlight
         if (data && data.ongoing && data.ongoing.length > 0) {
           setActiveTab('ongoing');
-        } else if (data && data.upcoming && data.upcoming.length > 0) {
-          setActiveTab('upcoming');
-        } else {
-          setActiveTab('past');
         }
+        // Otherwise keep the default 'ongoing' tab selected
       })
       .catch((err) => {
         toast.error('Failed to fetch live classes');
@@ -31,6 +29,7 @@ export default function LiveClasses() {
         setLoading(false);
       });
   }, []);
+
 
   const getTabCount = (tabName) => {
     return classes[tabName]?.length || 0;

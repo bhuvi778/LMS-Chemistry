@@ -88,7 +88,7 @@ export default function AskDoubt() {
                     usage.planType === 'pro' ? 'bg-violet-100 text-violet-800 border border-violet-200' :
                     'bg-slate-100 text-slate-700 border border-slate-200'
                   }`}>
-                    {usage.planType === 'infinity' ? 'Ace Infinity' : usage.planType === 'pro' ? 'Ace Pro' : 'Ace Batch'} Plan
+                    {usage.planType === 'infinity' ? 'Ace Infinity' : usage.planType === 'pro' ? 'Ace Pro' : 'Ace Starter'} Plan
                   </span>
                   <span className="text-slate-300 font-bold">•</span>
                   <span className="text-slate-600">
@@ -105,7 +105,7 @@ export default function AskDoubt() {
           <button
             onClick={() => {
               if (quotaExceeded) {
-                toast.error(`Daily doubt limit reached! Your ${usage.planType === 'pro' ? 'Ace Pro' : 'Ace Batch'} plan only allows ${usage.limit} doubt(s) per day. Upgrade to a higher plan for more doubts!`);
+                toast.error(`Daily doubt limit reached! Your ${usage.planType === 'pro' ? 'Ace Pro' : 'Ace Starter'} plan only allows ${usage.limit} doubt(s) per day. Upgrade to a higher plan for more doubts!`);
                 return;
               }
               setShowForm((v) => !v);

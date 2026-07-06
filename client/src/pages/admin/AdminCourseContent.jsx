@@ -4,6 +4,8 @@ import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 import {
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   Plus,
   Trash2,
   Edit,
@@ -1531,8 +1533,9 @@ function ChapterEditor({ chapter, subjectId, courseId, onSaved, onDeleted }) {
   );
 }
 
-function SubjectEditor({ subject, courseId, onUpdated, onDeleted, onChapterAdded }) {
+function SubjectEditor({ subject, courseId, onUpdated, onDeleted, isFirst, isLast, onMoveUp, onMoveDown }) {
   const [open, setOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [editName, setEditName] = useState(subject.name);
   const [editOrder, setEditOrder] = useState(subject.order ?? 0);
   const [chapters, setChapters] = useState(subject.chapters || []);
@@ -1586,15 +1589,49 @@ function SubjectEditor({ subject, courseId, onUpdated, onDeleted, onChapterAdded
   return (
     <div className="rounded-2xl border-2 border-brand-100 overflow-hidden">
       {/* Subject header */}
-      <div className="flex items-center gap-4 px-6 py-4 bg-gradient-to-r from-brand-50 to-violet-50">
+      <div 
+        onClick={() => setIsCollapsed(!isCollapsed)} 
+        className="flex items-center gap-4 px-6 py-4 bg-gradient-to-r from-brand-50 to-violet-50 cursor-pointer select-none"
+      >
         <div className="w-9 h-9 rounded-xl bg-brand-600 text-white grid place-items-center shrink-0">
           <Layers size={17} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-slate-900 text-base">{subject.name}</div>
+          <div className="font-bold text-slate-900 text-base flex items-center gap-2">
+            {subject.name}
+            {isCollapsed ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronUp size={16} className="text-slate-400" />}
+          </div>
           <div className="text-xs text-slate-500 mt-0.5">{chapters.length} chapters</div>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+          {/* Reordering buttons */}
+          <div className="flex gap-1 mr-2">
+            <button 
+              disabled={isFirst} 
+              onClick={onMoveUp}
+              className={`p-1.5 rounded-lg border transition ${
+                isFirst 
+                  ? 'text-slate-300 border-slate-100 cursor-not-allowed bg-slate-50' 
+                  : 'text-slate-600 border-slate-200 hover:bg-slate-100 cursor-pointer bg-white'
+              }`}
+              title="Move Up"
+            >
+              <ArrowUp size={13} />
+            </button>
+            <button 
+              disabled={isLast} 
+              onClick={onMoveDown}
+              className={`p-1.5 rounded-lg border transition ${
+                isLast 
+                  ? 'text-slate-300 border-slate-100 cursor-not-allowed bg-slate-50' 
+                  : 'text-slate-600 border-slate-200 hover:bg-slate-100 cursor-pointer bg-white'
+              }`}
+              title="Move Down"
+            >
+              <ArrowDown size={13} />
+            </button>
+          </div>
+
           <button onClick={() => setOpen((v) => !v)} className="btn-outline !py-1.5 !px-3 text-xs flex items-center gap-1">
             <Edit size={12} /> {open ? 'Close' : 'Edit'}
           </button>
@@ -1625,41 +1662,43 @@ function SubjectEditor({ subject, courseId, onUpdated, onDeleted, onChapterAdded
       )}
 
       {/* Chapters list */}
-      <div className="px-6 pb-5 space-y-2 border-t border-brand-100 bg-white pt-4">
-        {chapters.length === 0 && (
-          <div className="text-center text-slate-400 text-sm py-6">No chapters yet. Add the first chapter below.</div>
-        )}
-        {chapters
-          .slice()
-          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-          .map((ch, i) => (
-            <ChapterEditor
-              key={ch._id}
-              chapter={{ ...ch, order: i }}
-              subjectId={subject._id}
-              courseId={courseId}
-              onSaved={(updated) => {
-                setChapters((prev) => prev.map((c) => c._id === updated._id ? updated : c));
-              }}
-              onDeleted={(id) => setChapters((prev) => prev.filter((c) => c._id !== id))}
-            />
-          ))}
+      {!isCollapsed && (
+        <div className="px-6 pb-5 space-y-2 border-t border-brand-100 bg-white pt-4">
+          {chapters.length === 0 && (
+            <div className="text-center text-slate-400 text-sm py-6">No chapters yet. Add the first chapter below.</div>
+          )}
+          {chapters
+            .slice()
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+            .map((ch, i) => (
+              <ChapterEditor
+                key={ch._id}
+                chapter={{ ...ch, order: i }}
+                subjectId={subject._id}
+                courseId={courseId}
+                onSaved={(updated) => {
+                  setChapters((prev) => prev.map((c) => c._id === updated._id ? updated : c));
+                }}
+                onDeleted={(id) => setChapters((prev) => prev.filter((c) => c._id !== id))}
+              />
+            ))}
 
-        {/* Add new chapter */}
-        <div className="flex gap-2 pt-1">
-          <input
-            className="input flex-1"
-            placeholder="New chapter title…"
-            value={newChapterTitle}
-            onChange={(e) => setNewChapterTitle(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addChapter()}
-          />
-          <button onClick={addChapter} disabled={addingChapter} className="btn-primary shrink-0">
-            {addingChapter ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-            Add Chapter
-          </button>
+          {/* Add new chapter */}
+          <div className="flex gap-2 pt-1">
+            <input
+              className="input flex-1"
+              placeholder="New chapter title…"
+              value={newChapterTitle}
+              onChange={(e) => setNewChapterTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addChapter()}
+            />
+            <button onClick={addChapter} disabled={addingChapter} className="btn-primary shrink-0">
+              {addingChapter ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              Add Chapter
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1698,6 +1737,35 @@ function SubjectsTab({ courseId }) {
     }
   };
 
+  const sortedSubjects = [...subjects].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  const moveSubject = async (index, direction) => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sortedSubjects.length) return;
+    
+    const currentSubject = sortedSubjects[index];
+    const targetSubject = sortedSubjects[targetIndex];
+    
+    const normalized = sortedSubjects.map((s, idx) => ({ ...s, order: idx }));
+    const temp = normalized[index].order;
+    normalized[index].order = normalized[targetIndex].order;
+    normalized[targetIndex].order = temp;
+    
+    const originalSubjects = [...subjects];
+    setSubjects(normalized);
+    
+    try {
+      await Promise.all([
+        api.put(`/subjects/admin/subject/${normalized[index]._id}`, { order: normalized[index].order }),
+        api.put(`/subjects/admin/subject/${normalized[targetIndex]._id}`, { order: normalized[targetIndex].order })
+      ]);
+      toast.success('Subject order updated');
+    } catch (err) {
+      toast.error('Failed to update subject order');
+      setSubjects(originalSubjects);
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-brand-500" size={28} /></div>;
   }
@@ -1719,18 +1787,19 @@ function SubjectsTab({ courseId }) {
             No subjects yet. Add the first subject below.
           </div>
         )}
-        {subjects
-          .slice()
-          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-          .map((subject) => (
-            <SubjectEditor
-              key={subject._id}
-              subject={subject}
-              courseId={courseId}
-              onUpdated={(updated) => setSubjects((prev) => prev.map((s) => s._id === updated._id ? updated : s))}
-              onDeleted={(id) => setSubjects((prev) => prev.filter((s) => s._id !== id))}
-            />
-          ))}
+        {sortedSubjects.map((subject, index) => (
+          <SubjectEditor
+            key={subject._id}
+            subject={subject}
+            courseId={courseId}
+            isFirst={index === 0}
+            isLast={index === sortedSubjects.length - 1}
+            onMoveUp={() => moveSubject(index, 'up')}
+            onMoveDown={() => moveSubject(index, 'down')}
+            onUpdated={(updated) => setSubjects((prev) => prev.map((s) => s._id === updated._id ? updated : s))}
+            onDeleted={(id) => setSubjects((prev) => prev.filter((s) => s._id !== id))}
+          />
+        ))}
       </div>
 
       {/* Add subject */}

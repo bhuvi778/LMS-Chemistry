@@ -12,7 +12,7 @@ export default function About() {
             India's most loved <span className="gradient-text">Chemistry Platform</span>
           </h1>
           <p className="text-slate-600 mt-4 text-lg leading-relaxed">
-            ChemPrep was built by Chemistry educators who believed Chemistry deserved a
+            Ace2Examz was built by Chemistry educators who believed Chemistry deserved a
             dedicated, world-class platform. From CBSE and IGCSE to A-Levels, university entrance
             exams, and professional certifications — we cover every major curriculum with the same rigour and care.
           </p>

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 // ─── Blank coupon template ────────────────────────────────────────────────────
-const blankCoupon = () => ({ code: '', discountType: 'percent', discountValue: 0, isActive: true });
+const blankCoupon = () => ({ code: '', discountType: 'percent', discountValue: 0, isActive: true, maxUses: 0, maxUsesPerUser: 0 });
 
 // ─── Single item card ─────────────────────────────────────────────────────────
 function ItemCouponCard({ item, type, onSaved }) {
@@ -140,10 +140,21 @@ function ItemCouponCard({ item, type, onSaved }) {
             No coupons yet. Click "Add Coupon" to create one.
           </p>
         )}
+        {coupons.length > 0 && (
+          <div className="grid grid-cols-[1.5fr_1fr_1fr_1.2fr_1.2fr_72px_auto] gap-2 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">
+            <div>Coupon Code</div>
+            <div>Discount Type</div>
+            <div className="text-right">Value</div>
+            <div className="text-center">Global Limit</div>
+            <div className="text-center">Limit per User</div>
+            <div className="text-center">Status</div>
+            <div></div>
+          </div>
+        )}
         {coupons.map((coupon, i) => (
           <div
             key={i}
-            className={`grid grid-cols-[1fr_1fr_100px_72px_auto] gap-2 items-center p-3 rounded-xl border transition ${
+            className={`grid grid-cols-[1.5fr_1fr_1fr_1.2fr_1.2fr_72px_auto] gap-2 items-center p-3 rounded-xl border transition ${
               coupon.isActive && coupon.code
                 ? 'border-emerald-200 bg-emerald-50/40'
                 : 'border-slate-100 bg-slate-50'
@@ -173,6 +184,26 @@ function ItemCouponCard({ item, type, onSaved }) {
               placeholder="Value"
               value={coupon.discountValue}
               onChange={(e) => updateCoupon(i, 'discountValue', Number(e.target.value))}
+            />
+            {/* Max Uses Global */}
+            <input
+              type="number"
+              min="0"
+              className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:border-brand-400 bg-white w-full font-semibold"
+              placeholder="0 (Unlimited)"
+              value={coupon.maxUses || ''}
+              onChange={(e) => updateCoupon(i, 'maxUses', e.target.value === '' ? 0 : Number(e.target.value))}
+              title="Global usage limit (0 = unlimited)"
+            />
+            {/* Max Uses Per User */}
+            <input
+              type="number"
+              min="0"
+              className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:border-brand-400 bg-white w-full font-semibold"
+              placeholder="0 (Unlimited)"
+              value={coupon.maxUsesPerUser || ''}
+              onChange={(e) => updateCoupon(i, 'maxUsesPerUser', e.target.value === '' ? 0 : Number(e.target.value))}
+              title="Usage limit per student (0 = unlimited, e.g. 1)"
             />
             {/* Active toggle */}
             <button

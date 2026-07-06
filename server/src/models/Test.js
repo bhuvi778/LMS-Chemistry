@@ -17,8 +17,16 @@ const questionSchema = new mongoose.Schema(
     explanation: { type: String, default: '' },
     marks: { type: Number, default: 4 },
     negativeMarks: { type: Number, default: -1 },
+    partialMarking: { type: Boolean, default: true },
+    partialMarkingMethod: {
+      type: String,
+      enum: ['correct_count', 'percentage_based'],
+      default: 'correct_count',
+    },
     image: { type: String, default: '' }, // optional question image URL
     section: { type: String, default: '' },
+    chapter: { type: String, default: '' },
+    topic: { type: String, default: '' },
   },
   { _id: true }
 );

@@ -30,6 +30,13 @@ const liveClassSchema = new mongoose.Schema(
     status: { type: String, enum: ['scheduled', 'live', 'ended'], default: 'scheduled' },
     startedAt: { type: Date, default: null },
     endedAt: { type: Date, default: null },
+    // Agora Cloud Recording fields
+    recordingResourceId: { type: String, default: null },
+    recordingSid: { type: String, default: null },
+    recordingStatus: { type: String, enum: ['idle', 'recording', 'stopped'], default: 'idle' },
+    recordingUrl: { type: String, default: null },
+    recordingStartedAt: { type: Date, default: null },
+    recordingStoppedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

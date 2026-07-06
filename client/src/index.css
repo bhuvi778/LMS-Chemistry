@@ -6,7 +6,9 @@
   color-scheme: light;
 }
 html {
-  font-size: 103%; /* 128.8% × 0.8 — net +20% from original */
+  font-size: 93.75%; /* smaller default font size on mobile for better fit */
+  max-width: 100%;
+  overflow-x: hidden;
 }
 @media (min-width: 768px) {
   html {
@@ -23,6 +25,8 @@ body,
 }
 body {
   @apply bg-white text-slate-800 font-sans antialiased;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Utilities */

@@ -19,7 +19,7 @@ function safeRedirect(from, role) {
 export default function Login() {
   const {
     login, verifyOtp, cancelOtp, pending2FA, pendingVerification,
-    verifyEmail, cancelVerification, loading, user,
+    verifyEmail, cancelVerification, loading, user, bootstrapping,
     pendingOtpLogin, requestOtpLogin, verifyOtpLogin, cancelOtpLogin
   } = useAuth();
   const nav = useNavigate();
@@ -27,7 +27,16 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [otp, setOtp] = useState('');
   const [loginMethod, setLoginMethod] = useState('password'); // 'password' or 'otp'
-  const [channel, setChannel] = useState('sms'); // 'sms' or 'whatsapp'
+  const [channel, setChannel] = useState('whatsapp'); // 'sms' or 'whatsapp'
+
+  useEffect(() => {
+    // Once bootstrapping is done, if the user is not authenticated, clear any stale token/user.
+    // This prevents background widgets (like SupportChatWidget) from using a stale token and throwing session expired errors.
+    if (!bootstrapping && !user) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+  }, [bootstrapping, user]);
 
   useEffect(() => {
     if (user) {
@@ -42,7 +51,7 @@ export default function Login() {
       try {
         await requestOtpLogin(form.email, channel);
         if (/^\+?\d+$/.test(form.email.trim())) {
-          toast.success(`Login OTP sent via ${channel === 'whatsapp' ? 'WhatsApp' : 'SMS'}`);
+          toast.success('Login OTP sent via WhatsApp');
         } else {
           toast.success('Login OTP code sent to your email');
         }
@@ -329,6 +338,31 @@ export default function Login() {
           <h1 className="font-display text-3xl font-extrabold">Sign in</h1>
           <p className="text-slate-500 mt-1">Enter your credentials to continue.</p>
 
+          {loc.search.includes('reason=session_expired') && (
+            <div className="mt-4 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+              <div className="p-1.5 bg-red-100 rounded-lg text-red-600 shrink-0">
+                <ShieldCheck size={16} />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-red-800">Session Expired</p>
+                <p className="text-[11px] text-red-600 leading-relaxed">
+                  You were logged out because your session expired or you logged in from another device.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login';
+                  }}
+                  className="mt-1.5 text-[10px] font-bold text-red-700 hover:underline block"
+                >
+                  Log In on This Device
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="mt-6">
             <label className="label">{loginMethod === 'otp' ? 'Email or Phone Number' : 'Email'}</label>
             <div className="relative">
@@ -343,35 +377,6 @@ export default function Login() {
               />
             </div>
           </div>
-          {loginMethod === 'otp' && /^\+?\d+$/.test(form.email.trim()) && (
-            <div className="mt-4">
-              <label className="label">Send OTP via</label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm text-slate-600 font-semibold cursor-pointer">
-                  <input
-                    type="radio"
-                    name="channel"
-                    value="sms"
-                    checked={channel === 'sms'}
-                    onChange={() => setChannel('sms')}
-                    className="text-brand-600 focus:ring-brand-500"
-                  />
-                  SMS (Text)
-                </label>
-                <label className="flex items-center gap-2 text-sm text-slate-600 font-semibold cursor-pointer">
-                  <input
-                    type="radio"
-                    name="channel"
-                    value="whatsapp"
-                    checked={channel === 'whatsapp'}
-                    onChange={() => setChannel('whatsapp')}
-                    className="text-brand-600 focus:ring-brand-500"
-                  />
-                  WhatsApp
-                </label>
-              </div>
-            </div>
-          )}
           {loginMethod === 'password' && (
             <div className="mt-4">
               <div className="flex justify-between items-center mb-1">

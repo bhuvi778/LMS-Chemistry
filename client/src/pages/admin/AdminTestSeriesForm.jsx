@@ -368,7 +368,7 @@ export default function AdminTestSeriesForm() {
                   type="button"
                   onClick={() => setForm((f) => ({
                     ...f,
-                    discountCoupons: [...(f.discountCoupons || []), { code: '', discountType: 'percent', discountValue: 0, isActive: true }],
+                    discountCoupons: [...(f.discountCoupons || []), { code: '', discountType: 'percent', discountValue: 0, isActive: true, maxUses: 0, maxUsesPerUser: 0 }],
                   }))}
                   className="flex items-center gap-1 text-xs font-bold text-brand-600 hover:text-brand-800 transition"
                 >
@@ -445,6 +445,42 @@ export default function AdminTestSeriesForm() {
                         ),
                       }))}
                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-0.5 block">Global Use Limit</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-400 font-semibold"
+                        placeholder="0 (Unlimited)"
+                        value={coupon.maxUses || ''}
+                        onChange={(e) => setForm((f) => ({
+                          ...f,
+                          discountCoupons: f.discountCoupons.map((c, idx) =>
+                            idx === i ? { ...c, maxUses: e.target.value === '' ? 0 : Number(e.target.value) } : c
+                          ),
+                        }))}
+                        title="Global usage limit (0 = unlimited)"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-0.5 block">Limit per Student</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-400 font-semibold"
+                        placeholder="0 (Unlimited)"
+                        value={coupon.maxUsesPerUser || ''}
+                        onChange={(e) => setForm((f) => ({
+                          ...f,
+                          discountCoupons: f.discountCoupons.map((c, idx) =>
+                            idx === i ? { ...c, maxUsesPerUser: e.target.value === '' ? 0 : Number(e.target.value) } : c
+                          ),
+                        }))}
+                        title="Usage limit per student (0 = unlimited)"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}

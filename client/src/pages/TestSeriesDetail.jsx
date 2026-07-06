@@ -462,7 +462,7 @@ export default function TestSeriesDetail() {
 
             {/* Payment Mode Selector */}
             {user && user.role !== 'admin' && series?.price > 0 && (() => {
-              const initialAmt = finalPrice || series.price;
+              const initialAmt = (finalPrice !== null && finalPrice !== undefined) ? finalPrice : (series?.price || 0);
               let baseAmt = initialAmt;
               let coinDiscountVal = 0;
               if (redeemCoins && user.coins >= 250) {
@@ -471,16 +471,18 @@ export default function TestSeriesDetail() {
                 coinDiscountVal = coinsToRedeem;
                 baseAmt = Math.max(0, initialAmt - coinDiscountVal);
               }
-              const gwFee = Math.round(baseAmt * 0.03 * 100) / 100;
-              const rzpTotal = Math.round((baseAmt + gwFee) * 100) / 100;
+              const isFreeAfterDiscount = baseAmt <= 0;
+              const gwFee = isFreeAfterDiscount ? 0 : Math.round(baseAmt * 0.03 * 100) / 100;
+              const rzpTotal = isFreeAfterDiscount ? 0 : Math.round((baseAmt + gwFee) * 100) / 100;
               return (
                 <div className="space-y-3">
                   {/* Razorpay fee breakdown */}
                   <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl px-3 py-2.5 space-y-1 text-xs">
-                    <div className="flex justify-between text-slate-600"><span>Series price</span><span>₹{initialAmt.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-slate-600"><span>Series price</span><span>₹{(series?.price || 0).toFixed(2)}</span></div>
+                    {couponApplied && couponApplied.discountAmount > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coupon discount ({couponApplied.couponCode})</span><span>- ₹{couponApplied.discountAmount.toFixed(2)}</span></div>}
                     {coinDiscountVal > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coin discount</span><span>- ₹{coinDiscountVal.toFixed(2)}</span></div>}
-                    <div className="flex justify-between text-slate-500"><span>Internet handling fee</span><span>₹{gwFee.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1"><span>Total</span><span>₹{rzpTotal.toFixed(2)}</span></div>
+                    {!isFreeAfterDiscount && <div className="flex justify-between text-slate-500"><span>Internet handling fee</span><span>₹{gwFee.toFixed(2)}</span></div>}
+                    <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1"><span>Total</span><span>{isFreeAfterDiscount ? '₹0.00 (Free!)' : `₹${rzpTotal.toFixed(2)}`}</span></div>
                   </div>
 
                   {/* Action button */}
@@ -489,8 +491,8 @@ export default function TestSeriesDetail() {
                     disabled={busy}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 text-white font-bold text-base hover:opacity-90 disabled:opacity-60 transition"
                   >
-                    {busy ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-                    {busy ? 'Processing…' : `Pay ₹${rzpTotal.toFixed(2)}`}
+                    {busy ? <Loader2 size={16} className="animate-spin" /> : isFreeAfterDiscount ? <Zap size={16} /> : <CreditCard size={16} />}
+                    {busy ? 'Processing…' : isFreeAfterDiscount ? 'Enroll Free 🎉' : `Pay ₹${rzpTotal.toFixed(2)}`}
                   </button>
                 </div>
               );

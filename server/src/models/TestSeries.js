@@ -51,6 +51,8 @@ const testSeriesSchema = new mongoose.Schema(
         discountType: { type: String, enum: ['percent', 'amount'], default: 'percent' },
         discountValue: { type: Number, default: 0 },
         isActive: { type: Boolean, default: true },
+        maxUses: { type: Number, default: 0 }, // 0 = unlimited
+        maxUsesPerUser: { type: Number, default: 0 }, // 0 = unlimited
       },
     ],
     // Legacy single-coupon field kept for backward compatibility

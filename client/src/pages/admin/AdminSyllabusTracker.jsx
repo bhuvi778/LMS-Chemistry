@@ -40,6 +40,7 @@ export default function AdminSyllabusTracker() {
   const [hasDpp, setHasDpp] = useState(true);
   const [hasDppVideo, setHasDppVideo] = useState(true);
   const [hasMockTest, setHasMockTest] = useState(true);
+  const [hasPyq, setHasPyq] = useState(true);
 
   // Subject Edit modal states
   const [showEditSubjectModal, setShowEditSubjectModal] = useState(false);
@@ -79,7 +80,7 @@ export default function AdminSyllabusTracker() {
       setNewSubCategories([]);
       fetchSyllabus();
     } catch (error) {
-      toast.error('Failed to add subject');
+      toast.error(error.response?.data?.message || 'Failed to add subject');
     }
   };
 
@@ -103,7 +104,7 @@ export default function AdminSyllabusTracker() {
       setEditSubjectId(null);
       fetchSyllabus();
     } catch (error) {
-      toast.error('Failed to update subject');
+      toast.error(error.response?.data?.message || 'Failed to update subject');
     }
   };
 
@@ -114,7 +115,7 @@ export default function AdminSyllabusTracker() {
       toast.success('Subject removed');
       fetchSyllabus();
     } catch (error) {
-      toast.error('Failed to remove subject');
+      toast.error(error.response?.data?.message || 'Failed to remove subject');
     }
   };
 
@@ -127,7 +128,7 @@ export default function AdminSyllabusTracker() {
       setNewChapName(prev => ({ ...prev, [subjectId]: '' }));
       fetchSyllabus();
     } catch (error) {
-      toast.error('Failed to add chapter');
+      toast.error(error.response?.data?.message || 'Failed to add chapter');
     }
   };
 
@@ -138,7 +139,7 @@ export default function AdminSyllabusTracker() {
       toast.success('Chapter deleted');
       fetchSyllabus();
     } catch (error) {
-      toast.error('Failed to delete chapter');
+      toast.error(error.response?.data?.message || 'Failed to delete chapter');
     }
   };
 
@@ -151,7 +152,7 @@ export default function AdminSyllabusTracker() {
       setNewTopicName(prev => ({ ...prev, [chapterId]: '' }));
       fetchSyllabus();
     } catch (error) {
-      toast.error('Failed to add topic');
+      toast.error(error.response?.data?.message || 'Failed to add topic');
     }
   };
 
@@ -162,7 +163,7 @@ export default function AdminSyllabusTracker() {
       toast.success('Topic deleted');
       fetchSyllabus();
     } catch (error) {
-      toast.error('Failed to delete topic');
+      toast.error(error.response?.data?.message || 'Failed to delete topic');
     }
   };
 
@@ -175,6 +176,7 @@ export default function AdminSyllabusTracker() {
       setHasDpp(subTopic.hasDpp);
       setHasDppVideo(subTopic.hasDppVideo);
       setHasMockTest(subTopic.hasMockTest);
+      setHasPyq(subTopic.hasPyq !== undefined ? subTopic.hasPyq : true);
     } else {
       setActiveIdsForSub({ subjectId, chapterId, topicId });
       setSubName('');
@@ -183,6 +185,7 @@ export default function AdminSyllabusTracker() {
       setHasDpp(true);
       setHasDppVideo(true);
       setHasMockTest(true);
+      setHasPyq(true);
     }
     setShowSubModal(true);
   };
@@ -200,6 +203,7 @@ export default function AdminSyllabusTracker() {
         hasDpp,
         hasDppVideo,
         hasMockTest,
+        hasPyq,
         subTopicId
       });
 
@@ -208,7 +212,7 @@ export default function AdminSyllabusTracker() {
       setActiveIdsForSub(null);
       fetchSyllabus();
     } catch (error) {
-      toast.error('Failed to save subtopic');
+      toast.error(error.response?.data?.message || 'Failed to save subtopic');
     }
   };
 
@@ -219,7 +223,7 @@ export default function AdminSyllabusTracker() {
       toast.success('Subtopic deleted');
       fetchSyllabus();
     } catch (error) {
-      toast.error('Failed to delete subtopic');
+      toast.error(error.response?.data?.message || 'Failed to delete subtopic');
     }
   };
 
@@ -461,7 +465,8 @@ export default function AdminSyllabusTracker() {
                                                     subTopic.hasNotes && '📝 Notes',
                                                     subTopic.hasDpp && '📄 DPPs',
                                                     subTopic.hasDppVideo && '🎬 DPP Video',
-                                                    subTopic.hasMockTest && '🏆 Mock Test'
+                                                    subTopic.hasMockTest && '🏆 Mock Test',
+                                                    subTopic.hasPyq && '📚 PYQs'
                                                   ].filter(Boolean);
 
                                                   return (
@@ -596,10 +601,20 @@ export default function AdminSyllabusTracker() {
                   <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 hover:bg-slate-100/50 cursor-pointer transition">
                     <span className="font-bold text-slate-700">🏆 Mock Tests / Quizzes</span>
                     <input
-                      type="checkbox"
-                      checked={hasMockTest}
-                      onChange={(e) => setHasMockTest(e.target.checked)}
-                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 rounded border-slate-300"
+                       type="checkbox"
+                       checked={hasMockTest}
+                       onChange={(e) => setHasMockTest(e.target.checked)}
+                       className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 rounded border-slate-300"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 hover:bg-slate-100/50 cursor-pointer transition">
+                    <span className="font-bold text-slate-700">📚 PYQs</span>
+                    <input
+                       type="checkbox"
+                       checked={hasPyq}
+                       onChange={(e) => setHasPyq(e.target.checked)}
+                       className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 rounded border-slate-300"
                     />
                   </label>
                 </div>

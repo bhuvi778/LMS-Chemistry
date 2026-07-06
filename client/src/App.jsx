@@ -82,6 +82,8 @@ import CoinsWallet from './pages/student/CoinsWallet.jsx';
 import ReferAndEarn from './pages/student/ReferAndEarn.jsx';
 import SavedQuestions from './pages/student/SavedQuestions.jsx';
 import ReportedQuestions from './pages/student/ReportedQuestions.jsx';
+import MyMistakes from './pages/student/MyMistakes.jsx';
+import RevisionQueue from './pages/student/RevisionQueue.jsx';
 import MyOrders from './pages/student/MyOrders.jsx';
 import AdminStatsStreak from './pages/admin/AdminStatsStreak.jsx';
 import AdminStatsWallet from './pages/admin/AdminStatsWallet.jsx';
@@ -96,8 +98,12 @@ import SyllabusTracker from './pages/student/SyllabusTracker.jsx';
 import MyPlanner from './pages/student/MyPlanner.jsx';
 import Mentorship from './pages/student/Mentorship.jsx';
 import Downloads from './pages/student/Downloads.jsx';
+import WatchHistory from './pages/student/WatchHistory.jsx';
+
 import AdminSyllabusTracker from './pages/admin/AdminSyllabusTracker.jsx';
 import AdminMentorship from './pages/admin/AdminMentorship.jsx';
+import AdminExamCounter from './pages/admin/AdminExamCounter.jsx';
+import StudentExamCounter from './pages/student/StudentExamCounter.jsx';
 import AdminSecurity from './pages/admin/AdminSecurity.jsx';
 
 
@@ -192,6 +198,7 @@ export default function App() {
           <Route path="stats/wallet" element={<AdminStatsWallet />} />
           <Route path="stats/refer" element={<AdminStatsRefer />} />
           <Route path="syllabus-tracker" element={<AdminSyllabusTracker />} />
+          <Route path="exam-counter" element={<AdminExamCounter />} />
           <Route path="mentorship" element={<AdminMentorship />} />
           <Route path="security" element={<AdminSecurity />} />
         </Route>
@@ -218,9 +225,12 @@ export default function App() {
           <Route path="streak" element={<Streak />} />
           <Route path="wallet" element={<CoinsWallet />} />
           <Route path="refer" element={<ReferAndEarn />} />
+          <Route path="exam-counter" element={<StudentExamCounter />} />
           <Route path="profile" element={<Profile />} />
           <Route path="saved-questions" element={<SavedQuestions />} />
           <Route path="reported-questions" element={<ReportedQuestions />} />
+          <Route path="my-mistakes" element={<MyMistakes />} />
+          <Route path="revision-queue" element={<RevisionQueue />} />
           <Route path="orders" element={<MyOrders />} />
           <Route path="feed" element={<StudentFeed />} />
           <Route path="contact" element={<StudentContact />} />
@@ -231,7 +241,9 @@ export default function App() {
           <Route path="syllabus-tracker" element={<SyllabusTracker />} />
           <Route path="planner" element={<MyPlanner />} />
           <Route path="mentorship" element={<Mentorship />} />
+          <Route path="watch-history" element={<WatchHistory />} />
         </Route>
+
 
         {/* Live class room (no navbar/footer chrome) */}
         <Route path="/impersonate" element={<Impersonate />} />

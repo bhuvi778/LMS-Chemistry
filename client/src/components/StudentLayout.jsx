@@ -35,6 +35,8 @@ import {
   Sparkles,
   ClipboardList,
   DownloadCloud,
+  XCircle,
+  Repeat,
 } from 'lucide-react';
 
 const navSections = [
@@ -54,6 +56,8 @@ const navSections = [
       { to: '/student/courses', label: 'Courses', icon: BookOpen },
       { to: '/student/live-classes', label: 'Live Classes', icon: Video },
       { to: '/student/practice', label: 'Practice', icon: ListChecks },
+      { to: '/student/my-mistakes', label: 'My Mistakes', icon: XCircle },
+      { to: '/student/revision-queue', label: 'Revision Queue', icon: Repeat },
       { to: '/student/library', label: 'Library', icon: Library },
       { to: '/student/downloads', label: 'My Downloads', icon: DownloadCloud },
       { to: '/student/doubts', label: 'Ask Doubts', icon: HelpCircle },
@@ -65,6 +69,7 @@ const navSections = [
     items: [
       { to: '/student/syllabus-tracker', label: 'Syllabus Tracker', icon: ClipboardList },
       { to: '/student/planner', label: 'My Planner', icon: Calendar },
+      { to: '/student/exam-counter', label: 'Exam Counter', icon: Clock },
       { to: '/student/mentorship', label: '1:1 Mentorship', icon: Users },
     ]
   },
@@ -75,6 +80,7 @@ const navSections = [
       { to: '/student/streak', label: 'Streak', icon: Flame },
       { to: '/student/wallet', label: 'Coins Wallet', icon: Coins },
       { to: '/student/refer', label: 'Refer & Earn', icon: Users },
+      { to: '/student/watch-history', label: 'Watch History', icon: Clock },
     ]
   },
   {
@@ -196,14 +202,16 @@ export default function StudentLayout() {
         initialOpen[section.title] = true;
       }
     });
-    setOpenGroups((prev) => ({ ...initialOpen, ...prev }));
+    setOpenGroups(initialOpen);
   }, [location.pathname]);
 
   const toggleGroup = (title) => {
-    setOpenGroups((prev) => ({
-      ...prev,
-      [title]: !prev[title],
-    }));
+    setOpenGroups((prev) => {
+      const wasOpen = !!prev[title];
+      return {
+        [title]: !wasOpen
+      };
+    });
   };
 
   const handleLogout = () => {
@@ -390,7 +398,7 @@ export default function StudentLayout() {
           {/* Overlay */}
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setMobileOpen(false)} />
           {/* Sidebar content */}
-          <div className="relative flex flex-col w-64 max-w-xs h-full bg-slate-900 animate-slide-in" style={{ zoom: '1.1' }}>
+          <div className="relative flex flex-col w-64 max-w-xs h-full bg-slate-900 animate-slide-in">
             {sidebarContent}
           </div>
         </div>

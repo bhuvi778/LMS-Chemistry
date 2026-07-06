@@ -38,6 +38,7 @@ import {
   incrementAppDownloads,
   getLoginAnalytics,
 } from '../controllers/admin.controller.js';
+import { getConductedClasses } from '../controllers/recording.controller.js';
 
 const router = Router();
 router.use(protect);
@@ -83,6 +84,7 @@ router.get('/enrollments', allEnrollments);
 router.put('/enrollments/:id/extend', adminExtendEnrollmentValidity);
 
 router.get('/live-classes', getLiveClasses);
+router.get('/live-classes/conducted', getConductedClasses);
 router.post('/live-classes', createLiveClass);
 router.put('/live-classes/:id', updateLiveClass);
 router.delete('/live-classes/:id', deleteLiveClass);

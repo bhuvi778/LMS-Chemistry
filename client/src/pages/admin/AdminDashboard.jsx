@@ -30,11 +30,14 @@ export default function AdminDashboard() {
   });
   const [recent, setRecent] = useState([]);
   const [liveClasses, setLiveClasses] = useState([]);
+  const [loginLogs, setLoginLogs] = useState([]);
+
   useEffect(() => {
     api.get('/admin/stats').then((r) => setStats(r.data)).catch(() => {});
     api.get('/admin/stats/detail').then((r) => setDetail(r.data)).catch(() => {});
     api.get('/admin/enrollments').then((r) => setRecent(r.data.slice(0, 6))).catch(() => {});
     api.get('/admin/live-classes').then((r) => setLiveClasses(r.data)).catch(() => {});
+    api.get('/admin/login-analytics').then((r) => setLoginLogs(r.data.loginLogs || [])).catch(() => {});
   }, []);
 
   const kpis = [
@@ -270,6 +273,85 @@ export default function AdminDashboard() {
               {recent.length === 0 && <p className="text-xs text-slate-400">No enrollments yet</p>}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Recent Logins Analytics Widget */}
+      <div className="card p-6 mt-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <Activity className="text-brand-500 animate-pulse" size={16} /> Recent Student Logins
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">Real-time login activity across devices</p>
+          </div>
+          <span className="chip bg-brand-50 text-brand-700 font-bold text-xs">
+            {loginLogs.length} Recent Logins
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 text-slate-650 font-semibold text-xs uppercase">
+              <tr>
+                <th className="p-3">Student</th>
+                <th className="p-3">Device / Browser</th>
+                <th className="p-3">IP Address</th>
+                <th className="p-3">Login Time</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loginLogs.slice(0, 8).map((log) => {
+                const info = (log.deviceInfo || '').toLowerCase();
+                const DeviceIcon = (info.includes('phone') || info.includes('android') || info.includes('iphone') || info.includes('mobile'))
+                  ? Smartphone
+                  : Laptop;
+
+                return (
+                  <tr key={log._id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 text-xs font-bold grid place-items-center uppercase shrink-0">
+                          {log.studentName?.[0] || '?'}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-slate-850 truncate">{log.studentName}</div>
+                          <div className="text-[10px] text-slate-500 font-mono truncate">{log.studentId} · {log.studentEmail}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-1.5 text-slate-650 text-xs">
+                        <DeviceIcon size={13} className="text-slate-450 shrink-0" />
+                        <span className="truncate max-w-[280px]" title={log.deviceInfo}>
+                          {log.deviceInfo || 'Unknown Device'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span className="font-mono text-xs text-slate-555 bg-slate-105 px-1.5 py-0.5 rounded">
+                        {log.ip || '—'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-slate-550 text-xs font-medium">
+                      {new Date(log.loginTime).toLocaleString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                  </tr>
+                );
+              })}
+              {loginLogs.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="text-center p-8 text-slate-400 italic">
+                    No recent logins recorded.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

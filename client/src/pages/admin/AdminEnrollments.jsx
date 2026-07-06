@@ -31,6 +31,9 @@ export default function AdminEnrollments() {
   const [list, setList] = useState([]);
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [courseFilter, setCourseFilter] = useState('ALL');
+  const [planFilter, setPlanFilter] = useState('ALL');
+  const [validityFilter, setValidityFilter] = useState('ALL');
   const [view, setView] = useState('grid'); // 'grid' | 'table'
   const [page, setPage] = useState(1);
   const [extendingEnroll, setExtendingEnroll] = useState(null);
@@ -52,9 +55,32 @@ export default function AdminEnrollments() {
     }
   }, [extendingEnroll]);
 
+  const uniqueCourses = useMemo(() => {
+    const map = new Map();
+    list.forEach((e) => {
+      if (e.course) {
+        map.set(e.course._id || e.course.title, e.course.title);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([id, title]) => ({ id, title }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [list]);
+
   const filtered = useMemo(() => {
     let result = list;
     if (statusFilter !== 'ALL') result = result.filter((e) => e.paymentStatus === statusFilter);
+    if (courseFilter !== 'ALL') {
+      result = result.filter((e) => e.course?._id === courseFilter || e.course?.title === courseFilter);
+    }
+    if (planFilter !== 'ALL') result = result.filter((e) => e.planType === planFilter);
+    if (validityFilter !== 'ALL') {
+      const now = new Date();
+      result = result.filter((e) => {
+        const isActive = e.paymentStatus === 'paid' && (!e.validUntil || new Date(e.validUntil) >= now);
+        return validityFilter === 'ACTIVE' ? isActive : !isActive;
+      });
+    }
     if (q) {
       const s = q.toLowerCase();
       result = result.filter(
@@ -68,9 +94,9 @@ export default function AdminEnrollments() {
       );
     }
     return result;
-  }, [list, q, statusFilter]);
+  }, [list, q, statusFilter, courseFilter, planFilter, validityFilter]);
 
-  useEffect(() => setPage(1), [q, statusFilter, view]);
+  useEffect(() => setPage(1), [q, statusFilter, courseFilter, planFilter, validityFilter, view]);
   const paged = usePaged(filtered, page, PAGE_SIZE);
 
   const totalRevenue = filtered.reduce((s, e) => s + (e.pricePaid || 0), 0);
@@ -107,7 +133,43 @@ export default function AdminEnrollments() {
             <b className="text-emerald-700">₹{totalRevenue.toLocaleString()}</b>
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          {/* Course Filter */}
+          <select
+            value={courseFilter}
+            onChange={(e) => setCourseFilter(e.target.value)}
+            className="input !py-2 text-sm min-w-[140px] max-w-[180px]"
+          >
+            <option value="ALL">All Courses</option>
+            {uniqueCourses.map((c) => (
+              <option key={c.id} value={c.id}>{c.title}</option>
+            ))}
+          </select>
+
+          {/* Plan Level Filter */}
+          <select
+            value={planFilter}
+            onChange={(e) => setPlanFilter(e.target.value)}
+            className="input !py-2 text-sm min-w-[120px]"
+          >
+            <option value="ALL">All Plans</option>
+            <option value="batch">Ace Starter</option>
+            <option value="pro">Ace Pro</option>
+            <option value="infinity">Ace Infinity</option>
+          </select>
+
+          {/* Validity Status Filter */}
+          <select
+            value={validityFilter}
+            onChange={(e) => setValidityFilter(e.target.value)}
+            className="input !py-2 text-sm min-w-[130px]"
+          >
+            <option value="ALL">All Validity</option>
+            <option value="ACTIVE">Active Plan</option>
+            <option value="EXPIRED">Expired / Inactive</option>
+          </select>
+
+          {/* Payment Status Filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -118,13 +180,15 @@ export default function AdminEnrollments() {
             <option value="pending">Pending</option>
             <option value="failed">Failed</option>
           </select>
-          <div className="relative md:w-72">
+
+          {/* Search Input */}
+          <div className="relative md:w-64">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search student, course, payment ID…"
-              className="input pl-9 !py-2 text-sm"
+              className="input pl-9 !py-2 text-sm w-full"
             />
           </div>
           <div className="inline-flex rounded-xl border border-slate-200 overflow-hidden">
@@ -231,7 +295,7 @@ export default function AdminEnrollments() {
                 onChange={(e) => setNewPlanType(e.target.value)}
                 className="input text-sm w-full bg-white border border-slate-200"
               >
-                <option value="batch">Ace Batch</option>
+                <option value="batch">Ace Starter</option>
                 <option value="pro">Ace Pro</option>
                 <option value="infinity">Ace Infinity</option>
               </select>

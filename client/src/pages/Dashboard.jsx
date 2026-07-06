@@ -15,6 +15,8 @@ export default function Dashboard() {
   const [liveClasses, setLiveClasses] = useState({ ongoing: [], upcoming: [] });
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [countdowns, setCountdowns] = useState([]);
+  const [timers, setTimers] = useState({});
 
   const loadNotifications = () => {
     api.get('/notifications').then(r => {
@@ -42,8 +44,35 @@ export default function Dashboard() {
   useEffect(() => {
     api.get('/enroll/me').then(r => setEnrollments(r.data)).finally(() => setLoading(false));
     api.get('/admin/live-classes/all').then(r => setLiveClasses(r.data)).catch(() => {});
+    api.get('/exam-countdown/active').then(r => setCountdowns(r.data || [])).catch(() => {});
     loadNotifications();
   }, []);
+
+  useEffect(() => {
+    if (countdowns.length === 0) return;
+
+    const calculateTimeLeft = () => {
+      const newTimers = {};
+      countdowns.forEach(c => {
+        const diff = new Date(c.examDate) - new Date();
+        if (diff > 0) {
+          newTimers[c._id] = {
+            days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+            hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+            minutes: Math.floor((diff / 1000 / 60) % 60),
+            seconds: Math.floor((diff / 1000) % 60)
+          };
+        } else {
+          newTimers[c._id] = { days: 0, hours: 0, minutes: 0, seconds: 0 };
+        }
+      });
+      setTimers(newTimers);
+    };
+
+    calculateTimeLeft();
+    const interval = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(interval);
+  }, [countdowns]);
 
   const now = new Date();
   const hour = now.getHours();
@@ -101,6 +130,56 @@ export default function Dashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Exam Countdowns Section */}
+      {countdowns.length > 0 && (
+        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4 animate-fade-in">
+          <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 uppercase tracking-wider">
+            <Clock className="text-brand-500 w-4 h-4" /> Upcoming Exam Counters
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {countdowns.map(c => {
+              const colorClasses = {
+                cyan: 'from-cyan-500 via-cyan-600 to-blue-600 border-cyan-100 bg-cyan-50/5 text-cyan-600',
+                blue: 'from-blue-500 via-blue-600 to-indigo-600 border-blue-100 bg-blue-50/5 text-blue-600',
+                red: 'from-red-500 via-red-600 to-pink-600 border-red-100 bg-red-50/5 text-red-600',
+                green: 'from-green-500 via-green-600 to-emerald-600 border-green-100 bg-green-50/5 text-green-600',
+                purple: 'from-purple-500 via-purple-600 to-pink-600 border-purple-100 bg-purple-50/5 text-purple-600',
+                orange: 'from-orange-500 via-orange-600 to-red-600 border-orange-100 bg-orange-50/5 text-orange-600',
+                pink: 'from-pink-500 via-pink-600 to-rose-600 border-pink-100 bg-pink-50/5 text-pink-600'
+              };
+              const grad = colorClasses[c.color] || colorClasses.cyan;
+              const timer = timers[c._id] || { days: 0, hours: 0, minutes: 0, seconds: 0 };
+              return (
+                <div key={c._id} className="border border-slate-100 rounded-2xl p-4 bg-slate-55/20 flex flex-col justify-between hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className="font-extrabold text-slate-800 text-xs truncate flex items-center gap-1.5">
+                      <i className={`fas ${c.icon} text-slate-500`}></i>
+                      {c.examName}
+                    </span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{c.category}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5 mb-2">
+                    {[
+                      { v: timer.days, l: 'Days' },
+                      { v: timer.hours, l: 'Hrs' },
+                      { v: timer.minutes, l: 'Mins' },
+                      { v: timer.seconds, l: 'Secs' }
+                    ].map((t, idx) => (
+                      <div key={idx} className="text-center">
+                        <div className={`bg-gradient-to-br ${grad.split(' ').slice(0, 3).join(' ')} text-white font-extrabold text-xs py-1.5 rounded-xl shadow-sm`}>
+                          {String(t.v).padStart(2, '0')}
+                        </div>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block mt-1">{t.l}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -189,7 +268,7 @@ export default function Dashboard() {
                     <p className="text-xs text-slate-400 font-semibold mt-0.5">{e.course?.category}</p>
                     <div className="mt-2">
                       <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold mb-1">
-                        <span>Progress</span>
+                        <span>{e.watchedHours || 0} hrs watched</span>
                         <span>{e.progress || 0}%</span>
                       </div>
                       <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
