@@ -32,6 +32,23 @@ enrollmentSchema.index({ student: 1, course: 1 }, { unique: true });
 enrollmentSchema.post('save', async function (doc, next) {
   if (doc.paymentStatus === 'paid') {
     try {
+      // Reward +75 coins on first course purchase
+      const Enrollment = mongoose.model('Enrollment');
+      const User = mongoose.model('User');
+      const studentUser = await User.findById(doc.student);
+      if (studentUser && !studentUser.firstPurchaseRewarded) {
+        const paidCount = await Enrollment.countDocuments({
+          student: doc.student,
+          paymentStatus: 'paid',
+          _id: { $ne: doc._id }
+        });
+        if (paidCount === 0) {
+          studentUser.coins = (studentUser.coins || 0) + 75;
+          studentUser.firstPurchaseRewarded = true;
+          await studentUser.save();
+        }
+      }
+
       const Course = mongoose.model('Course');
       const courseObj = await Course.findById(doc.course);
       if (courseObj && courseObj.isCombo) {

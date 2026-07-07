@@ -8,6 +8,7 @@ const EMPTY = { title: '', description: '', subject: '', grade: '', contentType:
 export default function AdminEbooks() {
   const [ebooks, setEbooks] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -21,9 +22,11 @@ export default function AdminEbooks() {
     Promise.all([
       api.get('/ebooks/admin/all'),
       api.get('/courses'),
-    ]).then(([er, cr]) => {
+      api.get('/categories'),
+    ]).then(([er, cr, catR]) => {
       setEbooks(er.data);
       setCourses(cr.data?.courses || cr.data || []);
+      setCategories(catR.data || []);
     }).finally(() => setLoading(false));
   };
 
@@ -194,7 +197,18 @@ export default function AdminEbooks() {
                   </div>
                   <div>
                     <label className="label">Grade / Level</label>
-                    <input value={form.grade} onChange={(e) => setForm((p) => ({ ...p, grade: e.target.value }))} className="input" placeholder="e.g. JEE, Class 11" />
+                    <select
+                      value={form.grade || ''}
+                      onChange={(e) => setForm((p) => ({ ...p, grade: e.target.value }))}
+                      className="input cursor-pointer"
+                    >
+                      <option value="">Select Grade / Level</option>
+                      {categories.map((cat) => (
+                        <option key={cat._id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

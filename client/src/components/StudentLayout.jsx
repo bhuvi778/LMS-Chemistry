@@ -419,16 +419,24 @@ export default function StudentLayout() {
       {/* Navigation Groups */}
       <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-2 no-scrollbar">
         {navSections.map((section) => {
+          const filteredItems = section.items.filter((item) => {
+            if (item.to === '/student/exam-counter') {
+              return highestPlan && highestPlan !== 'Free';
+            }
+            return true;
+          });
+          if (filteredItems.length === 0) return null;
+
           const isOpen = !!openGroups[section.title];
-          const hasActiveChild = section.items.some(
+          const hasActiveChild = filteredItems.some(
             (item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/')
           );
 
           // Render direct links if isDirect is true or if it only contains 1 item
-          if (section.items.length === 1 || section.isDirect) {
+          if (filteredItems.length === 1 || section.isDirect) {
             return (
               <div key={section.title} className="space-y-1">
-                {section.items.map((item) => {
+                {filteredItems.map((item) => {
                   const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
                   return (
                     <NavLink
@@ -475,7 +483,7 @@ export default function StudentLayout() {
 
               {isOpen && (
                 <div className="pl-9 pr-1 py-1 space-y-1">
-                  {section.items.map((item) => {
+                  {filteredItems.map((item) => {
                     const isItemActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
                     return (
                       <NavLink
@@ -534,7 +542,7 @@ export default function StudentLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/60 flex flex-col md:flex-row font-sans">
+    <div className="h-screen bg-slate-50/60 flex flex-col md:flex-row font-sans overflow-hidden">
       {/* Mobile Top Bar */}
       <header className="md:hidden h-16 bg-white border-b border-slate-100 px-4 flex items-center justify-between sticky top-0 z-30 shadow-xs">
         <Link to="/" className="flex items-center">

@@ -39,6 +39,8 @@ const userSchema = new mongoose.Schema(
     referredBy: { type: String, default: '' },
     referralCount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
+    profileCompleteRewarded: { type: Boolean, default: false },
+    firstPurchaseRewarded: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

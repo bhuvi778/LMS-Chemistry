@@ -45,6 +45,8 @@ const updateUserStreakAndCoins = async (user) => {
           user.longestStreak = user.streak;
         }
         user.coins = (user.coins || 0) + 1;
+        if (user.streak === 7) user.coins = (user.coins || 0) + 20;
+        if (user.streak === 30) user.coins = (user.coins || 0) + 60;
       } else {
         user.streak = 1;
         user.coins = (user.coins || 0) + 1;
@@ -550,6 +552,22 @@ export const updateMe = asyncHandler(async (req, res) => {
   if (exams !== undefined) user.exams = exams;
   if (language !== undefined) user.language = language;
   if (city !== undefined) user.city = city;
+
+  // Check profile completion reward (one-time)
+  if (!user.profileCompleteRewarded) {
+    const isProfileComplete = 
+      user.grade?.trim() && 
+      user.stream?.trim() && 
+      user.board?.trim() && 
+      user.exams?.trim() && 
+      user.language?.trim();
+      
+    if (isProfileComplete) {
+      user.coins = (user.coins || 0) + 10;
+      user.profileCompleteRewarded = true;
+    }
+  }
+
   let passwordChanged = false;
   if (password) {
     if (!currentPassword) { res.status(400); throw new Error('Current password is required'); }
@@ -684,8 +702,12 @@ export const streakPing = asyncHandler(async (req, res) => {
         const yesterdayStr = yesterday.toISOString().split('T')[0];
         if (lastStr === yesterdayStr) {
           user.streak = (user.streak || 0) + 1;
+          user.coins = (user.coins || 0) + 1;
+          if (user.streak === 7) user.coins = (user.coins || 0) + 20;
+          if (user.streak === 30) user.coins = (user.coins || 0) + 60;
         } else {
           user.streak = 1; // streak broken
+          user.coins = (user.coins || 0) + 1;
         }
       }
     }
