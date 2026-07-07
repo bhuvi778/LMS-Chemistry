@@ -414,6 +414,11 @@ export default function StudentCourses() {
                           Enrolled
                         </span>
                       )}
+                      {!isEnrolled && course.isAdmissionClosed && (
+                        <span className="absolute top-3 right-3 px-2.5 py-1 bg-red-600 text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider shadow-sm">
+                          Closed
+                        </span>
+                      )}
                     </div>
                     <div className="p-5 space-y-2">
                       <h3 className="font-display font-extrabold text-slate-800 text-base leading-snug group-hover:text-brand-700 transition">
@@ -435,6 +440,13 @@ export default function StudentCourses() {
                       >
                         Continue Learning
                       </Link>
+                    ) : course.isAdmissionClosed ? (
+                      <button
+                        disabled
+                        className="w-full inline-flex items-center justify-center gap-2 border border-red-200 bg-red-50 text-red-600 font-extrabold py-2.5 rounded-2xl text-xs cursor-not-allowed"
+                      >
+                        🔒 Admission Closed
+                      </button>
                     ) : (
                       <Link
                         to={`/courses/${course._id}`}

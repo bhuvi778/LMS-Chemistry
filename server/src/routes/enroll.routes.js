@@ -8,10 +8,12 @@ import {
   resumeEnrollment,
   updateWatchHistory,
   getWatchHistory,
+  myTestSeriesEnrollments,
 } from '../controllers/enroll.controller.js';
 
 const router = Router();
 router.get('/me', protect, myEnrollments);
+router.get('/test-series/me', protect, myTestSeriesEnrollments);
 router.get('/check/:courseId', protect, checkEnrollment);
 router.post('/pause/:enrollmentId', protect, pauseEnrollment);
 router.post('/resume/:enrollmentId', protect, resumeEnrollment);

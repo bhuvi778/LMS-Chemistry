@@ -34,6 +34,11 @@ export default function CourseCard({ course }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/30 to-transparent" />
         <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap">
+          {course.isAdmissionClosed && (
+            <span className="px-2.5 py-1 rounded-full bg-red-600 text-white text-xs font-black shadow-sm uppercase">
+              Closed
+            </span>
+          )}
           <span className="px-2.5 py-1 rounded-full bg-white/95 text-brand-700 text-xs font-bold shadow-sm">
             {displayCategory}
           </span>

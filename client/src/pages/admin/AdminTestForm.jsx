@@ -352,6 +352,7 @@ export default function AdminTestForm() {
     title: '',
     description: '',
     instructions: '',
+    syllabus: '',
     subject: 'Chemistry',
     topics: [],
     difficulty: 'intermediate',
@@ -705,6 +706,16 @@ export default function AdminTestForm() {
               rows={3}
               value={form.instructions}
               onChange={(e) => set('instructions', e.target.value)}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="text-xs font-semibold text-slate-500 mb-1 block">SYLLABUS (written description)</label>
+            <textarea
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400 resize-none"
+              rows={3}
+              placeholder="Enter syllabus details for this test..."
+              value={form.syllabus || ''}
+              onChange={(e) => set('syllabus', e.target.value)}
             />
           </div>
         </div>

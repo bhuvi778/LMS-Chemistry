@@ -37,6 +37,7 @@ const testSchema = new mongoose.Schema(
     slug: { type: String, unique: true, sparse: true, index: true },
     description: { type: String, default: '' },
     instructions: { type: String, default: '' }, // HTML or plain text
+    syllabus: { type: String, default: '' },
     subject: { type: String, default: 'Chemistry' },
     topics: [{ type: String }], // e.g. ['Organic', 'Inorganic']
     difficulty: {

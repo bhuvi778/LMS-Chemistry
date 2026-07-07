@@ -89,6 +89,9 @@ const safeUser = (user) => ({
   // Referral
   referredBy: user.referredBy || '',
   referralCount: user.referralCount || 0,
+  // Verification states
+  isEmailVerified: user.isEmailVerified || false,
+  isWhatsappVerified: user.isWhatsappVerified || false,
 });
 
 /** Parse User-Agent into readable device string */
@@ -831,17 +834,32 @@ export const sendLoginOtp = asyncHandler(async (req, res) => {
   let isNewUser = false;
 
   if (isPhone) {
-    user = await User.findOne({ phone: targetVal });
+    const digitsOnly = targetVal.replace(/\D/g, '');
+    let variations = [];
+    if (digitsOnly.length === 10) {
+      variations = [digitsOnly, '91' + digitsOnly, '+91' + digitsOnly];
+    } else if (digitsOnly.length === 12 && digitsOnly.startsWith('91')) {
+      const tenDigits = digitsOnly.slice(2);
+      variations = [tenDigits, digitsOnly, '+' + digitsOnly];
+    } else {
+      variations = [digitsOnly, '+' + digitsOnly];
+    }
+
+    user = await User.findOne({ phone: { $in: variations } });
     if (!user) {
       isNewUser = true;
-      const name = 'Student-' + targetVal.slice(-4);
-      const emailVal = `phone_${targetVal.replace('+', '')}@ace2examz.com`;
+      const name = 'Student-' + digitsOnly.slice(-4);
+      let phoneToStore = targetVal.trim();
+      if (digitsOnly.length === 10) {
+        phoneToStore = '+91' + digitsOnly;
+      }
+      const emailVal = `phone_${digitsOnly}@ace2examz.com`;
       const rawPass = crypto.randomBytes(16).toString('hex');
       const hashed = await bcrypt.hash(rawPass, 10);
       user = await User.create({
         name,
         email: emailVal,
-        phone: targetVal,
+        phone: phoneToStore,
         password: hashed,
         plainPassword: 'OTP Auto-Generated',
         studentId: genStudentId(),
@@ -943,6 +961,160 @@ export const verifyLoginOtp = asyncHandler(async (req, res) => {
 
   res.json({ ...safeUser(user), token });
 });
+
+/** POST /api/auth/request-phone-verification — Send WhatsApp OTP for logged-in user */
+export const requestPhoneVerification = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+  if (!phone || !/^\+?\d{9,15}$/.test(phone.trim())) {
+    res.status(400);
+    throw new Error('A valid phone number is required');
+  }
+
+  const targetVal = phone.trim();
+
+  // Generate a 6-digit OTP
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const codeHash = await bcrypt.hash(code, 10);
+
+  // Store in OTP collection with purpose 'phone_verification'
+  await OTP.deleteMany({ userId: req.user._id, purpose: 'phone_verification' });
+  await OTP.create({
+    userId: req.user._id,
+    email: req.user.email,
+    codeHash,
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    purpose: 'phone_verification',
+  });
+
+  // Dispatch OTP
+  await sendWhatsappOtp(targetVal, code);
+
+  res.json({ success: true, message: 'Verification OTP sent to WhatsApp' });
+});
+
+/** POST /api/auth/verify-phone-verification — Verify OTP and link/merge accounts */
+export const verifyPhoneVerification = asyncHandler(async (req, res) => {
+  const { code, phone } = req.body;
+  if (!code || !phone) {
+    res.status(400);
+    throw new Error('Code and phone number are required');
+  }
+
+  const targetPhone = phone.trim();
+  const userId = req.user._id;
+
+  const record = await OTP.findOne({ userId, purpose: 'phone_verification', used: false });
+  if (!record) {
+    res.status(400);
+    throw new Error('No pending verification found. Please try again.');
+  }
+  if (record.expiresAt < new Date()) {
+    await OTP.findByIdAndDelete(record._id);
+    res.status(400);
+    throw new Error('Verification code has expired. Please try again.');
+  }
+  if (!(await bcrypt.compare(String(code), record.codeHash))) {
+    res.status(400);
+    throw new Error('Invalid verification code');
+  }
+
+  await OTP.findByIdAndUpdate(record._id, { used: true });
+
+  // Look for any conflicting user using this phone number
+  const conflictingUser = await User.findOne({ phone: targetPhone, _id: { $ne: userId } });
+
+  if (conflictingUser) {
+    // Dynamic imports for related models to perform merging
+    const Enrollment = (await import('../models/Enrollment.js')).default;
+    const TestSeriesEnrollment = (await import('../models/TestSeriesEnrollment.js')).default;
+    const TestAttempt = (await import('../models/TestAttempt.js')).default;
+    const SavedQuestion = (await import('../models/SavedQuestion.js')).default;
+    const WatchHistory = (await import('../models/WatchHistory.js')).default;
+    const Doubt = (await import('../models/Doubt.js')).default;
+    const MentorshipBooking = (await import('../models/MentorshipBooking.js')).default;
+    const CoinRedemption = (await import('../models/CoinRedemption.js')).default;
+    const BankTransferRequest = (await import('../models/BankTransferRequest.js')).default;
+    const StudentSyllabusProgress = (await import('../models/StudentSyllabusProgress.js')).default;
+    const RevisionQuestion = (await import('../models/RevisionQuestion.js')).default;
+    const Payment = (await import('../models/Payment.js')).default;
+    const PlannerGoal = (await import('../models/PlannerGoal.js')).default;
+    const ReportedQuestion = (await import('../models/ReportedQuestion.js')).default;
+    const Notification = (await import('../models/Notification.js')).default;
+    const ChatMessage = (await import('../models/ChatMessage.js')).default;
+
+    // 1. Merge Enrollments (avoid duplicate course key)
+    const oldEnrolls = await Enrollment.find({ student: conflictingUser._id });
+    for (const oldE of oldEnrolls) {
+      const duplicate = await Enrollment.findOne({ student: userId, course: oldE.course });
+      if (duplicate) {
+        if (oldE.paymentStatus === 'paid' && duplicate.paymentStatus !== 'paid') {
+          await Enrollment.findByIdAndDelete(duplicate._id);
+          oldE.student = userId;
+          await oldE.save();
+        } else {
+          await Enrollment.findByIdAndDelete(oldE._id);
+        }
+      } else {
+        oldE.student = userId;
+        await oldE.save();
+      }
+    }
+
+    // 2. Merge TestSeriesEnrollments (avoid duplicate testSeries key)
+    const oldTSEnrolls = await TestSeriesEnrollment.find({ student: conflictingUser._id });
+    for (const oldTSE of oldTSEnrolls) {
+      const duplicate = await TestSeriesEnrollment.findOne({ student: userId, testSeries: oldTSE.testSeries });
+      if (duplicate) {
+        if (oldTSE.paymentStatus === 'paid' && duplicate.paymentStatus !== 'paid') {
+          await TestSeriesEnrollment.findByIdAndDelete(duplicate._id);
+          oldTSE.student = userId;
+          await oldTSE.save();
+        } else {
+          await TestSeriesEnrollment.findByIdAndDelete(oldTSE._id);
+        }
+      } else {
+        oldTSE.student = userId;
+        await oldTSE.save();
+      }
+    }
+
+    // 3. Merge all other collections
+    await Promise.all([
+      WatchHistory.updateMany({ student: conflictingUser._id }, { student: userId }),
+      CoinRedemption.updateMany({ student: conflictingUser._id }, { student: userId }),
+      PlannerGoal.updateMany({ student: conflictingUser._id }, { student: userId }),
+      ReportedQuestion.updateMany({ user: conflictingUser._id }, { user: userId }),
+      TestAttempt.updateMany({ user: conflictingUser._id }, { user: userId }),
+      SavedQuestion.updateMany({ user: conflictingUser._id }, { user: userId }),
+      Notification.updateMany({ user: conflictingUser._id }, { user: userId }),
+      BankTransferRequest.updateMany({ student: conflictingUser._id }, { student: userId }),
+      ChatMessage.updateMany({ sender: conflictingUser._id }, { sender: userId }),
+      ChatMessage.updateMany({ recipient: conflictingUser._id }, { recipient: userId }),
+      Doubt.updateMany({ student: conflictingUser._id }, { student: userId }),
+      StudentSyllabusProgress.updateMany({ student: conflictingUser._id }, { student: userId }),
+      RevisionQuestion.updateMany({ user: conflictingUser._id }, { user: userId }),
+      Payment.updateMany({ student: conflictingUser._id }, { student: userId }),
+    ]);
+
+    // Add any coins from conflicting user to the logged-in user
+    if (conflictingUser.coins > 0) {
+      await User.findByIdAndUpdate(userId, { $inc: { coins: conflictingUser.coins } });
+    }
+
+    // 4. Delete the conflicting placeholder user
+    await User.findByIdAndDelete(conflictingUser._id);
+  }
+
+  // Update current user details
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { phone: targetPhone, isWhatsappVerified: true },
+    { new: true }
+  );
+
+  res.json(safeUser(updatedUser));
+});
+
 
 
 

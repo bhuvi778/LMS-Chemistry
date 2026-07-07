@@ -683,7 +683,38 @@ function StudentModal({ id, onClose, onChanged }) {
 
             <div className="grid sm:grid-cols-2 gap-3">
               <InfoRow icon={Mail} label="Email" value={data.email} onCopy={() => copy(data.email, 'email')} copied={copied === 'email'} />
-              <InfoRow icon={Phone} label="Phone" value={data.phone || '—'} onCopy={data.phone ? () => copy(data.phone, 'phone') : null} copied={copied === 'phone'} />
+              <div className="relative flex flex-col gap-1">
+                <InfoRow icon={Phone} label="Phone" value={data.phone || '—'} onCopy={data.phone ? () => copy(data.phone, 'phone') : null} copied={copied === 'phone'} />
+                {data.phone && (
+                  <div className="flex items-center gap-2 pl-7 -mt-1.5 mb-2 text-xs">
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${data.isWhatsappVerified ? 'bg-emerald-50 text-emerald-700 border border-emerald-250' : 'bg-rose-50 text-rose-700 border border-rose-250'}`}>
+                      {data.isWhatsappVerified ? '✓ WhatsApp Verified' : '✗ Unverified'}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        try {
+                          await api.put(`/admin/students/${id}`, {
+                            isWhatsappVerified: !data.isWhatsappVerified
+                          });
+                          toast.success(`WhatsApp verification status updated!`);
+                          load();
+                          onChanged?.();
+                        } catch (err) {
+                          toast.error('Failed to toggle verification status');
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                      className="text-[10px] font-bold text-brand-600 hover:underline cursor-pointer disabled:opacity-50"
+                    >
+                      {data.isWhatsappVerified ? 'Mark Unverified' : 'Mark Verified'}
+                    </button>
+                  </div>
+                )}
+              </div>
               <InfoRow icon={KeyRound} label="Student ID (Username)" value={data.studentId || '—'} mono onCopy={data.studentId ? () => copy(data.studentId, 'sid') : null} copied={copied === 'sid'} />
               <InfoRow icon={Calendar} label="Joined" value={new Date(data.createdAt).toLocaleString('en-IN')} />
             </div>

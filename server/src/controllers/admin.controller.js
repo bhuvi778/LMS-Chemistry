@@ -158,11 +158,37 @@ export const allStudents = asyncHandler(async (_req, res) => {
 });
 
 export const allEnrollments = asyncHandler(async (_req, res) => {
-  const list = await Enrollment.find()
-    .populate('student', 'name email studentId phone avatar createdAt')
-    .populate('course', 'title category price thumbnail')
-    .sort({ createdAt: -1 });
-  res.json(list);
+  const TestSeriesEnrollment = (await import('../models/TestSeriesEnrollment.js')).default;
+  const [courseEnrolls, testSeriesEnrolls] = await Promise.all([
+    Enrollment.find()
+      .populate('student', 'name email studentId phone avatar createdAt')
+      .populate('course', 'title category price thumbnail')
+      .sort({ createdAt: -1 }),
+    TestSeriesEnrollment.find()
+      .populate('student', 'name email studentId phone avatar createdAt')
+      .populate('testSeries', 'title categories price')
+      .sort({ createdAt: -1 })
+  ]);
+
+  const courseList = courseEnrolls.map(e => ({
+    ...e.toObject(),
+    type: 'course'
+  }));
+
+  const seriesList = testSeriesEnrolls.map(e => ({
+    ...e.toObject(),
+    type: 'test_series',
+    course: e.testSeries ? {
+      _id: e.testSeries._id,
+      title: e.testSeries.title,
+      category: e.testSeries.categories?.[0] || 'Test Series',
+      price: e.testSeries.price,
+      thumbnail: null
+    } : null
+  }));
+
+  const combined = [...courseList, ...seriesList].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.json(combined);
 });
 
 // ── Live Classes ────────────────────────────────────────────────
@@ -561,7 +587,7 @@ export const createStudent = asyncHandler(async (req, res) => {
 });
 
 export const updateStudent = asyncHandler(async (req, res) => {
-  const { streak, longestStreak, coins, isActive, maxSessions } = req.body;
+  const { streak, longestStreak, coins, isActive, maxSessions, isWhatsappVerified } = req.body;
   const user = await User.findById(req.params.id);
   if (!user || user.role !== 'student') {
     res.status(404);
@@ -573,6 +599,7 @@ export const updateStudent = asyncHandler(async (req, res) => {
   if (coins !== undefined) user.coins = coins;
   if (isActive !== undefined) user.isActive = isActive;
   if (maxSessions !== undefined) user.maxSessions = maxSessions;
+  if (isWhatsappVerified !== undefined) user.isWhatsappVerified = isWhatsappVerified;
 
   await user.save();
 
@@ -587,6 +614,7 @@ export const updateStudent = asyncHandler(async (req, res) => {
     name: user.name,
     email: user.email,
     phone: user.phone || '',
+    isWhatsappVerified: user.isWhatsappVerified,
     streak: user.streak,
     longestStreak: user.longestStreak,
     coins: user.coins,
@@ -756,13 +784,19 @@ export const adminFreezeStreak = asyncHandler(async (req, res) => {
 
 export const adminExtendEnrollmentValidity = asyncHandler(async (req, res) => {
   const { validUntil, planType } = req.body;
-  const enrollment = await Enrollment.findById(req.params.id);
+  let enrollment = await Enrollment.findById(req.params.id);
+  let isCourse = true;
+  if (!enrollment) {
+    const TestSeriesEnrollment = (await import('../models/TestSeriesEnrollment.js')).default;
+    enrollment = await TestSeriesEnrollment.findById(req.params.id);
+    isCourse = false;
+  }
   if (!enrollment) {
     res.status(404);
     throw new Error('Enrollment not found');
   }
   enrollment.validUntil = validUntil ? new Date(validUntil) : null;
-  if (planType) {
+  if (isCourse && planType) {
     enrollment.planType = planType;
   }
   await enrollment.save();

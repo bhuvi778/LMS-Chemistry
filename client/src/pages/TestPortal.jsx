@@ -23,6 +23,7 @@ import {
   Coins,
   XCircle,
   Repeat,
+  X,
 } from 'lucide-react';
 import MyMistakes from './student/MyMistakes.jsx';
 import RevisionQueue from './student/RevisionQueue.jsx';
@@ -35,6 +36,7 @@ const DIFFICULTY_COLORS = {
 
 function TestCard({ test, myAttempts = [] }) {
   const { user } = useAuth();
+  const [showSyllabus, setShowSyllabus] = useState(false);
   const dc = DIFFICULTY_COLORS[test.difficulty] || DIFFICULTY_COLORS.intermediate;
   const attempt = myAttempts.find((a) => a.test?._id === test._id || a.test === test._id);
   const canAccess = test.isFree || !!user;
@@ -46,7 +48,7 @@ function TestCard({ test, myAttempts = [] }) {
   const isEnded = test.testType === 'live_test' && end && now > end;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all overflow-hidden group flex flex-col">
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all overflow-hidden group flex flex-col relative">
       <div className="p-5 flex-1 flex flex-col">
         <div className="flex-1">
           <div className="flex items-start justify-between gap-3 mb-3">
@@ -101,6 +103,15 @@ function TestCard({ test, myAttempts = [] }) {
               ))}
             </div>
           )}
+
+          {test.syllabus && (
+            <button
+              onClick={() => setShowSyllabus(true)}
+              className="text-xs text-brand-600 hover:text-brand-700 font-bold bg-brand-50 px-2.5 py-1.5 rounded-xl border border-brand-100/50 hover:bg-brand-100 flex items-center gap-1.5 mt-1.5 mb-2 w-fit cursor-pointer transition-colors"
+            >
+              <BookOpen size={12} /> View Syllabus
+            </button>
+          )}
         </div>
 
         <div className="mt-4 pt-3 border-t border-slate-100">
@@ -151,6 +162,36 @@ function TestCard({ test, myAttempts = [] }) {
           )}
         </div>
       </div>
+
+      {showSyllabus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 text-left">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-800 line-clamp-1">{test.title}</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Test Syllabus</p>
+              </div>
+              <button
+                onClick={() => setShowSyllabus(false)}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-650 transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            
+            <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 text-xs text-slate-700 font-semibold whitespace-pre-line max-h-[300px] overflow-y-auto leading-relaxed">
+              {test.syllabus}
+            </div>
+
+            <button
+              onClick={() => setShowSyllabus(false)}
+              className="mt-5 w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-2xl text-xs transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -470,22 +511,26 @@ export default function TestPortal() {
           >
             <Layers size={15} /> Test Series ({filteredSeries.length})
           </button>
-          <button
-            onClick={() => setTab('mistakes')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition ${
-              tab === 'mistakes' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <XCircle size={15} /> Mistakes
-          </button>
-          <button
-            onClick={() => setTab('revision')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition ${
-              tab === 'revision' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Repeat size={15} /> Revision Queue
-          </button>
+          {user && (
+            <>
+              <button
+                onClick={() => setTab('mistakes')}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition ${
+                  tab === 'mistakes' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <XCircle size={15} /> Mistakes
+              </button>
+              <button
+                onClick={() => setTab('revision')}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition ${
+                  tab === 'revision' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Repeat size={15} /> Revision Queue
+              </button>
+            </>
+          )}
         </div>
 
         {/* Sub-tabs under Practice */}

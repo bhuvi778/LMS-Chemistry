@@ -37,6 +37,7 @@ import {
   DownloadCloud,
   XCircle,
   Repeat,
+  Layers,
 } from 'lucide-react';
 
 const navSections = [
@@ -54,13 +55,22 @@ const navSections = [
     icon: Library,
     items: [
       { to: '/student/courses', label: 'Courses', icon: BookOpen },
+      { to: '/student/test-series', label: 'My Test Series', icon: Layers },
       { to: '/student/live-classes', label: 'Live Classes', icon: Video },
-      { to: '/student/practice', label: 'Practice', icon: ListChecks },
-      { to: '/student/my-mistakes', label: 'My Mistakes', icon: XCircle },
-      { to: '/student/revision-queue', label: 'Revision Queue', icon: Repeat },
       { to: '/student/library', label: 'Library', icon: Library },
       { to: '/student/downloads', label: 'My Downloads', icon: DownloadCloud },
       { to: '/student/doubts', label: 'Ask Doubts', icon: HelpCircle },
+    ]
+  },
+  {
+    title: 'PRACTICE HUB',
+    icon: ListChecks,
+    items: [
+      { to: '/student/practice', label: 'Practice', icon: ListChecks },
+      { to: '/student/my-mistakes', label: 'My Mistakes', icon: XCircle },
+      { to: '/student/revision-queue', label: 'Revision Queue', icon: Repeat },
+      { to: '/student/saved-questions', label: 'Saved Questions', icon: Bookmark },
+      { to: '/student/reported-questions', label: 'Reported Questions', icon: Flag },
     ]
   },
   {
@@ -89,8 +99,6 @@ const navSections = [
     items: [
       { to: '/student/profile', label: 'My Profile', icon: User },
       { to: '/student/orders', label: 'My Orders', icon: ShoppingBag },
-      { to: '/student/saved-questions', label: 'Saved Questions', icon: Bookmark },
-      { to: '/student/reported-questions', label: 'Reported Questions', icon: Flag },
     ]
   },
   {
@@ -112,6 +120,10 @@ export default function StudentLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
   const [highestPlan, setHighestPlan] = useState('');
+  const [verifyPhone, setVerifyPhone] = useState('');
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifyStep, setVerifyStep] = useState(1);
+  const [verifyBusy, setVerifyBusy] = useState(false);
 
   useEffect(() => {
     api.get('/enroll/me')
@@ -190,6 +202,170 @@ export default function StudentLayout() {
       });
     };
   }, [user, navigate, logout]);
+
+  // If student role and phone is empty or not verified
+  if (user && user.role === 'student' && (!user.phone || !user.isWhatsappVerified)) {
+    const handleSendOtp = async (e) => {
+      e.preventDefault();
+      const trimmedPhone = verifyPhone.trim();
+      if (!trimmedPhone) {
+        toast.error('Please enter your mobile number');
+        return;
+      }
+      if (!/^\+?\d{9,15}$/.test(trimmedPhone)) {
+        toast.error('Please enter a valid phone number (including country code, e.g. +919999999999)');
+        return;
+      }
+      setVerifyBusy(true);
+      try {
+        await api.post('/auth/request-phone-verification', { phone: trimmedPhone });
+        toast.success('Verification OTP sent to WhatsApp!');
+        setVerifyStep(2);
+      } catch (err) {
+        toast.error(err.response?.data?.message || err.message || 'Failed to send OTP');
+      } finally {
+        setVerifyBusy(false);
+      }
+    };
+
+    const handleVerifyOtp = async (e) => {
+      e.preventDefault();
+      const trimmedCode = verifyCode.trim();
+      if (!trimmedCode || trimmedCode.length !== 6) {
+        toast.error('Please enter the 6-digit verification code');
+        return;
+      }
+      setVerifyBusy(true);
+      try {
+        const { data } = await api.post('/auth/verify-phone-verification', { code: trimmedCode, phone: verifyPhone.trim() });
+        toast.success('Mobile number verified successfully!');
+        if (setUser) {
+          setUser(data);
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || err.message || 'Verification failed');
+      } finally {
+        setVerifyBusy(false);
+      }
+    };
+
+    const handleLogout = () => {
+      logout();
+      navigate('/');
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden">
+          {/* Header Accent */}
+          <div className="h-2 w-full bg-gradient-to-r from-brand-500 via-indigo-500 to-purple-500" />
+          
+          <div className="p-8 text-center space-y-6">
+            <div className="w-16 h-16 rounded-2xl bg-brand-50 border border-brand-100 text-brand-650 flex items-center justify-center mx-auto shadow-sm">
+              <Phone size={28} className="text-brand-600" />
+            </div>
+
+            <div>
+              <h2 className="font-display text-2xl font-black text-slate-800">Verify Mobile Number</h2>
+              <p className="text-slate-500 text-xs mt-2 leading-relaxed">
+                A verified WhatsApp mobile number is required to proceed. This helps secure your account and link your learning progress.
+              </p>
+            </div>
+
+            {verifyStep === 1 ? (
+              <form onSubmit={handleSendOtp} className="space-y-4 text-left">
+                <div>
+                  <label className="block text-xs font-bold text-slate-650 mb-1.5 uppercase tracking-wider">WhatsApp Number</label>
+                  <input
+                    type="tel"
+                    required
+                    value={verifyPhone}
+                    onChange={(e) => setVerifyPhone(e.target.value)}
+                    placeholder="e.g. +919876543210"
+                    disabled={verifyBusy}
+                    className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white disabled:opacity-60 transition"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1.5 font-medium leading-normal">
+                    Important: Include your country code (e.g. +91 for India) without spaces or hyphens.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={verifyBusy}
+                  className="btn-primary w-full py-3 justify-center text-sm font-bold bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition disabled:opacity-60 flex items-center gap-2"
+                >
+                  {verifyBusy ? (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : null}
+                  Send Verification OTP
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} className="space-y-4 text-left">
+                <div>
+                  <label className="block text-xs font-bold text-slate-655 mb-1.5 uppercase tracking-wider">Enter 6-Digit OTP</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={verifyCode}
+                    onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter OTP code"
+                    disabled={verifyBusy}
+                    className="w-full text-center text-lg font-bold letter-spacing-wide border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white disabled:opacity-60 transition"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1.5 font-medium leading-normal text-center">
+                    We sent a 6-digit OTP code to <strong className="text-slate-600">{verifyPhone}</strong> via WhatsApp.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={verifyBusy}
+                  className="btn-primary w-full py-3 justify-center text-sm font-bold bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition disabled:opacity-60 flex items-center gap-2"
+                >
+                  {verifyBusy ? (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : null}
+                  Verify OTP & Enter
+                </button>
+
+                <div className="flex justify-between items-center text-xs pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setVerifyStep(1)}
+                    disabled={verifyBusy}
+                    className="text-slate-500 hover:text-slate-700 font-bold hover:underline"
+                  >
+                    Change Number
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={verifyBusy}
+                    className="text-brand-600 hover:text-brand-750 font-bold hover:underline"
+                  >
+                    Resend OTP
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="border-t border-slate-100 pt-6">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-650 hover:text-slate-800 text-xs font-bold transition"
+              >
+                <LogOut size={14} /> Log Out of Account
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Open the group containing the active item automatically
   useEffect(() => {
@@ -412,12 +588,14 @@ export default function StudentLayout() {
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Workspace</span>
             <h2 className="text-xs font-bold text-slate-700 mt-0.5 capitalize">
               {(() => {
-                const pageNameMap = {
+                 const pageNameMap = {
                   dashboard: 'Dashboard', courses: 'My Courses', practice: 'Practice Tests',
                   library: 'Library', doubts: 'Ask Doubts', streak: 'Streak', wallet: 'Coins Wallet',
                   refer: 'Refer & Earn', profile: 'My Profile', orders: 'My Orders',
                   feed: 'Feed', contact: 'Contact Us', 'privacy-policy': 'Privacy Policy',
                   'ask-prepiify': 'Ask Prepiify', learn: 'Course Player', 'live-classes': 'Live Classes',
+                  'my-mistakes': 'My Mistakes', 'revision-queue': 'Revision Queue',
+                  'saved-questions': 'Saved Questions', 'reported-questions': 'Reported Questions'
                 };
                 const segments = location.pathname.split('/').filter(Boolean);
                 // Find last non-ObjectId segment

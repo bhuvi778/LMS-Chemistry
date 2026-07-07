@@ -2,28 +2,42 @@ import asyncHandler from 'express-async-handler';
 import ExamCountdown from '../models/ExamCountdown.js';
 import Enrollment from '../models/Enrollment.js';
 
-// Get active countdowns for a student (filtered by their enrolled course categories)
 export const getActiveCountdowns = asyncHandler(async (req, res) => {
+  if (req.user.role === 'admin') {
+    const list = await ExamCountdown.find({ isActive: true }).sort({ examDate: 1 });
+    return res.json(list);
+  }
+
+  const enrollments = await Enrollment.find({
+    student: req.user._id,
+    paymentStatus: 'paid',
+    planType: { $in: ['batch', 'pro', 'infinity'] }
+  }).populate('course');
+
+  if (enrollments.length === 0) {
+    return res.json([]);
+  }
+
   let categories = [];
-  if (req.user) {
-    const enrollments = await Enrollment.find({ student: req.user._id }).populate('course');
-    enrollments.forEach(e => {
-      if (e.course) {
-        if (e.course.category) categories.push(e.course.category);
-        if (e.course.categories && Array.isArray(e.course.categories)) {
-          e.course.categories.forEach(cat => categories.push(cat));
-        }
+  enrollments.forEach(e => {
+    if (e.course) {
+      if (e.course.category) categories.push(e.course.category);
+      if (e.course.categories && Array.isArray(e.course.categories)) {
+        e.course.categories.forEach(cat => categories.push(cat));
       }
-    });
-    categories = [...new Set(categories)];
+    }
+  });
+  categories = [...new Set(categories)];
+
+  if (categories.length === 0) {
+    return res.json([]);
   }
 
-  let query = { isActive: true };
-  if (categories.length > 0) {
-    query.category = { $in: categories };
-  }
+  const list = await ExamCountdown.find({
+    isActive: true,
+    category: { $in: categories }
+  }).sort({ examDate: 1 });
 
-  const list = await ExamCountdown.find(query).sort({ examDate: 1 });
   res.json(list);
 });
 

@@ -247,9 +247,18 @@ export default function AdminEnrollments() {
                   <td className="p-4 text-slate-600">{e.student?.phone || '—'}</td>
                   <td className="p-4">
                     <div className="font-medium text-slate-800">{e.course?.title}</div>
-                    <div className="flex gap-1.5 mt-0.5">
-                      <span className="chip bg-brand-50 text-brand-700 text-[10px]">{e.course?.category}</span>
-                      <span className="chip bg-indigo-50 text-indigo-700 text-[10px] uppercase">{e.planType || 'batch'}</span>
+                    <div className="flex gap-1.5 mt-1 flex-wrap">
+                      {e.type === 'test_series' ? (
+                        <span className="chip bg-amber-100 text-amber-800 text-[10px] font-bold">Test Series</span>
+                      ) : (
+                        <>
+                          <span className="chip bg-violet2-100 text-violet2-850 text-[10px] font-bold">Course</span>
+                          <span className="chip bg-indigo-50 text-indigo-700 text-[10px] uppercase font-semibold">{e.planType || 'batch'}</span>
+                        </>
+                      )}
+                      {e.course?.category && (
+                        <span className="chip bg-brand-50 text-brand-700 text-[10px]">{e.course?.category}</span>
+                      )}
                     </div>
                   </td>
                   <td className="p-4 font-semibold text-slate-900">₹{e.pricePaid?.toLocaleString()}</td>
@@ -284,22 +293,26 @@ export default function AdminEnrollments() {
             <h3 className="text-lg font-bold text-slate-800 mb-2">Extend Enrollment Validity</h3>
             <div className="space-y-1.5 text-xs text-slate-650 bg-slate-50 border border-slate-200/60 p-3.5 rounded-2xl mb-4">
               <div>Student: <span className="font-semibold text-slate-850">{extendingEnroll.student?.name}</span></div>
-              <div>Course: <span className="font-semibold text-slate-850">{extendingEnroll.course?.title}</span></div>
-              <div>Current Plan: <span className="chip bg-brand-50 text-brand-700 font-bold uppercase py-0.5 px-1.5 text-[10px]">{extendingEnroll.planType || 'batch'}</span></div>
+              <div>{extendingEnroll.type === 'test_series' ? 'Test Series' : 'Course'}: <span className="font-semibold text-slate-850">{extendingEnroll.course?.title}</span></div>
+              {extendingEnroll.type !== 'test_series' && (
+                <div>Current Plan: <span className="chip bg-brand-50 text-brand-700 font-bold uppercase py-0.5 px-1.5 text-[10px]">{extendingEnroll.planType || 'batch'}</span></div>
+              )}
               <div>Current Expiry: <span className="font-semibold text-slate-850">{extendingEnroll.validUntil ? new Date(extendingEnroll.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}</span></div>
             </div>
-            <div className="mb-4">
-              <label className="text-xs font-bold text-slate-500 block mb-1">Plan Level (Upgrade/Downgrade)</label>
-              <select
-                value={newPlanType}
-                onChange={(e) => setNewPlanType(e.target.value)}
-                className="input text-sm w-full bg-white border border-slate-200"
-              >
-                <option value="batch">Ace Starter</option>
-                <option value="pro">Ace Pro</option>
-                <option value="infinity">Ace Infinity</option>
-              </select>
-            </div>
+            {extendingEnroll.type !== 'test_series' && (
+              <div className="mb-4">
+                <label className="text-xs font-bold text-slate-500 block mb-1">Plan Level (Upgrade/Downgrade)</label>
+                <select
+                  value={newPlanType}
+                  onChange={(e) => setNewPlanType(e.target.value)}
+                  className="input text-sm w-full bg-white border border-slate-200"
+                >
+                  <option value="batch">Ace Starter</option>
+                  <option value="pro">Ace Pro</option>
+                  <option value="infinity">Ace Infinity</option>
+                </select>
+              </div>
+            )}
             <div className="mb-5">
               <label className="text-xs font-bold text-slate-500 block mb-1">New Expiry Date (Leave empty for Lifetime)</label>
               <input
@@ -356,7 +369,8 @@ function EnrollCard({ e, onExtend }) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-2 left-3 right-3">
             <div className="text-white font-bold text-sm leading-tight line-clamp-1 drop-shadow">{c.title}</div>
-            <div className="flex gap-1 mt-1 flex-wrap">
+            <div className="flex gap-1 mt-1.5 flex-wrap">
+              <span className="chip bg-violet-600 text-white text-[9px] uppercase font-black px-1.5 py-0.5">Course</span>
               {c.category && <span className="chip bg-white/95 text-brand-700 text-[10px]">{c.category}</span>}
               <span className="chip bg-brand-600 text-white text-[10px] uppercase font-bold">{e.planType || 'batch'}</span>
             </div>
@@ -364,8 +378,15 @@ function EnrollCard({ e, onExtend }) {
           <div className="absolute top-2 right-2"><StatusChip status={e.paymentStatus} /></div>
         </div>
       ) : (
-        <div className="h-24 bg-gradient-to-br from-brand-500 to-violet2-500 p-3 flex items-end">
-          <div className="text-white font-bold text-sm leading-tight line-clamp-2">{c.title || 'Course'}</div>
+        <div className="relative h-24 bg-gradient-to-br from-brand-500 to-violet2-500 p-3 flex items-end">
+          <div className="absolute top-2 right-2"><StatusChip status={e.paymentStatus} /></div>
+          <div>
+            <div className="text-white font-bold text-sm leading-tight line-clamp-2 drop-shadow">{c.title || 'Test Series'}</div>
+            <div className="flex gap-1 mt-1.5 flex-wrap">
+              <span className="chip bg-amber-500 text-white text-[9px] uppercase font-black px-1.5 py-0.5">Test Series</span>
+              {c.category && <span className="chip bg-white/95 text-brand-700 text-[10px]">{c.category}</span>}
+            </div>
+          </div>
         </div>
       )}
 

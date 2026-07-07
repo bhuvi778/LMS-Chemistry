@@ -139,6 +139,7 @@ const courseSchema = new mongoose.Schema(
     extendValidityDurationUnit: { type: String, enum: ['days', 'months', 'years'], default: 'months' },
     telegramJoinLink: { type: String, default: '' },
     batchInformation: { type: String, default: '' },
+    isAdmissionClosed: { type: Boolean, default: false },
     // Upsell
     upsell: {
       enabled: { type: Boolean, default: false },

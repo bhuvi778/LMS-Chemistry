@@ -57,18 +57,22 @@ export const submitBankTransfer = asyncHandler(async (req, res) => {
   }
 
   if (itemType === 'course' && courseId) {
+    const course = await Course.findById(courseId);
+    if (!course) {
+      res.status(404);
+      throw new Error('Course not found');
+    }
+    if (course.isAdmissionClosed) {
+      res.status(400);
+      throw new Error('This batch admission has been closed.');
+    }
+
     const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
     if (existing) {
       const planOrder = { batch: 1, pro: 2, infinity: 3 };
       if (planOrder[planType] <= planOrder[existing.planType]) {
         res.status(400);
         throw new Error(`You are already enrolled in the ${existing.planType.toUpperCase()} plan. Downgrade or same-plan upgrade is not allowed.`);
-      }
-
-      const course = await Course.findById(courseId);
-      if (!course) {
-        res.status(404);
-        throw new Error('Course not found');
       }
 
       let newPlanPrice = course.price;
@@ -78,7 +82,6 @@ export const submitBankTransfer = asyncHandler(async (req, res) => {
         if (planType === 'pro') newPlanPrice = Math.round(course.price * 1.25);
         else if (planType === 'infinity') newPlanPrice = Math.round(course.price * 1.5);
       }
-
     }
   }
 

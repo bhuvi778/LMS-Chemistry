@@ -47,10 +47,10 @@ export const sendSmsOtp = async (phone, code) => {
 };
 
 export const sendWhatsappOtp = async (phone, code) => {
-  const apiUrl = process.env.WHATSAPP_API_URL;
-  const apiKey = process.env.WHATSAPP_API_KEY;
+  const webhookUrl = process.env.BOTBIZ_WEBHOOK_URL;
 
-  if (!apiUrl) {
+  if (!webhookUrl) {
+    // Fallback to console logging if webhook is not configured
     console.log(`\n==============================================`);
     console.log(`[WHATSAPP OTP DEV] Phone: ${phone} | Code: ${code}`);
     console.log(`==============================================\n`);
@@ -58,44 +58,34 @@ export const sendWhatsappOtp = async (phone, code) => {
   }
 
   try {
-    // Construct request payload depending on your WhatsApp provider (e.g., Gupshup, Twilio, or Meta Cloud API)
-    const res = await fetch(apiUrl, {
+    // Clean phone number: keep only numeric digits
+    let formattedPhone = phone.replace(/\D/g, '');
+    if (formattedPhone.length === 10) {
+      // Assuming Indian country code by default if length is 10 digits
+      formattedPhone = '91' + formattedPhone;
+    }
+
+    // Call the BotBiz Webhook Workflow URL using POST JSON format
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': apiKey ? `Bearer ${apiKey}` : '',
       },
       body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: phone,
-        type: 'template',
-        template: {
-          name: 'ace2examz_otp', // template name registered on your WhatsApp portal
-          language: { code: 'en' },
-          components: [
-            {
-              type: 'body',
-              parameters: [{ type: 'text', text: code }],
-            },
-            {
-              type: 'button',
-              sub_type: 'url',
-              index: '0',
-              parameters: [{ type: 'text', text: code }],
-            },
-          ],
-        },
+        phone: formattedPhone,
+        code: code,
       }),
     });
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error(`[WhatsApp] Provider error: ${res.status} - ${errorText}`);
+      console.error(`[WhatsApp BotBiz Webhook] Provider error: ${res.status} - ${errorText}`);
       return false;
     }
+
     return true;
   } catch (err) {
-    console.error('[WhatsApp] Failed to send WhatsApp OTP:', err.message);
+    console.error('[WhatsApp BotBiz Webhook] Failed to send WhatsApp OTP:', err.message);
     return false;
   }
 };

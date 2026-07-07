@@ -176,6 +176,10 @@ export const createOrder = asyncHandler(async (req, res) => {
   if (isCourse) {
     item = await Course.findById(courseId);
     if (!item) { res.status(404); throw new Error('Course not found'); }
+    if (item.isAdmissionClosed) {
+      res.status(400);
+      throw new Error('This batch admission has been closed.');
+    }
     const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
     if (req.body.isExtension) {
       if (!item.allowExtendValidity) {

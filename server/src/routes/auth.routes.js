@@ -6,8 +6,9 @@ import {
   verifyEmailSignup, forgotPassword, resetPassword,
   redeemCoins, streakPing, googleAuth, deleteMe, getCoinRedemptions,
   sendLoginOtp, verifyLoginOtp,
+  requestPhoneVerification, verifyPhoneVerification,
 } from '../controllers/auth.controller.js';
-import { protect } from '../middleware/auth.js';
+import { protect, protectTemp } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -20,13 +21,15 @@ router.post('/reset-password', resetPassword);
 router.post('/login-otp-request', sendLoginOtp);
 
 // OTP-protected (uses tempToken from login response)
-router.post('/verify-otp', protect, verifyOtp);
-router.post('/verify-email', protect, verifyEmailSignup);
-router.post('/login-otp-verify', protect, verifyLoginOtp);
+router.post('/verify-otp', protectTemp, verifyOtp);
+router.post('/verify-email', protectTemp, verifyEmailSignup);
+router.post('/login-otp-verify', protectTemp, verifyLoginOtp);
 
 // Authenticated
 router.get('/me', protect, me);
 router.put('/me', protect, updateMe);
+router.post('/request-phone-verification', protect, requestPhoneVerification);
+router.post('/verify-phone-verification', protect, verifyPhoneVerification);
 router.delete('/delete-account', protect, deleteMe);
 router.post('/redeem', protect, redeemCoins);
 router.get('/coin-redemptions', protect, getCoinRedemptions);

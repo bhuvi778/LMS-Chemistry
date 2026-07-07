@@ -28,6 +28,23 @@ export default function Login() {
   const [otp, setOtp] = useState('');
   const [loginMethod, setLoginMethod] = useState('password'); // 'password' or 'otp'
   const [channel, setChannel] = useState('whatsapp'); // 'sms' or 'whatsapp'
+  const [timer, setTimer] = useState(30);
+
+  useEffect(() => {
+    if (pendingOtpLogin) {
+      setTimer(30);
+    }
+  }, [pendingOtpLogin]);
+
+  useEffect(() => {
+    let interval;
+    if (pendingOtpLogin && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [pendingOtpLogin, timer]);
 
   useEffect(() => {
     // Once bootstrapping is done, if the user is not authenticated, clear any stale token/user.
@@ -234,6 +251,28 @@ export default function Login() {
                 placeholder="000000"
                 autoFocus
               />
+            </div>
+
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <span className="text-slate-500">
+                {timer > 0 ? `Resend OTP in ${timer}s` : "Didn't receive the OTP?"}
+              </span>
+              <button
+                type="button"
+                disabled={timer > 0 || loading}
+                onClick={async () => {
+                  try {
+                    await requestOtpLogin(targetVal, pendingOtpLogin.method === 'phone' ? 'whatsapp' : 'email');
+                    setTimer(30);
+                    toast.success('OTP resent successfully');
+                  } catch (err) {
+                    toast.error(err.message);
+                  }
+                }}
+                className={`font-semibold text-brand-600 ${timer > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:text-brand-700 hover:underline'}`}
+              >
+                Resend OTP
+              </button>
             </div>
 
             <button disabled={loading} className="btn-primary w-full mt-6 justify-center">

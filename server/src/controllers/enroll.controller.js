@@ -249,3 +249,12 @@ export const getWatchHistory = asyncHandler(async (req, res) => {
   res.json(watchHistories);
 });
 
+export const myTestSeriesEnrollments = asyncHandler(async (req, res) => {
+  const TestSeriesEnrollment = (await import('../models/TestSeriesEnrollment.js')).default;
+  const list = await TestSeriesEnrollment.find({ student: req.user._id, paymentStatus: 'paid' })
+    .populate('testSeries')
+    .sort({ createdAt: -1 });
+
+  res.json(list);
+});
+

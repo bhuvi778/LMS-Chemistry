@@ -1,16 +1,26 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client.js';
-import { Clock, Calendar, AlertCircle } from 'lucide-react';
+import { Clock, Calendar, AlertCircle, ArrowUpRight, Lock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function StudentExamCounter() {
   const [countdowns, setCountdowns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timers, setTimers] = useState({});
+  const [hasPlan, setHasPlan] = useState(false);
+  const [enrollments, setEnrollments] = useState([]);
 
   useEffect(() => {
-    api.get('/exam-countdown/active')
-      .then(r => {
-        setCountdowns(r.data || []);
+    setLoading(true);
+    Promise.all([
+      api.get('/enroll/me').then(r => r.data).catch(() => []),
+      api.get('/exam-countdown/active').then(r => r.data).catch(() => [])
+    ])
+      .then(([enrollData, countdownData]) => {
+        const paidEnrolls = (enrollData || []).filter(e => e.paymentStatus === 'paid' && ['batch', 'pro', 'infinity'].includes(e.planType));
+        setEnrollments(enrollData || []);
+        setHasPlan(paidEnrolls.length > 0);
+        setCountdowns(countdownData || []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -47,6 +57,61 @@ export default function StudentExamCounter() {
     return (
       <div className="flex justify-center items-center min-h-[300px]">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-500"></div>
+      </div>
+    );
+  }
+
+  if (!hasPlan) {
+    return (
+      <div className="space-y-6 max-w-6xl mx-auto p-4 animate-fade-in flex flex-col items-center justify-center min-h-[500px]">
+        <div className="max-w-md w-full bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-lg hover:shadow-xl transition-all duration-300">
+          <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 text-red-650 flex items-center justify-center mx-auto mb-5 shadow-inner">
+            <Lock size={28} />
+          </div>
+          <h2 className="font-display text-2xl font-black text-slate-800">Exam Counter Restricted</h2>
+          <p className="text-slate-500 text-sm mt-3 leading-relaxed">
+            The <strong>Exam Counter</strong> is exclusive to our registered students in <strong>Starter</strong>, <strong>Pro</strong>, and <strong>Infinity</strong> cohorts.
+          </p>
+          
+          <div className="mt-6 p-4 bg-slate-50 border border-slate-150 rounded-2xl text-left text-xs text-slate-655 space-y-2.5">
+            <p className="font-bold text-slate-700 mb-2">Unlock Exam Counter & Premium Cohort Benefits:</p>
+            <ul className="space-y-2 font-semibold text-slate-505">
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-500 font-extrabold text-sm leading-none">✓</span>
+                <span>Real-time Category-wise Exam Timers</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-500 font-extrabold text-sm leading-none">✓</span>
+                <span>Direct Access to Syllabus Trackers & Study Planners</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-500 font-extrabold text-sm leading-none">✓</span>
+                <span>Personalized 1:1 Expert Mentorship Sessions</span>
+              </li>
+            </ul>
+          </div>
+
+          {enrollments.length > 0 ? (
+            <div className="w-full mt-6 space-y-2">
+              {enrollments.map((e) => (
+                <Link
+                  key={e._id}
+                  to={`/courses/${e.course?.slug || e.course?._id}`}
+                  className="btn-primary w-full text-xs font-bold py-3.5 justify-center gap-1.5"
+                >
+                  Upgrade/Purchase {e.course?.title || 'Prep Plan'} <ArrowUpRight size={14} />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Link
+              to="/courses"
+              className="btn-primary w-full mt-6 text-sm font-bold py-3.5 justify-center gap-1.5 flex items-center bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-xl shadow hover:opacity-95 transition"
+            >
+              Explore Batches & Enrolls <ArrowUpRight size={16} />
+            </Link>
+          )}
+        </div>
       </div>
     );
   }

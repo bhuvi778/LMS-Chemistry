@@ -52,6 +52,7 @@ const empty = {
   orientationVideoUrl: '',
   telegramJoinLink: '',
   batchInformation: '',
+  isAdmissionClosed: false,
 };
 
 export default function AdminCourseForm() {
@@ -1359,6 +1360,10 @@ export default function AdminCourseForm() {
           <div className="card p-6 space-y-4">
             <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide border-b pb-2">Additional Settings <span className="text-slate-400 font-normal normal-case">(Optional)</span></h2>
             <label className="flex items-center gap-2">
+              <input type="checkbox" checked={form.isAdmissionClosed || false} onChange={(e) => set('isAdmissionClosed', e.target.checked)} />
+              <span className="font-semibold text-sm text-red-600">This batch admission has been closed (Disables payments)</span>
+            </label>
+            <label className="flex items-center gap-2">
               <input type="checkbox" checked={form.isCombo || false} onChange={(e) => set('isCombo', e.target.checked)} />
               <span className="font-semibold text-sm">Make this a Combo course</span>
             </label>
@@ -1429,10 +1434,6 @@ export default function AdminCourseForm() {
               <input type="checkbox" checked={form.allowExtendValidity || false} onChange={(e) => set('allowExtendValidity', e.target.checked)} />
               <span className="font-semibold text-sm">Allow extend validity</span>
             </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={form.allowFreeze || false} onChange={(e) => set('allowFreeze', e.target.checked)} />
-              <span className="font-semibold text-sm">Allow course freezing</span>
-            </label>
             {form.allowExtendValidity && (
               <div className="space-y-3 pl-4 border-l-2 border-brand-200">
                 <div className="grid grid-cols-2 gap-3">
@@ -1472,6 +1473,10 @@ export default function AdminCourseForm() {
                 </div>
               </div>
             )}
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={form.allowFreeze || false} onChange={(e) => set('allowFreeze', e.target.checked)} />
+              <span className="font-semibold text-sm">Allow course freezing</span>
+            </label>
           </div>
 
           {/* Upsell */}

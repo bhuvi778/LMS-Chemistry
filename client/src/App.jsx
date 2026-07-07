@@ -75,6 +75,7 @@ import ResetPassword from './pages/ResetPassword.jsx';
 
 import StudentLayout from './components/StudentLayout.jsx';
 import StudentCourses from './pages/student/StudentCourses.jsx';
+import MyTestSeries from './pages/student/MyTestSeries.jsx';
 import ToppersPass from './pages/student/ToppersPass.jsx';
 import Boosters from './pages/student/Boosters.jsx';
 import Streak from './pages/student/Streak.jsx';
@@ -217,6 +218,7 @@ export default function App() {
           <Route path="ask-prepiify" element={<AskPrepiify />} />
           <Route path="toppers-pass" element={<ToppersPass />} />
           <Route path="courses" element={<StudentCourses />} />
+          <Route path="test-series" element={<MyTestSeries />} />
           <Route path="practice" element={<TestPortal />} />
           <Route path="library" element={<Ebooks />} />
           <Route path="downloads" element={<Downloads />} />

@@ -1249,6 +1249,19 @@ export default function CourseDetail() {
 
                     {/* Payment Mode Selector — only for paid courses + students */}
                     {user && user.role !== 'admin' && course.price > 0 && (() => {
+                      if (course.isAdmissionClosed) {
+                        return (
+                          <div className="mt-4">
+                            <button
+                              disabled
+                              className="w-full py-3 bg-red-50 border border-red-200 text-red-650 rounded-xl font-bold text-base cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                              🔒 Admission Closed
+                            </button>
+                            <p className="text-center text-[11px] text-red-500 font-semibold mt-1.5">This batch admission has been closed by admin.</p>
+                          </div>
+                        );
+                      }
                       const planInfo = getPlanPriceAndMrp();
                       const currentPlanPrice = planInfo.price;
                       const initialAmt = couponApplied ? couponApplied.finalAmount : currentPlanPrice;
@@ -1307,16 +1320,26 @@ export default function CourseDetail() {
                     {(user?.role === 'admin' || course.price === 0) && (
                       <button
                         onClick={enroll}
-                        disabled={busy}
+                        disabled={busy || (course.price === 0 && course.isAdmissionClosed && user?.role !== 'admin')}
                         className="btn-primary w-full mt-3 justify-center disabled:opacity-60 text-base py-3 gap-2"
                       >
                         {busy ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />}
-                        {busy ? 'Processing…' : course.price === 0 ? 'Enroll Free' : 'Enroll (Admin)'}
+                        {busy ? 'Processing…' : course.price === 0 ? (course.isAdmissionClosed && user?.role !== 'admin' ? 'Admission Closed' : 'Enroll Free') : 'Enroll (Admin)'}
                       </button>
                     )}
 
                     {/* Login prompt for unauthenticated */}
                     {!user && course.price > 0 && (() => {
+                      if (course.isAdmissionClosed) {
+                        return (
+                          <button
+                            disabled
+                            className="w-full py-3 bg-red-50 border border-red-200 text-red-650 rounded-xl font-bold text-base cursor-not-allowed mt-3 flex items-center justify-center gap-2"
+                          >
+                            🔒 Admission Closed
+                          </button>
+                        );
+                      }
                       const planInfo = getPlanPriceAndMrp();
                       return (
                         <button

@@ -1,8 +1,27 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Atom, Mail, Phone, MapPin, Youtube, Instagram, Twitter, Facebook, ArrowRight, Zap, Loader2 } from 'lucide-react';
+import { Atom, Mail, Phone, MapPin, Youtube, Instagram, Facebook, ArrowRight, Zap, Loader2 } from 'lucide-react';
 import api from '../api/client.js';
 import toast from 'react-hot-toast';
+
+// Custom brand icons not available in lucide-react or requiring specific branding (like X)
+const XIcon = ({ size = 16, ...props }) => (
+  <svg viewBox="0 0 16 16" width={size} height={size} fill="currentColor" {...props}>
+    <path d="M12.6.75h2.454l-5.36 6.142L16 15.25h-4.937l-3.867-5.07-4.425 5.07H.316l5.733-6.57L0 .75h5.063l3.495 4.633L12.601.75Zm-.86 13.028h1.36L4.323 2.145H2.865z" />
+  </svg>
+);
+
+const TelegramIcon = ({ size = 16, ...props }) => (
+  <svg viewBox="0 0 448 512" width={size} height={size} fill="currentColor" {...props}>
+    <path d="M446.7 98.6l-376.6 145c-25.9 10-25.8 24.5-4.8 31l96.6 30.2 224-141.2c10.6-6.4 20.3-3 12.3 4.1L216.7 341.2l-8 120.3c11.8 0 17-5.4 23.6-11.8l56.7-55.1 118 87.1c21.8 12 37.5 5.8 43-20.2l77.7-366.1c8-32.9-12.7-47.7-34.3-37.7z" />
+  </svg>
+);
+
+const QuoraIcon = ({ size = 16, ...props }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" {...props}>
+    <path d="M7.3799.9483A11.9628 11.9628 0 0 1 21.248 19.5397l2.4096 2.4225c.7322.7362.21 1.9905-.8272 1.9905l-10.7105.01a12.52 12.52 0 0 1-.304 0h-.02A11.9628 11.9628 0 0 1 7.3818.9503Zm7.3217 4.428a7.1717 7.1717 0 1 0-5.4873 13.2512 7.1717 7.1717 0 0 0 5.4883-13.2511Z" />
+  </svg>
+);
 
 export default function Footer() {
   const [subEmail, setSubEmail] = useState('');
@@ -77,12 +96,21 @@ export default function Footer() {
 
           <div className="flex gap-2.5 mt-5">
             {[
-              { I: Youtube, href: '#', label: 'YouTube' },
-              { I: Instagram, href: '#', label: 'Instagram' },
-              { I: Twitter, href: '#', label: 'Twitter' },
-              { I: Facebook, href: '#', label: 'Facebook' },
+              { I: Youtube, href: 'https://www.youtube.com/@ace2examz', label: 'YouTube' },
+              { I: Instagram, href: 'https://www.instagram.com/ace2examz', label: 'Instagram' },
+              { I: XIcon, href: 'https://x.com/ace2examz', label: 'X (Twitter)' },
+              { I: Facebook, href: 'https://facebook.com/ace2examzz', label: 'Facebook' },
+              { I: TelegramIcon, href: 'https://t.me/ace2examz', label: 'Telegram' },
+              { I: QuoraIcon, href: 'https://www.quora.com/profile/Ace2Examz', label: 'Quora' },
             ].map(({ I, href, label }) => (
-              <a key={label} href={href} aria-label={label} className="w-9 h-9 grid place-items-center rounded-lg bg-white/5 border border-white/8 hover:bg-brand-600 hover:border-brand-500 transition">
+              <a 
+                key={label} 
+                href={href} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                aria-label={label} 
+                className="w-9 h-9 grid place-items-center rounded-lg bg-white/5 border border-white/8 hover:bg-brand-600 hover:border-brand-500 transition"
+              >
                 <I size={16} />
               </a>
             ))}
