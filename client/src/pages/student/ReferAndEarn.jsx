@@ -20,7 +20,7 @@ export default function ReferAndEarn() {
   };
 
   const handleShare = async () => {
-    const message = `🎓 Join me on Ace2Examz – the best Chemistry LMS!\n\nUse my referral code: ${referralCode}\nOr sign up directly: ${referralLink}\n\nYou'll get instant access to courses, tests & more!`;
+    const message = `🎓 Join me on Ace2Examz – No. 1 Chemistry Platform in India\n\nUse my referral code: ${referralCode}\nOr sign up directly: ${referralLink}\n\nYou'll get instant access to courses, tests & more!`;
     if (navigator.share) {
       try {
         await navigator.share({ title: 'Join Ace2Examz', text: message, url: referralLink });

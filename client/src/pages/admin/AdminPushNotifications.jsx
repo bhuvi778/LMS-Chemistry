@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/client.js';
-import { Bell, Send, Loader2, Users, User, Info, X, Clock, Trash2, RefreshCw, Eye, Sparkles, History } from 'lucide-react';
+import { Bell, Send, Loader2, Users, User, Info, X, Clock, Trash2, RefreshCw, Eye, Sparkles, History, GraduationCap } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminPushNotifications() {
@@ -20,8 +20,9 @@ export default function AdminPushNotifications() {
     message: '',
     link: '',
     image: '',
-    target: 'all', // 'all' or 'specific'
+    target: 'all', // 'all' | 'specific' | 'course'
     targetUserIds: [],
+    targetCourseId: '',
     showBuyButton: false,
     buyCourseId: '',
     showCallButton: false,
@@ -93,6 +94,10 @@ export default function AdminPushNotifications() {
       toast.error('Please select at least one student');
       return;
     }
+    if (form.target === 'course' && !form.targetCourseId) {
+      toast.error('Please select a targeted course');
+      return;
+    }
     if (form.sendLater && !form.scheduledAt) {
       toast.error('Please select a schedule time');
       return;
@@ -113,6 +118,7 @@ export default function AdminPushNotifications() {
         image: '',
         target: 'all',
         targetUserIds: [],
+        targetCourseId: '',
         showBuyButton: false,
         buyCourseId: '',
         showCallButton: false,
@@ -149,6 +155,7 @@ export default function AdminPushNotifications() {
       image: campaign.image || '',
       target: campaign.target || 'all',
       targetUserIds: campaign.targetUserIds || [],
+      targetCourseId: campaign.targetCourseId?._id || campaign.targetCourseId || '',
       showBuyButton: !!campaign.showBuyButton,
       buyCourseId: campaign.buyCourseId?._id || campaign.buyCourseId || '',
       showCallButton: !!campaign.showCallButton,
@@ -216,10 +223,10 @@ export default function AdminPushNotifications() {
         <form onSubmit={handleSubmit} className="md:col-span-2 card p-6 bg-white border border-slate-100 shadow-soft space-y-5">
           <div>
             <label className="label">Audience Target <span className="text-red-500">*</span></label>
-            <div className="grid grid-cols-2 gap-3 mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1">
               <button
                 type="button"
-                onClick={() => setForm((p) => ({ ...p, target: 'all', targetUserIds: [] }))}
+                onClick={() => setForm((p) => ({ ...p, target: 'all', targetUserIds: [], targetCourseId: '' }))}
                 className={`py-3 px-4 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition ${
                   form.target === 'all'
                     ? 'bg-brand-50 border-brand-300 text-brand-700'
@@ -230,7 +237,7 @@ export default function AdminPushNotifications() {
               </button>
               <button
                 type="button"
-                onClick={() => setForm((p) => ({ ...p, target: 'specific' }))}
+                onClick={() => setForm((p) => ({ ...p, target: 'specific', targetCourseId: '' }))}
                 className={`py-3 px-4 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition ${
                   form.target === 'specific'
                     ? 'bg-brand-50 border-brand-300 text-brand-700'
@@ -239,8 +246,38 @@ export default function AdminPushNotifications() {
               >
                 <User size={16} /> Select Students
               </button>
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, target: 'course', targetUserIds: [] }))}
+                className={`py-3 px-4 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition ${
+                  form.target === 'course'
+                    ? 'bg-brand-50 border-brand-300 text-brand-700'
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <GraduationCap size={16} /> Course Students
+              </button>
             </div>
           </div>
+
+          {form.target === 'course' && (
+            <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100 animate-in fade-in duration-200">
+              <label className="label text-slate-600 font-bold">Select Targeted Course (Paid Students Only)</label>
+              <select
+                required
+                value={form.targetCourseId || ''}
+                onChange={(e) => setForm((p) => ({ ...p, targetCourseId: e.target.value }))}
+                className="input bg-white border border-slate-205"
+              >
+                <option value="">-- Choose Course --</option>
+                {courses.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {form.target === 'specific' && (
             <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100 animate-in fade-in duration-200">
@@ -603,7 +640,11 @@ export default function AdminPushNotifications() {
                         <div className="grid grid-cols-2 gap-2 text-[10px]">
                           <div>
                             <span className="text-slate-400">Audience:</span>{' '}
-                            <span className="font-bold text-slate-700 uppercase">{c.target}</span>
+                            <span className="font-bold text-slate-750 uppercase">
+                              {c.target === 'course' 
+                                ? `Course: ${c.targetCourseId?.title || 'Selected Course'}`
+                                : c.target}
+                            </span>
                           </div>
                           <div>
                             <span className="text-slate-400">Delivered:</span>{' '}

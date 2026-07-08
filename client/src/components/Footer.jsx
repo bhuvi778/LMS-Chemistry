@@ -172,7 +172,7 @@ export default function Footer() {
           <ul className="space-y-3 text-sm">
             <li className="flex gap-2.5 items-start">
               <Mail size={15} className="mt-0.5 text-brand-400 shrink-0" />
-              <a href="mailto:support@ace2examz.com" className="hover:text-white transition">support@ace2examz.com</a>
+              <a href="mailto:hello@ace2examz.com" className="hover:text-white transition">hello@ace2examz.com</a>
             </li>
             <li className="flex gap-2.5 items-start">
               <Phone size={15} className="mt-0.5 text-brand-400 shrink-0" />

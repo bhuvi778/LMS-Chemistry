@@ -156,9 +156,9 @@ export default function AdminStudents() {
             className="input !py-2 text-sm min-w-[120px]"
           >
             <option value="ALL">All Plans</option>
-            <option value="batch">Ace Starter</option>
-            <option value="pro">Ace Pro</option>
-            <option value="infinity">Ace Infinity</option>
+            <option value="batch">Starter Plan</option>
+            <option value="pro">Pro Plan</option>
+            <option value="infinity">Infinity Plan</option>
           </select>
 
           {/* Validity Status Filter */}
@@ -943,9 +943,9 @@ function StudentModal({ id, onClose, onChanged }) {
                               onChange={(e) => setSelectedPlans(prev => ({ ...prev, [c._id]: e.target.value }))}
                               className="text-xs border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none focus:border-brand-500 font-semibold"
                             >
-                              <option value="batch">{c.plans?.batch?.name || 'Ace Starter'}</option>
-                              <option value="pro">{c.plans?.pro?.name || 'Ace Pro'}</option>
-                              <option value="infinity">{c.plans?.infinity?.name || 'Ace Infinity'}</option>
+                              <option value="batch">{c.plans?.batch?.name || 'Starter Plan'}</option>
+                              <option value="pro">{c.plans?.pro?.name || 'Pro Plan'}</option>
+                              <option value="infinity">{c.plans?.infinity?.name || 'Infinity Plan'}</option>
                             </select>
                             <button
                               disabled={enrollBusy === c._id}

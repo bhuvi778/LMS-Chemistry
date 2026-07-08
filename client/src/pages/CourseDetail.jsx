@@ -911,9 +911,9 @@ export default function CourseDetail() {
               </label>
               <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-slate-100 border border-slate-200/60">
                 {[
-                  { k: 'batch', l: course.plans?.batch?.name || 'Ace Starter' },
-                  { k: 'pro', l: course.plans?.pro?.name || 'Ace Pro' },
-                  { k: 'infinity', l: course.plans?.infinity?.name || 'Ace Infinity' }
+                  { k: 'batch', l: course.plans?.batch?.name || 'Starter Plan' },
+                  { k: 'pro', l: course.plans?.pro?.name || 'Pro Plan' },
+                  { k: 'infinity', l: course.plans?.infinity?.name || 'Infinity Plan' }
                 ].map((p) => {
                   const planConfig = course.plans?.[p.k];
                   const isEnabled = planConfig ? planConfig.enabled : true;
@@ -1026,7 +1026,7 @@ export default function CourseDetail() {
                 return (
                   <div className="mt-5 bg-slate-50 border border-slate-100 rounded-2xl p-4 shadow-inner animate-fade-in">
                     <div className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3">
-                      {selectedPlan === 'batch' ? `${course.plans?.batch?.name || 'Ace Starter'} Features` : selectedPlan === 'pro' ? `${course.plans?.pro?.name || 'Ace Pro'} Features` : `${course.plans?.infinity?.name || 'Ace Infinity'} Features`}
+                      {selectedPlan === 'batch' ? `${course.plans?.batch?.name || 'Starter Plan'} Features` : selectedPlan === 'pro' ? `${course.plans?.pro?.name || 'Pro Plan'} Features` : `${course.plans?.infinity?.name || 'Infinity Plan'} Features`}
                     </div>
                     <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-2.5">
                       {PLAN_FEATURES[selectedPlan].map((feat, fi) => (
@@ -1069,7 +1069,7 @@ export default function CourseDetail() {
                     <div>
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Active Plan</span>
                       <div className="text-xs font-extrabold text-brand-800">
-                        {enrollment.planType === 'batch' ? (course.plans?.batch?.name || 'Ace Starter') : enrollment.planType === 'pro' ? (course.plans?.pro?.name || 'Ace Pro') : (course.plans?.infinity?.name || 'Ace Infinity')}
+                        {enrollment.planType === 'batch' ? (course.plans?.batch?.name || 'Starter Plan') : enrollment.planType === 'pro' ? (course.plans?.pro?.name || 'Pro Plan') : (course.plans?.infinity?.name || 'Infinity Plan')}
                       </div>
                     </div>
                     {enrollment.planType !== 'infinity' && (
@@ -1633,9 +1633,9 @@ export default function CourseDetail() {
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50/30">
                         <th className="p-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Features</th>
-                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-brand-50/20">{course.plans?.batch?.name || 'Ace Starter'}</th>
-                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-violet-50/20">{course.plans?.pro?.name || 'Ace Pro'}</th>
-                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-amber-50/20">{course.plans?.infinity?.name || 'Ace Infinity'}</th>
+                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-brand-50/20">{course.plans?.batch?.name || 'Starter Plan'}</th>
+                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-violet-50/20">{course.plans?.pro?.name || 'Pro Plan'}</th>
+                        <th className="p-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center bg-amber-50/20">{course.plans?.infinity?.name || 'Infinity Plan'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">

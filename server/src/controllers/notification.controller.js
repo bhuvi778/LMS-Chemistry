@@ -2,6 +2,7 @@ import asyncHandler from 'express-async-handler';
 import Notification from '../models/Notification.js';
 import NotificationCampaign from '../models/NotificationCampaign.js';
 import User from '../models/User.js';
+import Enrollment from '../models/Enrollment.js';
 import { sendPushToMany } from '../services/firebase.js';
 
 export const myNotifications = asyncHandler(async (req, res) => {
@@ -77,6 +78,7 @@ export const broadcastNotification = asyncHandler(async (req, res) => {
     image,
     target,
     targetUserIds,
+    targetCourseId,
     showBuyButton,
     buyCourseId,
     showCallButton,
@@ -99,6 +101,7 @@ export const broadcastNotification = asyncHandler(async (req, res) => {
     image: image || '',
     target,
     targetUserIds: target === 'specific' ? targetUserIds : [],
+    targetCourseId: target === 'course' ? targetCourseId : null,
     showBuyButton: !!showBuyButton,
     buyCourseId: showBuyButton ? buyCourseId : null,
     showCallButton: !!showCallButton,
@@ -117,6 +120,9 @@ export const broadcastNotification = asyncHandler(async (req, res) => {
       userIds = students.map((s) => s._id);
     } else if (target === 'specific' && Array.isArray(targetUserIds)) {
       userIds = targetUserIds;
+    } else if (target === 'course' && targetCourseId) {
+      const enrolls = await Enrollment.find({ course: targetCourseId, paymentStatus: 'paid' }).select('student');
+      userIds = enrolls.map((e) => e.student).filter(Boolean);
     }
 
     if (userIds.length === 0) {
@@ -150,6 +156,7 @@ export const broadcastNotification = asyncHandler(async (req, res) => {
 export const getCampaigns = asyncHandler(async (req, res) => {
   const campaigns = await NotificationCampaign.find()
     .populate('buyCourseId', 'title')
+    .populate('targetCourseId', 'title')
     .sort({ createdAt: -1 });
 
   const campaignsWithStats = await Promise.all(
@@ -186,6 +193,9 @@ export const resendCampaign = asyncHandler(async (req, res) => {
     userIds = students.map((s) => s._id);
   } else if (original.target === 'specific' && Array.isArray(original.targetUserIds)) {
     userIds = original.targetUserIds;
+  } else if (original.target === 'course' && original.targetCourseId) {
+    const enrolls = await Enrollment.find({ course: original.targetCourseId, paymentStatus: 'paid' }).select('student');
+    userIds = enrolls.map((e) => e.student).filter(Boolean);
   }
 
   if (userIds.length === 0) {
@@ -200,6 +210,7 @@ export const resendCampaign = asyncHandler(async (req, res) => {
     image: original.image,
     target: original.target,
     targetUserIds: original.targetUserIds,
+    targetCourseId: original.targetCourseId,
     showBuyButton: original.showBuyButton,
     buyCourseId: original.buyCourseId,
     showCallButton: original.showCallButton,

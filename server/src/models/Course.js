@@ -50,7 +50,7 @@ const courseSchema = new mongoose.Schema(
     mrp: { type: Number, default: 0 },
     plans: {
       batch: {
-        name: { type: String, default: 'Batch Plan' },
+        name: { type: String, default: 'Starter Plan' },
         enabled: { type: Boolean, default: true },
         price: { type: Number, default: 0 },
         mrp: { type: Number, default: 0 },

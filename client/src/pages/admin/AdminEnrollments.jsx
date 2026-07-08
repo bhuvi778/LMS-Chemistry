@@ -154,9 +154,9 @@ export default function AdminEnrollments() {
             className="input !py-2 text-sm min-w-[120px]"
           >
             <option value="ALL">All Plans</option>
-            <option value="batch">Ace Starter</option>
-            <option value="pro">Ace Pro</option>
-            <option value="infinity">Ace Infinity</option>
+            <option value="batch">Starter Plan</option>
+            <option value="pro">Pro Plan</option>
+            <option value="infinity">Infinity Plan</option>
           </select>
 
           {/* Validity Status Filter */}
@@ -310,9 +310,9 @@ export default function AdminEnrollments() {
                   onChange={(e) => setNewPlanType(e.target.value)}
                   className="input text-sm w-full bg-white border border-slate-200"
                 >
-                  <option value="batch">{extendingEnroll.course?.plans?.batch?.name || 'Ace Starter'}</option>
-                  <option value="pro">{extendingEnroll.course?.plans?.pro?.name || 'Ace Pro'}</option>
-                  <option value="infinity">{extendingEnroll.course?.plans?.infinity?.name || 'Ace Infinity'}</option>
+                  <option value="batch">{extendingEnroll.course?.plans?.batch?.name || 'Starter Plan'}</option>
+                  <option value="pro">{extendingEnroll.course?.plans?.pro?.name || 'Pro Plan'}</option>
+                  <option value="infinity">{extendingEnroll.course?.plans?.infinity?.name || 'Infinity Plan'}</option>
                 </select>
               </div>
             )}

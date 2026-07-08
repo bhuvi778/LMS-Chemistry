@@ -62,7 +62,6 @@ const navSections = [
     items: [
       { to: '/student/dashboard', label: 'Home', icon: Home },
       { to: '/student/ask-prepiify', label: 'Ask Prepiify', icon: MessageSquare },
-      { to: 'https://www.whatsapp.com/channel/0029Vb6vGgl7oQhVzPOMuL05', label: 'WhatsApp Channel', icon: MessageSquare },
     ]
   },
   {
@@ -124,6 +123,13 @@ const navSections = [
       { to: '/student/support', label: 'Chat Support', icon: MessageSquare },
       { to: '/student/contact', label: 'Contact Us', icon: Phone },
       { to: '/student/privacy-policy', label: 'Privacy Policy', icon: Shield },
+    ]
+  },
+  {
+    title: 'WHATSAPP_CHANNEL',
+    isDirect: true,
+    items: [
+      { to: 'https://www.whatsapp.com/channel/0029Vb6vGgl7oQhVzPOMuL05', label: 'WhatsApp Channel', icon: MessageSquare },
     ]
   }
 ];
@@ -191,6 +197,9 @@ export default function StudentLayout() {
         city: user.city || '',
         category: user.category || '',
       });
+      if (user.phone) {
+        setVerifyPhone(user.phone);
+      }
     }
   }, [user]);
 
@@ -239,7 +248,7 @@ export default function StudentLayout() {
             customPlanName = customName || 'Pro Plan';
           } else if (type === 'batch' && highestType === 'free') {
             highestType = 'batch';
-            customPlanName = customName || 'Batch Plan';
+            customPlanName = customName || 'Starter Plan';
           }
         });
 
@@ -310,8 +319,8 @@ export default function StudentLayout() {
     };
   }, [user, navigate, logout]);
 
-  // If student role and phone is empty or not verified (Bypassed as requested)
-  if (false && user && user.role === 'student' && (!user.phone || !user.isWhatsappVerified)) {
+  // If student role and phone is empty or not verified
+  if (user && user.role === 'student' && (!user.phone || !user.isWhatsappVerified)) {
     const handleSendOtp = async (e) => {
       e.preventDefault();
       const trimmedPhone = verifyPhone.trim();
@@ -319,8 +328,8 @@ export default function StudentLayout() {
         toast.error('Please enter your mobile number');
         return;
       }
-      if (!/^\+?\d{9,15}$/.test(trimmedPhone)) {
-        toast.error('Please enter a valid phone number (including country code, e.g. +919999999999)');
+      if (!/^\+91\d{10}$/.test(trimmedPhone)) {
+        toast.error('Please enter a valid 10-digit mobile number');
         return;
       }
       setVerifyBusy(true);
@@ -383,17 +392,23 @@ export default function StudentLayout() {
               <form onSubmit={handleSendOtp} className="space-y-4 text-left">
                 <div>
                   <label className="block text-xs font-bold text-slate-650 mb-1.5 uppercase tracking-wider">WhatsApp Number</label>
-                  <input
-                    type="tel"
-                    required
-                    value={verifyPhone}
-                    onChange={(e) => setVerifyPhone(e.target.value)}
-                    placeholder="e.g. +919876543210"
-                    disabled={verifyBusy}
-                    className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white disabled:opacity-60 transition"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">+91</span>
+                    <input
+                      type="tel"
+                      required
+                      className="w-full text-sm border border-slate-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white disabled:opacity-60 transition"
+                      value={verifyPhone ? String(verifyPhone).replace(/^\+?91\s?/, '') : ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/^\+?91\s?/, '').replace(/\D/g, '').slice(0, 10);
+                        setVerifyPhone(val ? '+91' + val : '');
+                      }}
+                      placeholder="98765 43210"
+                      disabled={verifyBusy}
+                    />
+                  </div>
                   <p className="text-[10px] text-slate-400 mt-1.5 font-medium leading-normal">
-                    Important: Include your country code (e.g. +91 for India) without spaces or hyphens.
+                    Required to verify your account and receive class communications via WhatsApp.
                   </p>
                 </div>
 
@@ -936,24 +951,8 @@ export default function StudentLayout() {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-550 uppercase tracking-wide mb-1">Category</label>
-                    <select
-                      required
-                      value={profileForm.category}
-                      onChange={(e) => setProfileForm({ ...profileForm, category: e.target.value })}
-                      className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
-                    >
-                      <option value="">Select Category</option>
-                      {categories.map((cat) => (
-                        <option key={cat._id || cat.name} value={cat.name}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
 
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="block text-[11px] font-bold text-slate-550 uppercase tracking-wide mb-1">City</label>
                     <input
                       type="text"
@@ -963,6 +962,23 @@ export default function StudentLayout() {
                       placeholder="e.g. Ludhiana, Jaipur"
                       className="w-full text-xs border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-550 uppercase tracking-wide mb-1">Exam Category</label>
+                    <select
+                      required
+                      value={profileForm.category}
+                      onChange={(e) => setProfileForm({ ...profileForm, category: e.target.value })}
+                      className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                    >
+                      <option value="">Select Exam Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat._id || cat.name} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

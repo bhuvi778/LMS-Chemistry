@@ -470,7 +470,7 @@ export const adminEnrollStudent = asyncHandler(async (req, res) => {
   const existing = await Enrollment.findOne({ student: student._id, course: courseId });
   if (existing) {
     existing.planType = pType;
-    existing.pricePaid = initialPrice;
+    existing.pricePaid = 0;
     existing.paymentStatus = 'paid';
     existing.validUntil = calculateValidityEndDate(course.validity);
     existing.createdAt = new Date();
@@ -483,7 +483,7 @@ export const adminEnrollStudent = asyncHandler(async (req, res) => {
     student: student._id,
     course: courseId,
     planType: pType,
-    pricePaid: initialPrice,
+    pricePaid: 0,
     paymentId: 'ADMIN_ALLOT_' + Date.now(),
     paymentStatus: 'paid',
     validUntil: calculateValidityEndDate(course.validity),

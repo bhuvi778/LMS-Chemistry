@@ -669,7 +669,7 @@ export default function AdminCourseForm() {
                         type="text"
                         placeholder="Plan Name"
                         className="input text-xs py-1.5 px-2.5 font-bold text-slate-800 border-slate-200"
-                        value={form.plans?.batch?.name || 'Batch Plan'}
+                        value={form.plans?.batch?.name || 'Starter Plan'}
                         onChange={(e) => {
                           const val = e.target.value;
                           setForm((f) => ({

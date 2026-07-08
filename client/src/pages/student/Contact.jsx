@@ -24,7 +24,7 @@ export default function Contact() {
   };
 
   const contactInfo = [
-    { icon: Mail, label: 'Email Us', value: 'support@ace2examz.com', href: 'mailto:support@ace2examz.com', color: 'bg-blue-50 text-blue-600' },
+    { icon: Mail, label: 'Email Us', value: 'hello@ace2examz.com', href: 'mailto:hello@ace2examz.com', color: 'bg-blue-50 text-blue-600' },
     { icon: Phone, label: 'Call Us', value: '+91-9115179935', href: 'tel:+919115179935', color: 'bg-emerald-50 text-emerald-600' },
     { icon: MessageSquare, label: 'WhatsApp', value: 'Chat with Us', href: 'https://wa.me/919115179935', color: 'bg-green-50 text-green-600' },
     { icon: MapPin, label: 'Our Address', value: 'Chhota Tiwana Rd, Jalalabad West, Fazilka (PB) India', href: 'https://maps.google.com/?q=Chhota+Tiwana+Rd,+Jalalabad+West,+Fazilka+152024', color: 'bg-indigo-50 text-indigo-600' },

@@ -1,5 +1,6 @@
 import NotificationCampaign from '../models/NotificationCampaign.js';
 import User from '../models/User.js';
+import Enrollment from '../models/Enrollment.js';
 import { notifyMany } from '../controllers/notification.controller.js';
 
 export function startNotificationScheduler() {
@@ -21,6 +22,9 @@ export function startNotificationScheduler() {
           userIds = students.map((s) => s._id);
         } else if (campaign.target === 'specific' && Array.isArray(campaign.targetUserIds)) {
           userIds = campaign.targetUserIds;
+        } else if (campaign.target === 'course' && campaign.targetCourseId) {
+          const enrolls = await Enrollment.find({ course: campaign.targetCourseId, paymentStatus: 'paid' }).select('student');
+          userIds = enrolls.map((e) => e.student).filter(Boolean);
         }
 
         if (userIds.length > 0) {

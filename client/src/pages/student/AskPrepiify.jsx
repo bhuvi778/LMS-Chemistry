@@ -255,11 +255,11 @@ export default function AskPrepiify() {
           <p className="text-slate-500 text-sm mt-3 leading-relaxed">
             {usage.planType === 'batch' ? (
               <span>
-                <strong>Ask Prepiify AI</strong> is exclusive to our <strong>Pro</strong> and <strong>Infinity</strong> cohorts. Your current <strong>Ace Starter</strong> plan does not include access.
+                <strong>Ask Prepiify AI</strong> is exclusive to our <strong>Pro Plan</strong> and <strong>Infinity Plan</strong> cohorts. Your current <strong>Starter Plan</strong> does not include access.
               </span>
             ) : (
               <span>
-                Please enroll in <strong>Ace Pro</strong> or <strong>Ace Infinity</strong> to unlock instant AI doubt-solving.
+                Please enroll in <strong>Pro Plan</strong> or <strong>Infinity Plan</strong> to unlock instant AI doubt-solving.
               </span>
             )}
           </p>

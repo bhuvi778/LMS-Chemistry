@@ -299,12 +299,12 @@ export default function Profile() {
       <section className={isStudentPanel ? "py-2" : "container-x py-10"}>
         <div className="grid lg:grid-cols-[220px,1fr] gap-8">
           {/* Tabs */}
-          <aside className="flex lg:flex-col gap-1">
+          <aside className="flex lg:flex-col gap-1 overflow-x-auto pb-2 lg:pb-0 whitespace-nowrap scrollbar-none">
             {TABS.map((t) => (
               <button
                 key={t.k}
                 onClick={() => setTab(t.k)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition text-left ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition text-left shrink-0 ${
                   tab === t.k ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
@@ -433,17 +433,6 @@ export default function Profile() {
                     />
                   </div>
                   <div>
-                    <label className="label">Category</label>
-                    <select className="input" value={academic.category} onChange={(e) => setAcademic({ ...academic, category: e.target.value })} required>
-                      <option value="">Select Category</option>
-                      {categories.map((cat) => (
-                        <option key={cat._id || cat.name} value={cat.name}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
                     <label className="label">City</label>
                     <input
                       type="text"
@@ -453,6 +442,17 @@ export default function Profile() {
                       placeholder="Enter City"
                       required
                     />
+                  </div>
+                  <div>
+                    <label className="label">Exam Category</label>
+                    <select className="input" value={academic.category} onChange={(e) => setAcademic({ ...academic, category: e.target.value })} required>
+                      <option value="">Select Exam Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat._id || cat.name} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <button disabled={saving} className="btn-primary mt-6">
@@ -526,24 +526,26 @@ export default function Profile() {
                       <p className="text-sm text-slate-600 mb-3">
                         Enter the 6-digit OTP sent to <b>{user.email}</b>
                       </p>
-                      <div className="flex gap-3">
+                      <div className="flex flex-col sm:flex-row gap-3">
                         <input
                           type="text"
                           inputMode="numeric"
                           maxLength={6}
                           required
-                          className="input text-center text-xl tracking-[0.4em] font-bold w-44"
+                          className="input text-center text-xl tracking-[0.4em] font-bold w-full sm:w-44"
                           value={otpCode}
                           onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                           placeholder="000000"
                           autoFocus
                         />
-                        <button disabled={otpSaving} className="btn-primary">
-                          {otpSaving ? <Loader2 size={14} className="animate-spin" /> : 'Verify & Enable'}
-                        </button>
-                        <button type="button" onClick={() => { setOtpStep(false); setOtpCode(''); }} className="btn">
-                          Cancel
-                        </button>
+                        <div className="flex gap-2">
+                          <button disabled={otpSaving} className="btn-primary flex-1 sm:flex-none justify-center">
+                            {otpSaving ? <Loader2 size={14} className="animate-spin" /> : 'Verify & Enable'}
+                          </button>
+                          <button type="button" onClick={() => { setOtpStep(false); setOtpCode(''); }} className="btn flex-1 sm:flex-none justify-center">
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     </form>
                   )}

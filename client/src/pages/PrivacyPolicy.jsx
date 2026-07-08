@@ -26,7 +26,7 @@ export default function PrivacyPolicy() {
         },
         {
           id: '1.6',
-          text: `You agree to immediately notify us in writing by email to support@ace2examz.com of any unauthorised use of your Personal User Information or any other breach of security. We are not and shall not be liable for any harm arising from or relating to the theft of your Personal User Information that is under Your control, your disclosure of your Personal User Information, or the use of your Personal User Information by another person or entity.`,
+          text: `You agree to immediately notify us in writing by email to hello@ace2examz.com of any unauthorised use of your Personal User Information or any other breach of security. We are not and shall not be liable for any harm arising from or relating to the theft of your Personal User Information that is under Your control, your disclosure of your Personal User Information, or the use of your Personal User Information by another person or entity.`,
         },
         {
           id: '1.7',
@@ -94,7 +94,7 @@ export default function PrivacyPolicy() {
       subsections: [
         {
           id: '5.1',
-          text: `We provide all customers with the opportunity to opt out of receiving non-essential (promotional, marketing-related) communications from Us on behalf of our partners, and from Us in general, after providing Us with personal information. If You want to remove your contact information from all lists and newsletters or if you have additional questions or require more information about our Privacy Policy, do not hesitate to contact us through email support@ace2examz.com.`,
+          text: `We provide all customers with the opportunity to opt out of receiving non-essential (promotional, marketing-related) communications from Us on behalf of our partners, and from Us in general, after providing Us with personal information. If You want to remove your contact information from all lists and newsletters or if you have additional questions or require more information about our Privacy Policy, do not hesitate to contact us through email hello@ace2examz.com.`,
         },
       ],
     },

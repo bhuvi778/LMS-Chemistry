@@ -220,12 +220,12 @@ export default function StudentCourses() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl w-fit">
+      <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl w-full sm:w-fit overflow-x-auto scrollbar-none">
         {tabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 shrink-0 ${
               activeTab === tab.key
                 ? 'bg-white text-brand-700 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
@@ -276,6 +276,9 @@ export default function StudentCourses() {
                     />
                     <span className="absolute top-3 left-3 px-2.5 py-1 bg-brand-600/90 backdrop-blur-md text-white text-[10px] font-bold rounded-full uppercase tracking-wider">
                       {e.course?.category || 'Chemistry'}
+                    </span>
+                    <span className="absolute top-3 right-3 px-2.5 py-1 bg-indigo-650/90 backdrop-blur-md text-white text-[10px] font-bold rounded-full uppercase tracking-wider">
+                      {e.planType === 'infinity' ? 'Infinity Plan' : e.planType === 'pro' ? 'Pro Plan' : 'Starter Plan'}
                     </span>
                     {e.isPaused && (
                       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center text-white">
@@ -333,14 +336,43 @@ export default function StudentCourses() {
                       Continue Learning
                     </Link>
                   )}
-                  {e.course?.allowFreeze && !e.isPaused && (!e.pauseHistory || e.pauseHistory.length < 3) && (
-                    <button
-                      onClick={() => setPauseModalEnrollment(e)}
-                      className="w-full flex items-center justify-center gap-1.5 text-xs text-amber-700 border border-amber-200 rounded-2xl hover:bg-amber-50/50 transition py-2 font-bold"
-                    >
-                      ⏸ Pause Course ({3 - (e.pauseHistory?.length || 0)} left)
-                    </button>
-                  )}
+
+                  {/* Secondary Actions Grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {e.course?.allowFreeze && !e.isPaused && (!e.pauseHistory || e.pauseHistory.length < 3) && (
+                      <button
+                        onClick={() => setPauseModalEnrollment(e)}
+                        className="flex items-center justify-center gap-1 text-[11px] text-amber-700 border border-amber-200 rounded-xl hover:bg-amber-50/50 transition py-2 font-bold px-2 text-center"
+                      >
+                        Pause Course
+                      </button>
+                    )}
+                    {canUpgrade(e) && (
+                      <Link
+                        to={`/courses/${e.course?.slug || e.course?._id}`}
+                        className="inline-flex items-center justify-center gap-1 text-[11px] text-brand-700 border border-brand-200 rounded-xl hover:bg-brand-50/50 transition py-2 font-bold px-2 text-center"
+                      >
+                        Upgrade Plan
+                      </Link>
+                    )}
+                    {e.course?.allowExtendValidity && (
+                      <button
+                        onClick={() => setExtensionModal(e)}
+                        className="flex items-center justify-center gap-1 text-[11px] text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-50 transition py-2 font-bold px-2 text-center"
+                      >
+                        Extend Validity
+                      </button>
+                    )}
+                    {e.paymentId && e.paymentId !== 'FREE' && !e.paymentId?.startsWith('FREE_') && (
+                      <button
+                        onClick={() => downloadInvoice(e.paymentId, e.invoiceNumber)}
+                        className="flex items-center justify-center gap-1 text-[11px] text-slate-500 hover:text-brand-700 transition py-2 border border-slate-200 rounded-xl hover:bg-slate-50 px-2 text-center"
+                      >
+                        Invoice
+                      </button>
+                    )}
+                  </div>
+
                   {e.isPaused && (
                     <div className="p-3 bg-amber-50/60 border border-amber-100/50 rounded-2xl text-[10px] text-amber-800 space-y-1 font-semibold">
                       <div className="flex justify-between">
@@ -356,30 +388,6 @@ export default function StudentCourses() {
                         <span>{new Date(e.lastPausePlannedResume).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>
                     </div>
-                  )}
-                  {canUpgrade(e) && (
-                    <Link
-                      to={`/courses/${e.course?.slug || e.course?._id}`}
-                      className="w-full inline-flex items-center justify-center gap-1.5 text-xs text-brand-700 border border-brand-200 rounded-2xl hover:bg-brand-50/50 transition py-2 font-bold"
-                    >
-                      Upgrade Plan (Current: {e.planType === 'pro' ? 'Pro' : 'Batch'})
-                    </Link>
-                  )}
-                  {e.course?.allowExtendValidity && (
-                    <button
-                      onClick={() => setExtensionModal(e)}
-                      className="w-full flex items-center justify-center gap-1.5 text-xs text-emerald-700 border border-emerald-200 rounded-2xl hover:bg-emerald-50 transition py-2 font-bold"
-                    >
-                      <Clock size={12} /> Extend Validity (₹{e.course.extendValidityPrice || 0})
-                    </button>
-                  )}
-                  {e.paymentId && e.paymentId !== 'FREE' && !e.paymentId?.startsWith('FREE_') && (
-                    <button
-                      onClick={() => downloadInvoice(e.paymentId, e.invoiceNumber)}
-                      className="w-full flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-brand-700 transition py-2 border border-slate-200 rounded-2xl hover:bg-slate-50"
-                    >
-                      <Download size={12} /> Download Invoice
-                    </button>
                   )}
                 </div>
               </div>
