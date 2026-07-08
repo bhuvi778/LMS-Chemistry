@@ -47,7 +47,29 @@ export default function Profile() {
     language: user?.language || '',
     city: user?.city || '',
     state: user?.state || '',
+    category: user?.category || '',
   });
+
+  useEffect(() => {
+    if (user) {
+      setForm({
+        name: user.name || '',
+        phone: user.phone || '',
+        avatar: user.avatar || '',
+      });
+      setAcademic({
+        grade: user.grade || '',
+        stream: user.stream || '',
+        board: user.board || '',
+        exams: user.exams || '',
+        language: user.language || '',
+        city: user.city || '',
+        state: user.state || '',
+        category: user.category || '',
+      });
+    }
+  }, [user]);
+
   const [pw, setPw] = useState({ currentPassword: '', password: '', confirm: '' });
 
   // Security/2FA state
@@ -97,6 +119,7 @@ export default function Profile() {
         language: academic.language.trim(),
         city: academic.city.trim(),
         state: academic.state.trim(),
+        category: academic.category.trim(),
       });
       toast.success('Academic details updated');
     } catch (err) {
@@ -396,6 +419,17 @@ export default function Profile() {
                       placeholder="Enter State"
                       required
                     />
+                  </div>
+                  <div>
+                    <label className="label">Category</label>
+                    <select className="input" value={academic.category} onChange={(e) => setAcademic({ ...academic, category: e.target.value })} required>
+                      <option value="">Select Category</option>
+                      <option value="General">General</option>
+                      <option value="OBC-NCL">OBC-NCL</option>
+                      <option value="SC">SC</option>
+                      <option value="ST">ST</option>
+                      <option value="Gen-EWS">Gen-EWS</option>
+                    </select>
                   </div>
                   <div>
                     <label className="label">City</label>

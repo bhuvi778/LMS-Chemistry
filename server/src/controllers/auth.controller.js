@@ -81,6 +81,8 @@ const safeUser = (user) => ({
   exams: user.exams || '',
   language: user.language || '',
   city: user.city || '',
+  state: user.state || '',
+  category: user.category || '',
   // Streak & Wallet
   coins: user.coins || 0,
   streak: user.streak || 0,
@@ -590,7 +592,7 @@ export const getCoinRedemptions = asyncHandler(async (req, res) => {
 });
 
 export const updateMe = asyncHandler(async (req, res) => {
-  const { name, phone, avatar, password, currentPassword, grade, stream, board, exams, language, city, state } = req.body;
+  const { name, phone, avatar, password, currentPassword, grade, stream, board, exams, language, city, state, category } = req.body;
   const user = await User.findById(req.user._id);
   if (!user) { res.status(404); throw new Error('User not found'); }
   if (name) user.name = name;
@@ -603,6 +605,7 @@ export const updateMe = asyncHandler(async (req, res) => {
   if (language !== undefined) user.language = language;
   if (city !== undefined) user.city = city;
   if (state !== undefined) user.state = state;
+  if (category !== undefined) user.category = category;
 
   // Check profile completion reward (one-time)
   if (!user.profileCompleteRewarded) {
@@ -613,7 +616,8 @@ export const updateMe = asyncHandler(async (req, res) => {
       user.exams?.trim() && 
       user.language?.trim() &&
       user.city?.trim() &&
-      user.state?.trim();
+      user.state?.trim() &&
+      user.category?.trim();
       
     if (isProfileComplete) {
       user.coins = (user.coins || 0) + 10;

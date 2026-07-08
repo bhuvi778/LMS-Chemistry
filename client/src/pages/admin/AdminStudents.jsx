@@ -4,7 +4,7 @@ import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 import {
   Search, Filter, X, Mail, Phone, Calendar, ShieldCheck,
-  KeyRound, LogOut, Loader2, Users as UsersIcon, BookOpen,
+  KeyRound, LogOut, Loader2, Users as UsersIcon, User, BookOpen,
   Lock, Copy, RefreshCw, Check, Eye, EyeOff, ExternalLink,
   UserPlus, PlusCircle, Trash2, GraduationCap, ListChecks, Coins, Layers,
 } from 'lucide-react';
