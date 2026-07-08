@@ -438,7 +438,7 @@ export default function Home() {
             </div>
           ) : (
             <AnimatePresence mode="wait">
-              <motion.div key={activeCat} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <motion.div key={activeCat} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredCourses.slice(0, 6).map(c => <CourseCard key={c._id} course={c} />)}
               </motion.div>
             </AnimatePresence>

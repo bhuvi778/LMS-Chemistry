@@ -39,11 +39,10 @@ export const adminCreateTest = asyncHandler(async (req, res) => {
 });
 
 export const adminUpdateTest = asyncHandler(async (req, res) => {
-  const test = await Test.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const test = await Test.findById(req.params.id);
   if (!test) { res.status(404); throw new Error('Test not found'); }
+  Object.assign(test, req.body);
+  await test.save();
   res.json(test);
 });
 

@@ -26,6 +26,8 @@ export default function Login() {
   const loc = useLocation();
   const [form, setForm] = useState({ email: '', password: '' });
   const [otp, setOtp] = useState('');
+  const [emailOtp, setEmailOtp] = useState('');
+  const [whatsappOtp, setWhatsappOtp] = useState('');
   const [loginMethod, setLoginMethod] = useState('password'); // 'password' or 'otp'
   const [channel, setChannel] = useState('whatsapp'); // 'sms' or 'whatsapp'
   const [timer, setTimer] = useState(30);
@@ -130,9 +132,11 @@ export default function Login() {
 
   const submitVerification = async (e) => {
     e.preventDefault();
-    if (otp.length !== 6) return toast.error('Enter the 6-digit verification code');
+    if (emailOtp.length !== 6 || whatsappOtp.length !== 6) {
+      return toast.error('Please enter the 6-digit verification codes for both Email and WhatsApp');
+    }
     try {
-      const u = await verifyEmail(otp);
+      const u = await verifyEmail(emailOtp, whatsappOtp);
       toast.success(`Welcome back, ${u.name}!`);
       if ('Notification' in window) {
         Notification.requestPermission().catch(() => {});
@@ -140,11 +144,12 @@ export default function Login() {
       nav(safeRedirect(loc.state?.from, u.role), { replace: true });
     } catch (err) {
       toast.error(err.message);
-      setOtp('');
+      setEmailOtp('');
+      setWhatsappOtp('');
     }
   };
 
-  // ── Email Verification Screen ──
+  // ── Account Verification Screen ──
   if (pendingVerification) {
     return (
       <div className="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2">
@@ -155,51 +160,74 @@ export default function Login() {
               <span className="font-display font-extrabold text-2xl">Ace2Examz</span>
             </div>
             <h2 className="font-display text-4xl font-extrabold leading-tight">
-              Email Verification
+              Verification Required
             </h2>
             <p className="mt-4 text-white/80">
-              An email verification code was sent to <b>{pendingVerification.email}</b>. Check your inbox.
+              For security, we require verification of both your Email address and WhatsApp number to access your account.
             </p>
           </div>
           <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
         </div>
         <div className="flex items-center justify-center p-6 sm:p-10">
-          <form onSubmit={submitVerification} className="w-full max-w-md">
-            <div className="flex items-center gap-3 mb-2">
-              <ShieldCheck size={28} className="text-brand-600" />
-              <h1 className="font-display text-3xl font-extrabold">Verify Email</h1>
-            </div>
-            <p className="text-slate-500 mt-1">
-              We sent a 6-digit verification code to <b>{pendingVerification.email}</b>
-            </p>
-
-            <div className="mt-6">
-              <label className="label">Verification Code</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                pattern="\d{6}"
-                required
-                className="input text-center text-2xl tracking-[0.5em] font-bold"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
-                autoFocus
-              />
+          <form onSubmit={submitVerification} className="w-full max-w-md space-y-6">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <ShieldCheck size={28} className="text-brand-600" />
+                <h1 className="font-display text-3xl font-extrabold">Verify Account</h1>
+              </div>
+              <p className="text-slate-500 mt-1">
+                Both email and WhatsApp verification are mandatory.
+              </p>
             </div>
 
-            <button disabled={loading} className="btn-primary w-full mt-6 justify-center">
-              {loading && <Loader2 className="animate-spin" size={16} />}
-              Verify Code
-            </button>
-            <button
-              type="button"
-              onClick={() => { cancelVerification(); setOtp(''); }}
-              className="w-full mt-3 flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
-            >
-              <X size={14} /> Cancel — back to login
-            </button>
+            <div className="space-y-4">
+              <div>
+                <label className="label">1. Email Verification Code</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  pattern="\d{6}"
+                  required
+                  className="input text-center text-xl tracking-[0.5em] font-bold"
+                  value={emailOtp}
+                  onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  autoFocus
+                />
+                <p className="text-[10px] text-slate-400 mt-1">We sent a code to: <b>{pendingVerification.email}</b></p>
+              </div>
+
+              <div>
+                <label className="label">2. WhatsApp Verification Code</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  pattern="\d{6}"
+                  required
+                  className="input text-center text-xl tracking-[0.5em] font-bold"
+                  value={whatsappOtp}
+                  onChange={(e) => setWhatsappOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">We sent a code to WhatsApp: <b>{pendingVerification.phone}</b></p>
+              </div>
+            </div>
+
+            <div>
+              <button disabled={loading} className="btn-primary w-full justify-center">
+                {loading && <Loader2 className="animate-spin" size={16} />}
+                Verify & Login
+              </button>
+              <button
+                type="button"
+                onClick={() => { cancelVerification(); setEmailOtp(''); setWhatsappOtp(''); }}
+                className="w-full mt-3 flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
+              >
+                <X size={14} /> Cancel — back to login
+              </button>
+            </div>
           </form>
         </div>
       </div>

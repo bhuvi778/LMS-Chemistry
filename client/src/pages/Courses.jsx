@@ -178,7 +178,7 @@ export default function Courses() {
           ) : filteredCourses.length === 0 ? (
             <div className="text-center py-20 text-slate-500">No courses found.</div>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredCourses.map((c) => (
                 <CourseCard key={c._id} course={c} />
               ))}
@@ -195,7 +195,7 @@ export default function Courses() {
                 No Combo Courses available at the moment.
               </div>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {comboCourses.map((c) => (
                   <CourseCard key={c._id} course={c} />
                 ))}

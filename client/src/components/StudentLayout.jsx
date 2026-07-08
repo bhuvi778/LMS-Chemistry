@@ -19,6 +19,7 @@ import {
   Phone,
   Shield,
   LogOut,
+  Lock,
   Menu,
   X,
   Bell,
@@ -40,6 +41,19 @@ import {
   Layers,
 } from 'lucide-react';
 
+const WhatsAppIcon = ({ size = 16, className = 'text-slate-400' }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 448 512"
+    width={size}
+    height={size}
+    className={className}
+    fill="currentColor"
+  >
+    <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7 .9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/>
+  </svg>
+);
+
 const navSections = [
   {
     title: 'MAIN',
@@ -48,6 +62,7 @@ const navSections = [
     items: [
       { to: '/student/dashboard', label: 'Home', icon: Home },
       { to: '/student/ask-prepiify', label: 'Ask Prepiify', icon: MessageSquare },
+      { to: 'https://www.whatsapp.com/channel/0029Vb6vGgl7oQhVzPOMuL05', label: 'WhatsApp Channel', icon: MessageSquare },
     ]
   },
   {
@@ -125,6 +140,66 @@ export default function StudentLayout() {
   const [verifyStep, setVerifyStep] = useState(1);
   const [verifyBusy, setVerifyBusy] = useState(false);
 
+  const INDIAN_STATES = [
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+    "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+    "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+    "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+    "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
+    "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+  ];
+
+  const isProfileIncomplete = user && user.role === 'student' && (
+    !user.grade || !user.stream || !user.board || !user.exams || !user.language || !user.state || !user.city
+  );
+
+  const [profileForm, setProfileForm] = useState({
+    grade: '',
+    stream: '',
+    board: '',
+    exams: '',
+    language: '',
+    state: '',
+    city: '',
+  });
+
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        grade: user.grade || '',
+        stream: user.stream || '',
+        board: user.board || '',
+        exams: user.exams || '',
+        language: user.language || '',
+        state: user.state || '',
+        city: user.city || '',
+      });
+    }
+  }, [user]);
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    if (!profileForm.grade || !profileForm.stream || !profileForm.board || !profileForm.exams || !profileForm.language || !profileForm.state || !profileForm.city) {
+      toast.error('All profile fields are mandatory');
+      return;
+    }
+    setProfileSaving(true);
+    try {
+      const { data } = await api.put('/auth/me', profileForm);
+      toast.success('Profile details updated successfully! Welcome to Ace2Examz.');
+      if (setUser) {
+        setUser(data);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to update profile');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   useEffect(() => {
     api.get('/enroll/me')
       .then(res => {
@@ -133,13 +208,31 @@ export default function StudentLayout() {
           setHighestPlan('Free');
           return;
         }
-        const plans = enrolls.map(e => e.planType || 'batch');
-        if (plans.includes('infinity')) {
-          setHighestPlan('Infinity');
-        } else if (plans.includes('pro')) {
-          setHighestPlan('Pro');
-        } else if (plans.includes('batch')) {
-          setHighestPlan('Batch');
+        
+        let highestType = 'free';
+        let customPlanName = '';
+
+        enrolls.forEach(e => {
+          const type = e.planType || 'batch';
+          const coursePlans = e.course?.plans || {};
+          const customName = coursePlans[type]?.name;
+          
+          if (type === 'infinity') {
+            highestType = 'infinity';
+            customPlanName = customName || 'Infinity Plan';
+          } else if (type === 'pro' && highestType !== 'infinity') {
+            highestType = 'pro';
+            customPlanName = customName || 'Pro Plan';
+          } else if (type === 'batch' && highestType === 'free') {
+            highestType = 'batch';
+            customPlanName = customName || 'Batch Plan';
+          }
+        });
+
+        if (highestType === 'free') {
+          setHighestPlan('Free');
+        } else {
+          setHighestPlan(customPlanName);
         }
       })
       .catch(() => {
@@ -203,8 +296,8 @@ export default function StudentLayout() {
     };
   }, [user, navigate, logout]);
 
-  // If student role and phone is empty or not verified
-  if (user && user.role === 'student' && (!user.phone || !user.isWhatsappVerified)) {
+  // If student role and phone is empty or not verified (Bypassed as requested)
+  if (false && user && user.role === 'student' && (!user.phone || !user.isWhatsappVerified)) {
     const handleSendOtp = async (e) => {
       e.preventDefault();
       const trimmedPhone = verifyPhone.trim();
@@ -419,17 +512,12 @@ export default function StudentLayout() {
       {/* Navigation Groups */}
       <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-2 no-scrollbar">
         {navSections.map((section) => {
-          const filteredItems = section.items.filter((item) => {
-            if (item.to === '/student/exam-counter') {
-              return highestPlan && highestPlan !== 'Free';
-            }
-            return true;
-          });
+          const filteredItems = section.items;
           if (filteredItems.length === 0) return null;
 
           const isOpen = !!openGroups[section.title];
           const hasActiveChild = filteredItems.some(
-            (item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/')
+            (item) => !item.to.startsWith('http') && (location.pathname === item.to || location.pathname.startsWith(item.to + '/'))
           );
 
           // Render direct links if isDirect is true or if it only contains 1 item
@@ -437,7 +525,31 @@ export default function StudentLayout() {
             return (
               <div key={section.title} className="space-y-1">
                 {filteredItems.map((item) => {
+                  const isExternal = item.to.startsWith('http');
+                  if (isExternal) {
+                    const isWhatsapp = item.to.includes('whatsapp.com');
+                    return (
+                      <a
+                        key={item.to}
+                        href={item.to}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          {isWhatsapp ? (
+                            <WhatsAppIcon size={16} className="text-emerald-500 animate-pulse" />
+                          ) : (
+                            <item.icon size={16} className="text-slate-400" />
+                          )}
+                          <span>{item.label}</span>
+                        </div>
+                      </a>
+                    );
+                  }
                   const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+                  const isLocked = item.to === '/student/exam-counter' && (!highestPlan || highestPlan === 'Free');
                   return (
                     <NavLink
                       key={item.to}
@@ -452,6 +564,7 @@ export default function StudentLayout() {
                         <item.icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
                         <span>{item.label}</span>
                       </div>
+                      {isLocked && <Lock size={12} className="text-slate-500 shrink-0" />}
                     </NavLink>
                   );
                 })}
@@ -484,21 +597,46 @@ export default function StudentLayout() {
               {isOpen && (
                 <div className="pl-9 pr-1 py-1 space-y-1">
                   {filteredItems.map((item) => {
-                    const isItemActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
-                    return (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        onClick={() => setMobileOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition ${isItemActive
-                          ? 'text-white font-bold bg-gradient-brand shadow-sm scale-[1.02]'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
-                          }`}
-                      >
-                        <item.icon size={14} className={isItemActive ? 'text-white' : 'text-slate-500'} />
-                        <span>{item.label}</span>
-                      </NavLink>
-                    );
+                    const isExternal = item.to.startsWith('http');
+                    if (isExternal) {
+                      const isWhatsapp = item.to.includes('whatsapp.com');
+                      return (
+                        <a
+                          key={item.to}
+                          href={item.to}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setMobileOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/30"
+                        >
+                          {isWhatsapp ? (
+                            <WhatsAppIcon size={14} className="text-emerald-500" />
+                          ) : (
+                            <item.icon size={14} className="text-slate-500" />
+                          )}
+                          <span>{item.label}</span>
+                        </a>
+                      );
+                    }
+                     const isItemActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+                     const isLocked = item.to === '/student/exam-counter' && (!highestPlan || highestPlan === 'Free');
+                     return (
+                       <NavLink
+                         key={item.to}
+                         to={item.to}
+                         onClick={() => setMobileOpen(false)}
+                         className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition ${isItemActive
+                           ? 'text-white font-bold bg-gradient-brand shadow-sm scale-[1.02]'
+                           : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+                           }`}
+                       >
+                         <div className="flex items-center gap-3">
+                           <item.icon size={14} className={isItemActive ? 'text-white' : 'text-slate-500'} />
+                           <span>{item.label}</span>
+                         </div>
+                         {isLocked && <Lock size={11} className="text-slate-500 shrink-0" />}
+                       </NavLink>
+                     );
                   })}
                 </div>
               )}
@@ -542,7 +680,7 @@ export default function StudentLayout() {
   );
 
   return (
-    <div className="h-screen bg-slate-50/60 flex flex-col md:flex-row font-sans overflow-hidden">
+    <div className="min-h-screen md:h-screen bg-slate-50/60 flex flex-col md:flex-row font-sans overflow-y-auto md:overflow-hidden">
       {/* Mobile Top Bar */}
       <header className="md:hidden h-16 bg-white border-b border-slate-100 px-4 flex items-center justify-between sticky top-0 z-30 shadow-xs">
         <Link to="/" className="flex items-center">
@@ -572,7 +710,7 @@ export default function StudentLayout() {
       </header>
 
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:block w-64 sticky top-0 h-screen shrink-0 shadow-sm z-20" style={{ zoom: '1.1' }}>
+      <aside className="hidden md:block w-64 sticky top-0 shrink-0 shadow-sm z-20 h-screen">
         {sidebarContent}
       </aside>
 
@@ -609,13 +747,13 @@ export default function StudentLayout() {
                 // Find last non-ObjectId segment
                 const lastSeg = [...segments].reverse().find(s => !/^[a-f0-9]{24}$/.test(s));
                 return pageNameMap[lastSeg] || lastSeg?.replace(/-/g, ' ') || 'Dashboard';
-              })()}
+               })()}
             </h2>
           </div>
           <div className="flex items-center gap-4">
             {highestPlan && (
               <span className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm">
-                ✨ {highestPlan} Plan
+                ✨ {highestPlan.toLowerCase().includes('plan') ? highestPlan : `${highestPlan} Plan`}
               </span>
             )}
 
@@ -638,6 +776,17 @@ export default function StudentLayout() {
               <span>{user?.coins || 0} Ace Coins</span>
             </Link>
 
+            <a
+              href="https://www.whatsapp.com/channel/0029Vb6vGgl7oQhVzPOMuL05"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-100/50 px-3.5 py-1.5 rounded-xl text-xs font-bold transition"
+              title="Join WhatsApp Channel"
+            >
+              <WhatsAppIcon size={14} className="text-emerald-500 animate-pulse" />
+              <span>WhatsApp Channel</span>
+            </a>
+
             <NotificationBell />
 
             <span className="h-6 w-px bg-slate-200" />
@@ -659,7 +808,7 @@ export default function StudentLayout() {
           </div>
         </header>
 
-        <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 overflow-y-auto flex flex-col justify-between">
+        <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 md:overflow-y-auto flex flex-col justify-between">
           <div className="max-w-5xl mx-auto w-full flex-1">
             <Outlet />
           </div>
@@ -668,6 +817,149 @@ export default function StudentLayout() {
           </footer>
         </main>
       </div>
+      {isProfileIncomplete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="max-w-xl w-full bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden my-8">
+            <div className="h-2 w-full bg-gradient-to-r from-brand-500 via-indigo-500 to-purple-500" />
+            <div className="p-6 sm:p-8 space-y-6">
+              <div className="text-center">
+                <span className="bg-brand-50 text-brand-700 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                  Complete Your Profile
+                </span>
+                <h2 className="font-display text-2xl font-black text-slate-800 mt-2">Almost there!</h2>
+                <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">
+                  Please provide your academic and location details to personalize your experience. All fields are mandatory.
+                </p>
+              </div>
+
+              <form onSubmit={handleProfileSubmit} className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-550 uppercase tracking-wide mb-1">Class/Grade</label>
+                    <select
+                      required
+                      value={profileForm.grade}
+                      onChange={(e) => setProfileForm({ ...profileForm, grade: e.target.value })}
+                      className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                    >
+                      <option value="">Select Class</option>
+                      <option value="Class 11">Class 11</option>
+                      <option value="Class 12">Class 12</option>
+                      <option value="Class 12+">Class 12+ (Dropper)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-550 uppercase tracking-wide mb-1">Stream</label>
+                    <select
+                      required
+                      value={profileForm.stream}
+                      onChange={(e) => setProfileForm({ ...profileForm, stream: e.target.value })}
+                      className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                    >
+                      <option value="">Select Stream</option>
+                      <option value="Medical">Medical</option>
+                      <option value="Non-Medical">Non-Medical</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-550 uppercase tracking-wide mb-1">School Board</label>
+                    <select
+                      required
+                      value={profileForm.board}
+                      onChange={(e) => setProfileForm({ ...profileForm, board: e.target.value })}
+                      className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                    >
+                      <option value="">Select Board</option>
+                      <option value="CBSE">CBSE</option>
+                      <option value="ICSE">ICSE</option>
+                      <option value="IB">IB</option>
+                      <option value="IGCSE">IGCSE</option>
+                      <option value="State Board">State Board</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-550 uppercase tracking-wide mb-1">Target Exam</label>
+                    <select
+                      required
+                      value={profileForm.exams}
+                      onChange={(e) => setProfileForm({ ...profileForm, exams: e.target.value })}
+                      className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                    >
+                      <option value="">Select Target</option>
+                      <option value="JEE">JEE</option>
+                      <option value="NEET">NEET</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-550 uppercase tracking-wide mb-1">Preferred Language</label>
+                    <select
+                      required
+                      value={profileForm.language}
+                      onChange={(e) => setProfileForm({ ...profileForm, language: e.target.value })}
+                      className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                    >
+                      <option value="">Select Language</option>
+                      <option value="English">English</option>
+                      <option value="Hinglish">Hinglish</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-550 uppercase tracking-wide mb-1">State</label>
+                    <select
+                      required
+                      value={profileForm.state}
+                      onChange={(e) => setProfileForm({ ...profileForm, state: e.target.value })}
+                      className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                    >
+                      <option value="">Select State</option>
+                      {INDIAN_STATES.map((st) => (
+                        <option key={st} value={st}>{st}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-550 uppercase tracking-wide mb-1">City</label>
+                    <input
+                      type="text"
+                      required
+                      value={profileForm.city}
+                      onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
+                      placeholder="e.g. Ludhiana, Jaipur"
+                      className="w-full text-xs border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <LogOut size={13} /> Logout
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={profileSaving}
+                    className="flex-2 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md transition disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {profileSaving ? (
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : null}
+                    Submit Details
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
       <SupportChatWidget />
     </div>
   );

@@ -635,6 +635,8 @@ export const validateCoupon = asyncHandler(async (req, res) => {
       const details = calculateUpgradeDetails(originalAmount, existing, item);
       originalAmount = details.upgradeFee;
     }
+  } else {
+    originalAmount = item.price || 0;
   }
 
   const result = await findAndValidateCoupon(item, couponCode, originalAmount, req.user._id);

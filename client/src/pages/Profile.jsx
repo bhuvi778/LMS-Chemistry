@@ -45,6 +45,8 @@ export default function Profile() {
     board: user?.board || '',
     exams: user?.exams || '',
     language: user?.language || '',
+    city: user?.city || '',
+    state: user?.state || '',
   });
   const [pw, setPw] = useState({ currentPassword: '', password: '', confirm: '' });
 
@@ -93,6 +95,8 @@ export default function Profile() {
         board: academic.board.trim(),
         exams: academic.exams.trim(),
         language: academic.language.trim(),
+        city: academic.city.trim(),
+        state: academic.state.trim(),
       });
       toast.success('Academic details updated');
     } catch (err) {
@@ -381,6 +385,28 @@ export default function Profile() {
                       <option value="English">English</option>
                       <option value="Hinglish">Hinglish</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className="label">State</label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={academic.state}
+                      onChange={(e) => setAcademic({ ...academic, state: e.target.value })}
+                      placeholder="Enter State"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label">City</label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={academic.city}
+                      onChange={(e) => setAcademic({ ...academic, city: e.target.value })}
+                      placeholder="Enter City"
+                      required
+                    />
                   </div>
                 </div>
                 <button disabled={saving} className="btn-primary mt-6">

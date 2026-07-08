@@ -1287,7 +1287,13 @@ export default function CourseDetail() {
                           {/* Razorpay fee breakdown */}
                           {!isSoldOut && (
                             <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl px-3 py-2.5 space-y-1 text-xs">
-                              <div className="flex justify-between text-slate-650"><span>Course price</span><span>₹{initialAmt.toFixed(2)}</span></div>
+                              <div className="flex justify-between text-slate-650"><span>Course price</span><span>₹{currentPlanPrice.toFixed(2)}</span></div>
+                              {couponApplied && couponApplied.discountAmount > 0 && (
+                                <div className="flex justify-between text-emerald-600 font-bold">
+                                  <span>Coupon discount ({couponApplied.couponCode})</span>
+                                  <span>- ₹{couponApplied.discountAmount.toFixed(2)}</span>
+                                </div>
+                              )}
                               {coinDiscount > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coin discount</span><span>- ₹{coinDiscount.toFixed(2)}</span></div>}
                               <div className="flex justify-between text-slate-500"><span>Internet handling fee</span><span>₹{gwFee.toFixed(2)}</span></div>
                               <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1"><span>Total</span><span>₹{rzpTotal.toFixed(2)}</span></div>

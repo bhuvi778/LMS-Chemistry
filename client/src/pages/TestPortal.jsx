@@ -104,12 +104,12 @@ function TestCard({ test, myAttempts = [] }) {
             </div>
           )}
 
-          {test.syllabus && (
+          {test.syllabus && user && (
             <button
               onClick={() => setShowSyllabus(true)}
               className="text-xs text-brand-600 hover:text-brand-700 font-bold bg-brand-50 px-2.5 py-1.5 rounded-xl border border-brand-100/50 hover:bg-brand-100 flex items-center gap-1.5 mt-1.5 mb-2 w-fit cursor-pointer transition-colors"
             >
-              <BookOpen size={12} /> View Syllabus
+              <BookOpen size={12} /> Syllabus
             </button>
           )}
         </div>
@@ -678,7 +678,7 @@ export default function TestPortal() {
         )}
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {[1, 2, 3, 4, 5, 6].map((n) => (
               <div key={n} className="bg-white rounded-2xl border border-slate-100 h-64 animate-pulse" />
             ))}
@@ -694,7 +694,7 @@ export default function TestPortal() {
               <p>No tests available in this section. Check back soon!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {filteredTests.map((t) => (
                 <TestCard key={t._id} test={t} myAttempts={myAttempts} />
               ))}
@@ -780,7 +780,7 @@ export default function TestPortal() {
                 <p>No test series available yet.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {filteredSeries.map((s) => (
                   <SeriesCard key={s._id} series={s} />
                 ))}

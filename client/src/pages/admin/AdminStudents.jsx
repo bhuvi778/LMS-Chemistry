@@ -6,7 +6,7 @@ import {
   Search, Filter, X, Mail, Phone, Calendar, ShieldCheck,
   KeyRound, LogOut, Loader2, Users as UsersIcon, BookOpen,
   Lock, Copy, RefreshCw, Check, Eye, EyeOff, ExternalLink,
-  UserPlus, PlusCircle, Trash2, GraduationCap, ListChecks, Coins,
+  UserPlus, PlusCircle, Trash2, GraduationCap, ListChecks, Coins, Layers,
 } from 'lucide-react';
 import Pagination, { usePaged } from '../../components/Pagination.jsx';
 
@@ -361,6 +361,7 @@ function CredRow({ label, value, mono, onCopy, copied }) {
 
 function StudentCard({ s, onOpen }) {
   const enrollCount = s.enrollments?.length || 0;
+  const tsCount = s.testSeriesEnrollments?.length || 0;
   const has2FA = s.twoFactorEnabled;
   return (
     <button
@@ -419,13 +420,21 @@ function StudentCard({ s, onOpen }) {
       <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
         <div className="flex gap-1.5 flex-wrap">
           <span className={`chip text-[10px] ${enrollCount > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-            <BookOpen size={10} className="inline" /> {enrollCount} course{enrollCount !== 1 ? 's' : ''}
+            <BookOpen size={10} className="inline mr-1" /> {enrollCount} course{enrollCount !== 1 ? 's' : ''}
           </span>
-          {s.enrollments?.filter(e => e.paymentStatus === 'paid' && (!e.validUntil || new Date(e.validUntil) >= new Date())).map((e, idx) => (
-            <span key={idx} className="chip bg-indigo-50 text-indigo-750 text-[9px] uppercase font-bold px-1.5 py-0.5">
-              {e.planType || 'batch'}
+          {tsCount > 0 && (
+            <span className="chip text-[10px] bg-purple-50 text-purple-700">
+              <Layers size={10} className="inline mr-1" /> {tsCount} test series
             </span>
-          ))}
+          )}
+          {s.enrollments?.filter(e => e.paymentStatus === 'paid' && (!e.validUntil || new Date(e.validUntil) >= new Date())).map((e, idx) => {
+            const customName = e.course?.plans?.[e.planType || 'batch']?.name || e.planType || 'batch';
+            return (
+              <span key={idx} className="chip bg-indigo-50 text-indigo-750 text-[9px] uppercase font-bold px-1.5 py-0.5">
+                {customName}
+              </span>
+            );
+          })}
         </div>
         <span className="text-[10px] text-brand-600 font-semibold opacity-0 group-hover:opacity-100 transition">Manage →</span>
       </div>
@@ -456,6 +465,8 @@ function StudentModal({ id, onClose, onChanged }) {
     setBusy(true);
     try {
       await api.put(`/admin/students/${id}`, {
+        name: data.name,
+        phone: data.phone,
         streak: data.streak,
         longestStreak: data.longestStreak,
         coins: data.coins,
@@ -681,15 +692,47 @@ function StudentModal({ id, onClose, onChanged }) {
               </div>
             </div>
 
+            <div className="grid sm:grid-cols-2 gap-4 border border-slate-200/80 rounded-2xl p-4 bg-slate-50/40">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Full Name</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input
+                    type="text"
+                    value={data.name || ''}
+                    onChange={(e) => updateField('name', e.target.value)}
+                    className="input w-full !pl-9 text-xs font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">WhatsApp Phone Number</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-semibold">+91</span>
+                  <input
+                    type="text"
+                    value={data.phone ? String(data.phone).replace(/^\+?91\s?/, '') : ''}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/^\+?91\s?/, '').replace(/\D/g, '').slice(0, 10);
+                      updateField('phone', val ? '+91' + val : '');
+                    }}
+                    placeholder="98765 43210"
+                    className="input w-full !pl-10 text-xs font-semibold"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="grid sm:grid-cols-2 gap-3">
               <InfoRow icon={Mail} label="Email" value={data.email} onCopy={() => copy(data.email, 'email')} copied={copied === 'email'} />
-              <div className="relative flex flex-col gap-1">
-                <InfoRow icon={Phone} label="Phone" value={data.phone || '—'} onCopy={data.phone ? () => copy(data.phone, 'phone') : null} copied={copied === 'phone'} />
-                {data.phone && (
-                  <div className="flex items-center gap-2 pl-7 -mt-1.5 mb-2 text-xs">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${data.isWhatsappVerified ? 'bg-emerald-50 text-emerald-700 border border-emerald-250' : 'bg-rose-50 text-rose-700 border border-rose-250'}`}>
-                      {data.isWhatsappVerified ? '✓ WhatsApp Verified' : '✗ Unverified'}
-                    </span>
+              <div className="relative flex flex-col gap-1 justify-center">
+                <div className="flex flex-wrap items-center gap-2 pl-2 text-xs">
+                  <span className="text-slate-550 font-bold uppercase tracking-wider text-[10px]">Status: </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${data.isWhatsappVerified ? 'bg-emerald-50 text-emerald-700 border border-emerald-250' : 'bg-rose-50 text-rose-700 border border-rose-250'}`}>
+                    {data.isWhatsappVerified ? 'WhatsApp Verified' : 'Unverified'}
+                  </span>
+                  {data.phone && (
                     <button
                       type="button"
                       disabled={busy}
@@ -712,8 +755,8 @@ function StudentModal({ id, onClose, onChanged }) {
                     >
                       {data.isWhatsappVerified ? 'Mark Unverified' : 'Mark Verified'}
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
               <InfoRow icon={KeyRound} label="Student ID (Username)" value={data.studentId || '—'} mono onCopy={data.studentId ? () => copy(data.studentId, 'sid') : null} copied={copied === 'sid'} />
               <InfoRow icon={Calendar} label="Joined" value={new Date(data.createdAt).toLocaleString('en-IN')} />
@@ -900,9 +943,9 @@ function StudentModal({ id, onClose, onChanged }) {
                               onChange={(e) => setSelectedPlans(prev => ({ ...prev, [c._id]: e.target.value }))}
                               className="text-xs border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none focus:border-brand-500 font-semibold"
                             >
-                              <option value="batch">Ace Starter</option>
-                              <option value="pro">Ace Pro</option>
-                              <option value="infinity">Ace Infinity</option>
+                              <option value="batch">{c.plans?.batch?.name || 'Ace Starter'}</option>
+                              <option value="pro">{c.plans?.pro?.name || 'Ace Pro'}</option>
+                              <option value="infinity">{c.plans?.infinity?.name || 'Ace Infinity'}</option>
                             </select>
                             <button
                               disabled={enrollBusy === c._id}
@@ -963,9 +1006,9 @@ function StudentModal({ id, onClose, onChanged }) {
                             disabled={enrollBusy === String(e.course?._id || e.course)}
                             className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 bg-white font-bold uppercase text-brand-700 focus:outline-none focus:border-brand-500 cursor-pointer"
                           >
-                            <option value="batch">batch</option>
-                            <option value="pro">pro</option>
-                            <option value="infinity">infinity</option>
+                            <option value="batch">{e.course?.plans?.batch?.name || 'batch'}</option>
+                            <option value="pro">{e.course?.plans?.pro?.name || 'pro'}</option>
+                            <option value="infinity">{e.course?.plans?.infinity?.name || 'infinity'}</option>
                           </select>
                           {e.paymentId?.startsWith('ADMIN_ALLOT_') && (
                             <span className="text-[10px] font-semibold text-brand-600">Admin allotted</span>

@@ -193,8 +193,13 @@ export default function CoinsWallet() {
           <div className="space-y-1.5">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">How to earn coins?</h3>
             <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-4 font-medium">
-              <li>Daily login attendance: <b>+1 Coin</b></li>
-              <li>Refer & Earn (Per invite): <b>+50 Coins</b></li>
+              <li>Sign Up Bonus: <b>+25 Coins</b> <span className="text-[10px] text-slate-400 font-normal">(One-time)</span></li>
+              <li>First Course Purchase: <b>+75 Coins</b> <span className="text-[10px] text-slate-400 font-normal">(One-time)</span></li>
+              <li>Daily Attendance: <b>+1 Coin</b> <span className="text-[10px] text-slate-400 font-normal">(Daily login)</span></li>
+              <li>Weekly Attendance Milestone: <b>+20 Coins</b></li>
+              <li>Monthly Attendance Milestone: <b>+60 Coins</b></li>
+              <li>Refer & Earn (Per verified invite): <b>+50 Coins</b></li>
+              <li>Profile Completion: <b>+10 Coins</b> <span className="text-[10px] text-slate-400 font-normal">(One-time)</span></li>
               <li>Daily Test completion: <b>+2 Coins</b></li>
               <li>Planner Goal completion: <b>+1 Coin</b></li>
             </ul>

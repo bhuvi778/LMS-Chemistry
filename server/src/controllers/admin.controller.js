@@ -142,17 +142,30 @@ export const statsDetail = asyncHandler(async (_req, res) => {
 });
 
 export const allStudents = asyncHandler(async (_req, res) => {
+  const TestSeriesEnrollment = (await import('../models/TestSeriesEnrollment.js')).default;
   // Include plainPassword for admin viewing — never expose this to students
   const students = await User.find({ role: 'student' }).select('-password').lean();
-  const enrollments = await Enrollment.find().populate('course', 'title category price').lean();
+  const [enrollments, testSeriesEnrollments] = await Promise.all([
+    Enrollment.find().populate('course', 'title category price plans').lean(),
+    TestSeriesEnrollment.find().populate('testSeries', 'title categories price').lean()
+  ]);
+
   const byStudent = enrollments.reduce((acc, e) => {
     const k = String(e.student);
     (acc[k] = acc[k] || []).push(e);
     return acc;
   }, {});
+
+  const tsByStudent = testSeriesEnrollments.reduce((acc, e) => {
+    const k = String(e.student);
+    (acc[k] = acc[k] || []).push(e);
+    return acc;
+  }, {});
+
   const data = students.map((s) => ({
     ...s,
     enrollments: byStudent[String(s._id)] || [],
+    testSeriesEnrollments: tsByStudent[String(s._id)] || [],
   }));
   res.json(data);
 });
@@ -361,7 +374,7 @@ export const getStudent = asyncHandler(async (req, res) => {
     throw new Error('Student not found');
   }
   const enrollments = await Enrollment.find({ student: user._id })
-    .populate('course', 'title category price thumbnail courseType')
+    .populate('course', 'title category price thumbnail courseType plans')
     .lean();
   const testSeriesEnrollments = await TestSeriesEnrollment.find({ student: user._id })
     .populate('testSeries', 'title price thumbnail')
@@ -587,13 +600,27 @@ export const createStudent = asyncHandler(async (req, res) => {
 });
 
 export const updateStudent = asyncHandler(async (req, res) => {
-  const { streak, longestStreak, coins, isActive, maxSessions, isWhatsappVerified } = req.body;
+  const { name, phone, streak, longestStreak, coins, isActive, maxSessions, isWhatsappVerified } = req.body;
   const user = await User.findById(req.params.id);
   if (!user || user.role !== 'student') {
     res.status(404);
     throw new Error('Student not found');
   }
 
+  if (name !== undefined) user.name = name.trim();
+  if (phone !== undefined) {
+    const phoneVal = phone.trim();
+    if (phoneVal && phoneVal !== user.phone) {
+      const exists = await User.findOne({ phone: phoneVal, _id: { $ne: user._id } });
+      if (exists) {
+        res.status(400);
+        throw new Error('WhatsApp number already registered by another user');
+      }
+      user.phone = phoneVal;
+    } else if (!phoneVal) {
+      user.phone = '';
+    }
+  }
   if (streak !== undefined) user.streak = streak;
   if (longestStreak !== undefined) user.longestStreak = longestStreak;
   if (coins !== undefined) user.coins = coins;

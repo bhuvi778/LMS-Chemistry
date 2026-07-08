@@ -74,10 +74,10 @@ export default function MyPlanner() {
   }, [selectedWeek]);
 
   useEffect(() => {
-    if (days.length > 0) {
+    if (days.length > 0 && hasAccess) {
       fetchGoalsForWeek();
     }
-  }, [days]);
+  }, [days, hasAccess]);
 
   const getWeekDays = (weekType) => {
     const today = new Date();

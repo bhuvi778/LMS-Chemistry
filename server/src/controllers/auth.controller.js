@@ -266,21 +266,33 @@ export const register = asyncHandler(async (req, res) => {
     });
   }
 
-  // Generate WhatsApp Verification OTP (only for students)
+  // Generate Email and WhatsApp Verification OTPs (only for students)
   if (user.role === 'student') {
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const codeHash = await bcrypt.hash(code, 10);
+    // 1. Email OTP
+    const emailCode = String(Math.floor(100000 + Math.random() * 900000));
+    const emailCodeHash = await bcrypt.hash(emailCode, 10);
+    await OTP.deleteMany({ userId: user._id, purpose: 'email_verification' });
+    await OTP.create({
+      userId: user._id,
+      email: user.email,
+      codeHash: emailCodeHash,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 mins
+      purpose: 'email_verification',
+    });
+    await sendOtpEmail(user.email, emailCode, user.name);
+
+    // 2. WhatsApp OTP
+    const whatsappCode = String(Math.floor(100000 + Math.random() * 900000));
+    const whatsappCodeHash = await bcrypt.hash(whatsappCode, 10);
     await OTP.deleteMany({ userId: user._id, purpose: 'whatsapp_verification' });
     await OTP.create({
       userId: user._id,
       email: user.email,
-      codeHash,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 mins
+      codeHash: whatsappCodeHash,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 mins
       purpose: 'whatsapp_verification',
     });
-    
-    // Send OTP via WhatsApp
-    await sendWhatsappOtp(user.phone, code);
+    await sendWhatsappOtp(user.phone, whatsappCode);
 
     const tempToken = signToken({ _id: user._id, role: user.role });
     return res.status(201).json({ requiresVerification: true, tempToken, email: user.email, phone: user.phone });
@@ -308,21 +320,36 @@ export const login = asyncHandler(async (req, res) => {
     throw new Error('Account has been deactivated. Please contact support.');
   }
 
-  // ── Email Verification Check (only for students) ──
-  if (user.role === 'student' && !user.isEmailVerified) {
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const codeHash = await bcrypt.hash(code, 10);
+  // ── Verification Check (only for students) ──
+  if (user.role === 'student' && (!user.isEmailVerified || !user.isWhatsappVerified)) {
+    // 1. Email OTP
+    const emailCode = String(Math.floor(100000 + Math.random() * 900000));
+    const emailCodeHash = await bcrypt.hash(emailCode, 10);
     await OTP.deleteMany({ userId: user._id, purpose: 'email_verification' });
     await OTP.create({
       userId: user._id,
       email: user.email,
-      codeHash,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      codeHash: emailCodeHash,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       purpose: 'email_verification',
     });
-    await sendVerificationEmail(user.email, code, user.name);
+    await sendOtpEmail(user.email, emailCode, user.name);
+
+    // 2. WhatsApp OTP
+    const whatsappCode = String(Math.floor(100000 + Math.random() * 900000));
+    const whatsappCodeHash = await bcrypt.hash(whatsappCode, 10);
+    await OTP.deleteMany({ userId: user._id, purpose: 'whatsapp_verification' });
+    await OTP.create({
+      userId: user._id,
+      email: user.email,
+      codeHash: whatsappCodeHash,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      purpose: 'whatsapp_verification',
+    });
+    await sendWhatsappOtp(user.phone, whatsappCode);
+
     const tempToken = signToken({ _id: user._id, role: user.role });
-    return res.json({ requiresVerification: true, tempToken, email: user.email });
+    return res.json({ requiresVerification: true, tempToken, email: user.email, phone: user.phone });
   }
 
   // ── 2FA path ──
@@ -378,23 +405,46 @@ export const verifyOtp = asyncHandler(async (req, res) => {
 
 /** POST /api/auth/verify-email — verify signup OTP */
 export const verifyEmailSignup = asyncHandler(async (req, res) => {
-  const { code } = req.body;
+  const { emailCode, whatsappCode } = req.body;
+  if (!emailCode || !whatsappCode) {
+    res.status(400);
+    throw new Error('Both Email verification code and WhatsApp verification code are required');
+  }
   const userId = req.user._id;
-  const record = await OTP.findOne({ userId, purpose: { $in: ['email_verification', 'whatsapp_verification'] }, used: false });
-  if (!record) {
+
+  // 1. Verify Email OTP
+  const emailRecord = await OTP.findOne({ userId, purpose: 'email_verification', used: false });
+  if (!emailRecord) {
     res.status(400);
-    throw new Error('No pending verification code found.');
+    throw new Error('No pending email verification code found.');
   }
-  if (record.expiresAt < new Date()) {
-    await OTP.findByIdAndDelete(record._id);
+  if (emailRecord.expiresAt < new Date()) {
     res.status(400);
-    throw new Error('Verification code expired. Please register/login again.');
+    throw new Error('Email verification code expired. Please register/login again.');
   }
-  if (!(await bcrypt.compare(String(code), record.codeHash))) {
+  if (!(await bcrypt.compare(String(emailCode), emailRecord.codeHash))) {
     res.status(400);
-    throw new Error('Invalid verification code');
+    throw new Error('Invalid email verification code');
   }
-  await OTP.findByIdAndUpdate(record._id, { used: true });
+
+  // 2. Verify WhatsApp OTP
+  const whatsappRecord = await OTP.findOne({ userId, purpose: 'whatsapp_verification', used: false });
+  if (!whatsappRecord) {
+    res.status(400);
+    throw new Error('No pending WhatsApp verification code found.');
+  }
+  if (whatsappRecord.expiresAt < new Date()) {
+    res.status(400);
+    throw new Error('WhatsApp verification code expired. Please register/login again.');
+  }
+  if (!(await bcrypt.compare(String(whatsappCode), whatsappRecord.codeHash))) {
+    res.status(400);
+    throw new Error('Invalid WhatsApp verification code');
+  }
+
+  // Mark both as used
+  await OTP.findByIdAndUpdate(emailRecord._id, { used: true });
+  await OTP.findByIdAndUpdate(whatsappRecord._id, { used: true });
   
   let user = await User.findByIdAndUpdate(userId, { 
     isEmailVerified: true, 
@@ -540,7 +590,7 @@ export const getCoinRedemptions = asyncHandler(async (req, res) => {
 });
 
 export const updateMe = asyncHandler(async (req, res) => {
-  const { name, phone, avatar, password, currentPassword, grade, stream, board, exams, language, city } = req.body;
+  const { name, phone, avatar, password, currentPassword, grade, stream, board, exams, language, city, state } = req.body;
   const user = await User.findById(req.user._id);
   if (!user) { res.status(404); throw new Error('User not found'); }
   if (name) user.name = name;
@@ -552,6 +602,7 @@ export const updateMe = asyncHandler(async (req, res) => {
   if (exams !== undefined) user.exams = exams;
   if (language !== undefined) user.language = language;
   if (city !== undefined) user.city = city;
+  if (state !== undefined) user.state = state;
 
   // Check profile completion reward (one-time)
   if (!user.profileCompleteRewarded) {
@@ -560,7 +611,9 @@ export const updateMe = asyncHandler(async (req, res) => {
       user.stream?.trim() && 
       user.board?.trim() && 
       user.exams?.trim() && 
-      user.language?.trim();
+      user.language?.trim() &&
+      user.city?.trim() &&
+      user.state?.trim();
       
     if (isProfileComplete) {
       user.coins = (user.coins || 0) + 10;
@@ -869,42 +922,14 @@ export const sendLoginOtp = asyncHandler(async (req, res) => {
 
     user = await User.findOne({ phone: { $in: variations } });
     if (!user) {
-      isNewUser = true;
-      const name = 'Student-' + digitsOnly.slice(-4);
-      let phoneToStore = targetVal.trim();
-      if (digitsOnly.length === 10) {
-        phoneToStore = '+91' + digitsOnly;
-      }
-      const emailVal = `phone_${digitsOnly}@ace2examz.com`;
-      const rawPass = crypto.randomBytes(16).toString('hex');
-      const hashed = await bcrypt.hash(rawPass, 10);
-      user = await User.create({
-        name,
-        email: emailVal,
-        phone: phoneToStore,
-        password: hashed,
-        plainPassword: 'OTP Auto-Generated',
-        studentId: genStudentId(),
-        isEmailVerified: true,
-        isWhatsappVerified: true,
-      });
+      res.status(404);
+      throw new Error('Account not found with this mobile number. Please register first.');
     }
   } else {
     user = await User.findOne({ email: targetVal });
     if (!user) {
-      isNewUser = true;
-      const name = targetVal.split('@')[0];
-      const rawPass = crypto.randomBytes(16).toString('hex');
-      const hashed = await bcrypt.hash(rawPass, 10);
-      user = await User.create({
-        name,
-        email: targetVal,
-        password: hashed,
-        plainPassword: 'OTP Auto-Generated',
-        studentId: genStudentId(),
-        isEmailVerified: false,
-        isWhatsappVerified: false,
-      });
+      res.status(404);
+      throw new Error('Account not found with this email. Please register first.');
     }
   }
 

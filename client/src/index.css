@@ -32,7 +32,7 @@ body {
 /* Utilities */
 @layer components {
   .container-x {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    @apply max-w-[1450px] mx-auto px-4 sm:px-6 lg:px-8;
   }
   .btn {
     @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200;

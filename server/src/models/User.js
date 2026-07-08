@@ -28,6 +28,7 @@ const userSchema = new mongoose.Schema(
     exams: { type: String, default: '' },
     language: { type: String, default: '' },
     city: { type: String, default: '' },
+    state: { type: String, default: '' },
     // Streak & Wallet
     coins: { type: Number, default: 25 },
     streak: { type: Number, default: 0 },

@@ -250,7 +250,7 @@ export default function AdminLayout() {
   );
 
   return (
-    <div className="h-screen bg-slate-50 flex overflow-hidden">
+    <div className="min-h-screen lg:h-screen bg-slate-50 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -258,9 +258,8 @@ export default function AdminLayout() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky top-0 h-screen w-64 bg-slate-900 text-slate-200 flex flex-col z-40 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`fixed lg:sticky top-0 w-64 bg-slate-900 text-slate-200 flex flex-col z-40 transition-transform duration-300 h-screen ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
-        style={window.innerWidth >= 1024 ? { zoom: '1.1' } : {}}
       >
         {sidebarNav}
       </aside>
@@ -314,7 +313,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 lg:overflow-auto">
           <Outlet />
         </main>
       </div>

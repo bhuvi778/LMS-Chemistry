@@ -7,7 +7,7 @@ const otpSchema = new mongoose.Schema(
     codeHash: { type: String, required: true }, // bcrypt hash of 6-digit code
     expiresAt: { type: Date, required: true },
     used: { type: Boolean, default: false },
-    purpose: { type: String, enum: ['login', '2fa_enable', 'email_verification', 'password_reset', 'login_otp'], default: 'login' },
+    purpose: { type: String, enum: ['login', '2fa_enable', 'email_verification', 'password_reset', 'login_otp', 'whatsapp_verification', 'phone_verification'], default: 'login' },
   },
   { timestamps: true }
 );

@@ -118,13 +118,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const verifyEmail = async (code) => {
-    if (!pendingVerification) throw new Error('No pending email verification session');
+  const verifyEmail = async (emailCode, whatsappCode) => {
+    if (!pendingVerification) throw new Error('No pending verification session');
     setLoading(true);
     try {
       const { data } = await api.post(
         '/auth/verify-email',
-        { code },
+        { emailCode, whatsappCode },
         { headers: { Authorization: `Bearer ${pendingVerification.tempToken}` } }
       );
       setPendingVerification(null);

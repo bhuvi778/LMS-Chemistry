@@ -53,6 +53,9 @@ const blankQ = () => ({
 
 function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
   const [open, setOpen] = useState(!q._id);
+  const stateRef = useRef({ q, idx, onChange });
+  stateRef.current = { q, idx, onChange };
+
   // Strip HTML tags for title preview
   const plainText = q.question ? q.question.replace(/<[^>]*>/g, '').slice(0, 60) : '';
   return (
@@ -142,7 +145,10 @@ function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
               <SunEditor
                 key={`q-${q._tempId || q._id}`}
                 defaultValue={q.question || ''}
-                onChange={(c) => onChange(idx, 'question', c)}
+                onChange={(c) => {
+                  const { idx: currentIdx, onChange: currentOnChange } = stateRef.current;
+                  currentOnChange(currentIdx, 'question', c);
+                }}
                 setOptions={RICH_TEXT_OPTS}
               />
             </div>
@@ -202,9 +208,10 @@ function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
                           key={`opt-${q._tempId || q._id}-${oi}`}
                           defaultValue={opt.text || ''}
                           onChange={(c) => {
-                            const opts = [...q.options];
+                            const { q: currentQ, idx: currentIdx, onChange: currentOnChange } = stateRef.current;
+                            const opts = [...currentQ.options];
                             opts[oi] = { ...opts[oi], text: c };
-                            onChange(idx, 'options', opts);
+                            currentOnChange(currentIdx, 'options', opts);
                           }}
                           setOptions={{ ...RICH_TEXT_OPTS, height: 80 }}
                         />
@@ -320,7 +327,10 @@ function QuestionCard({ q, idx, onChange, onDelete, onMove, total, sections }) {
               <SunEditor
                 key={`exp-${q._tempId || q._id}`}
                 defaultValue={q.explanation || ''}
-                onChange={(c) => onChange(idx, 'explanation', c)}
+                onChange={(c) => {
+                  const { idx: currentIdx, onChange: currentOnChange } = stateRef.current;
+                  currentOnChange(currentIdx, 'explanation', c);
+                }}
                 setOptions={{ ...RICH_TEXT_OPTS, height: 100 }}
               />
             </div>
@@ -521,6 +531,15 @@ export default function AdminTestForm() {
     return clean.length === 0;
   };
 
+  const isQuestionEmpty = (html) => {
+    if (!html) return true;
+    if (html.includes('<img') || html.includes('<svg') || html.includes('<iframe') || html.includes('<audio') || html.includes('<video')) {
+      return false;
+    }
+    const clean = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim();
+    return clean.length === 0;
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     if (!form.title.trim()) { toast.error('Title is required'); return; }
@@ -543,8 +562,7 @@ export default function AdminTestForm() {
     for (let i = 0; i < form.questions.length; i++) {
       const q = form.questions[i];
       const qNum = i + 1;
-      const plainText = q.question ? q.question.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
-      if (!plainText) {
+      if (isQuestionEmpty(q.question)) {
         toast.error(`Question ${qNum} text is required`);
         return;
       }
@@ -596,7 +614,19 @@ export default function AdminTestForm() {
     try {
       const payload = {
         ...form,
-        questions: form.questions.map(({ _tempId, ...q }) => q),
+        questions: form.questions.map(({ _tempId, ...q }) => {
+          let finalOptions = q.options;
+          if (q.type === 'mcq' || q.type === 'msq') {
+            finalOptions = q.options.filter((opt, idx) => {
+              if (idx < 4) return true;
+              return !isOptionEmpty(opt.text);
+            });
+          }
+          return {
+            ...q,
+            options: finalOptions
+          };
+        }),
         liveStartDate: form.testType === 'live_test' && form.liveStartDate ? new Date(form.liveStartDate) : null,
         liveEndDate: form.testType === 'live_test' && form.liveEndDate ? new Date(form.liveEndDate) : null,
       };
@@ -609,7 +639,7 @@ export default function AdminTestForm() {
       }
       nav('/admin/tests');
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.response?.data?.message || err.message);
     } finally {
       setSaving(false);
     }
