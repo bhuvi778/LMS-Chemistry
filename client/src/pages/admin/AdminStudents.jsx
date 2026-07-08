@@ -987,14 +987,15 @@ function StudentModal({ id, onClose, onChanged }) {
                             value={e.planType || 'batch'}
                             onChange={async (event) => {
                               const newPlan = event.target.value;
-                              if (confirm(`Change plan for "${e.course?.title || 'this course'}" to ${newPlan.toUpperCase()}?`)) {
+                              const customName = e.course?.plans?.[newPlan]?.name || newPlan.toUpperCase();
+                              if (confirm(`Change plan for "${e.course?.title || 'this course'}" to ${customName}?`)) {
                                 setEnrollBusy(String(e.course?._id || e.course));
                                 try {
                                   await api.put(`/admin/enrollments/${e._id}/extend`, {
                                     planType: newPlan,
                                     validUntil: e.validUntil || null
                                   });
-                                  toast.success('Plan updated/upgraded successfully!');
+                                  toast.success(`Plan updated to "${customName}" successfully!`);
                                   load();
                                 } catch (err) {
                                   toast.error(err.response?.data?.message || 'Failed to update plan');

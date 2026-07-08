@@ -114,7 +114,8 @@ export default function AdminEnrollments() {
             : e
         )
       );
-      toast.success('Validity and Plan updated successfully!');
+      const planName = extendingEnroll.course?.plans?.[newPlanType]?.name || newPlanType.toUpperCase();
+      toast.success(`Validity and Plan updated to "${planName}" successfully!`);
       setExtendingEnroll(null);
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || 'Failed to update validity');
@@ -253,7 +254,9 @@ export default function AdminEnrollments() {
                       ) : (
                         <>
                           <span className="chip bg-violet2-100 text-violet2-850 text-[10px] font-bold">Course</span>
-                          <span className="chip bg-indigo-50 text-indigo-700 text-[10px] uppercase font-semibold">{e.planType || 'batch'}</span>
+                          <span className="chip bg-indigo-50 text-indigo-700 text-[10px] uppercase font-semibold">
+                            {e.course?.plans?.[e.planType || 'batch']?.name || e.planType || 'batch'}
+                          </span>
                         </>
                       )}
                       {e.course?.category && (
@@ -295,7 +298,7 @@ export default function AdminEnrollments() {
               <div>Student: <span className="font-semibold text-slate-850">{extendingEnroll.student?.name}</span></div>
               <div>{extendingEnroll.type === 'test_series' ? 'Test Series' : 'Course'}: <span className="font-semibold text-slate-850">{extendingEnroll.course?.title}</span></div>
               {extendingEnroll.type !== 'test_series' && (
-                <div>Current Plan: <span className="chip bg-brand-50 text-brand-700 font-bold uppercase py-0.5 px-1.5 text-[10px]">{extendingEnroll.planType || 'batch'}</span></div>
+                <div>Current Plan: <span className="chip bg-brand-50 text-brand-700 font-bold uppercase py-0.5 px-1.5 text-[10px]">{extendingEnroll.course?.plans?.[extendingEnroll.planType || 'batch']?.name || extendingEnroll.planType || 'batch'}</span></div>
               )}
               <div>Current Expiry: <span className="font-semibold text-slate-850">{extendingEnroll.validUntil ? new Date(extendingEnroll.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}</span></div>
             </div>
@@ -307,9 +310,9 @@ export default function AdminEnrollments() {
                   onChange={(e) => setNewPlanType(e.target.value)}
                   className="input text-sm w-full bg-white border border-slate-200"
                 >
-                  <option value="batch">Ace Starter</option>
-                  <option value="pro">Ace Pro</option>
-                  <option value="infinity">Ace Infinity</option>
+                  <option value="batch">{extendingEnroll.course?.plans?.batch?.name || 'Ace Starter'}</option>
+                  <option value="pro">{extendingEnroll.course?.plans?.pro?.name || 'Ace Pro'}</option>
+                  <option value="infinity">{extendingEnroll.course?.plans?.infinity?.name || 'Ace Infinity'}</option>
                 </select>
               </div>
             )}
@@ -372,7 +375,9 @@ function EnrollCard({ e, onExtend }) {
             <div className="flex gap-1 mt-1.5 flex-wrap">
               <span className="chip bg-violet-600 text-white text-[9px] uppercase font-black px-1.5 py-0.5">Course</span>
               {c.category && <span className="chip bg-white/95 text-brand-700 text-[10px]">{c.category}</span>}
-              <span className="chip bg-brand-600 text-white text-[10px] uppercase font-bold">{e.planType || 'batch'}</span>
+              <span className="chip bg-brand-600 text-white text-[10px] uppercase font-bold">
+                {e.course?.plans?.[e.planType || 'batch']?.name || e.planType || 'batch'}
+              </span>
             </div>
           </div>
           <div className="absolute top-2 right-2"><StatusChip status={e.paymentStatus} /></div>

@@ -165,6 +165,18 @@ export default function StudentLayout() {
     category: '',
   });
 
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    api.get('/categories')
+      .then((res) => {
+        setCategories(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch((err) => {
+        console.error('Failed to load categories', err);
+      });
+  }, []);
+
   const [profileSaving, setProfileSaving] = useState(false);
 
   useEffect(() => {
@@ -924,7 +936,6 @@ export default function StudentLayout() {
                       ))}
                     </select>
                   </div>
-
                   <div>
                     <label className="block text-[11px] font-bold text-slate-550 uppercase tracking-wide mb-1">Category</label>
                     <select
@@ -934,11 +945,11 @@ export default function StudentLayout() {
                       className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
                     >
                       <option value="">Select Category</option>
-                      <option value="General">General</option>
-                      <option value="OBC-NCL">OBC-NCL</option>
-                      <option value="SC">SC</option>
-                      <option value="ST">ST</option>
-                      <option value="Gen-EWS">Gen-EWS</option>
+                      {categories.map((cat) => (
+                        <option key={cat._id || cat.name} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

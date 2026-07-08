@@ -70,6 +70,18 @@ export default function Profile() {
     }
   }, [user]);
 
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    api.get('/categories')
+      .then((res) => {
+        setCategories(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch((err) => {
+        console.error('Failed to load categories', err);
+      });
+  }, []);
+
   const [pw, setPw] = useState({ currentPassword: '', password: '', confirm: '' });
 
   // Security/2FA state
@@ -424,11 +436,11 @@ export default function Profile() {
                     <label className="label">Category</label>
                     <select className="input" value={academic.category} onChange={(e) => setAcademic({ ...academic, category: e.target.value })} required>
                       <option value="">Select Category</option>
-                      <option value="General">General</option>
-                      <option value="OBC-NCL">OBC-NCL</option>
-                      <option value="SC">SC</option>
-                      <option value="ST">ST</option>
-                      <option value="Gen-EWS">Gen-EWS</option>
+                      {categories.map((cat) => (
+                        <option key={cat._id || cat.name} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
