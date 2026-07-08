@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
@@ -461,6 +461,22 @@ function StudentModal({ id, onClose, onChanged }) {
     setData(prev => ({ ...prev, [key]: val }));
   };
 
+  const originalValues = useRef({});
+
+  const autoSaveField = async (key, val) => {
+    try {
+      await api.put(`/admin/students/${id}`, {
+        [key]: val,
+      });
+      toast.success(`${key === 'name' ? 'Name' : 'Phone'} auto-saved!`);
+      load();
+      onChanged?.();
+    } catch (e) {
+      toast.error(e.response?.data?.message || `Failed to auto-save ${key}`);
+      load();
+    }
+  };
+
   const saveStreakCoins = async () => {
     setBusy(true);
     try {
@@ -701,6 +717,20 @@ function StudentModal({ id, onClose, onChanged }) {
                     type="text"
                     value={data.name || ''}
                     onChange={(e) => updateField('name', e.target.value)}
+                    onFocus={(e) => {
+                      originalValues.current.name = e.target.value;
+                    }}
+                    onBlur={(e) => {
+                      const trimmedVal = e.target.value.trim();
+                      if (trimmedVal !== (originalValues.current.name || '').trim()) {
+                        if (!trimmedVal) {
+                          toast.error('Name cannot be empty');
+                          load();
+                          return;
+                        }
+                        autoSaveField('name', trimmedVal);
+                      }
+                    }}
                     className="input w-full !pl-9 text-xs font-semibold"
                   />
                 </div>
@@ -716,6 +746,18 @@ function StudentModal({ id, onClose, onChanged }) {
                     onChange={(e) => {
                       const val = e.target.value.replace(/^\+?91\s?/, '').replace(/\D/g, '').slice(0, 10);
                       updateField('phone', val ? '+91' + val : '');
+                    }}
+                    onFocus={(e) => {
+                      originalValues.current.phone = e.target.value;
+                    }}
+                    onBlur={(e) => {
+                      const rawVal = e.target.value.replace(/^\+?91\s?/, '').replace(/\D/g, '').slice(0, 10);
+                      const formattedVal = rawVal ? '+91' + rawVal : '';
+                      const originalFormattedVal = originalValues.current.phone ? '+91' + originalValues.current.phone.replace(/^\+?91\s?/, '').replace(/\D/g, '').slice(0, 10) : '';
+                      
+                      if (formattedVal !== originalFormattedVal) {
+                        autoSaveField('phone', formattedVal);
+                      }
                     }}
                     placeholder="98765 43210"
                     className="input w-full !pl-10 text-xs font-semibold"

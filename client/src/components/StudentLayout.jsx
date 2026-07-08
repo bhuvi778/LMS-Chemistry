@@ -39,6 +39,7 @@ import {
   XCircle,
   Repeat,
   Layers,
+  SquareStack,
 } from 'lucide-react';
 
 const WhatsAppIcon = ({ size = 16, className = 'text-slate-400' }) => (
@@ -62,6 +63,14 @@ const navSections = [
     items: [
       { to: '/student/dashboard', label: 'Home', icon: Home },
       { to: '/student/ask-prepiify', label: 'Ask Prepiify', icon: MessageSquare },
+    ]
+  },
+  {
+    title: 'FLASH CARD',
+    icon: SquareStack,
+    isDirect: true,
+    items: [
+      { to: '/student/flashcards', label: 'Flash Card', icon: SquareStack }
     ]
   },
   {
@@ -123,13 +132,6 @@ const navSections = [
       { to: '/student/support', label: 'Chat Support', icon: MessageSquare },
       { to: '/student/contact', label: 'Contact Us', icon: Phone },
       { to: '/student/privacy-policy', label: 'Privacy Policy', icon: Shield },
-    ]
-  },
-  {
-    title: 'WHATSAPP_CHANNEL',
-    isDirect: true,
-    items: [
-      { to: 'https://www.whatsapp.com/channel/0029Vb6vGgl7oQhVzPOMuL05', label: 'WhatsApp Channel', icon: MessageSquare },
     ]
   }
 ];
@@ -673,6 +675,20 @@ export default function StudentLayout() {
           );
         })}
       </nav>
+
+      {/* WhatsApp Channel pinned at bottom of upper nav section */}
+      <div className="p-4 border-t border-slate-800/40 bg-slate-900/50">
+        <a
+          href="https://www.whatsapp.com/channel/0029Vb6vGgl7oQhVzPOMuL05"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => setMobileOpen(false)}
+          className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-emerald-455 bg-emerald-500/10 hover:bg-emerald-500/20 hover:text-emerald-355 border border-emerald-950/30 transition duration-200"
+        >
+          <WhatsAppIcon size={14} className="text-emerald-500 animate-pulse" />
+          <span>WhatsApp Channel</span>
+        </a>
+      </div>
 
       {/* User Footer Profile */}
       <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">

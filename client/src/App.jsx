@@ -100,6 +100,7 @@ import MyPlanner from './pages/student/MyPlanner.jsx';
 import Mentorship from './pages/student/Mentorship.jsx';
 import Downloads from './pages/student/Downloads.jsx';
 import WatchHistory from './pages/student/WatchHistory.jsx';
+import Flashcards from './pages/student/Flashcards.jsx';
 
 import AdminSyllabusTracker from './pages/admin/AdminSyllabusTracker.jsx';
 import AdminMentorship from './pages/admin/AdminMentorship.jsx';
@@ -223,6 +224,7 @@ export default function App() {
           <Route path="library" element={<Ebooks />} />
           <Route path="downloads" element={<Downloads />} />
           <Route path="live-classes" element={<StudentLiveClasses />} />
+          <Route path="flashcards" element={<Flashcards />} />
           <Route path="boosters" element={<Boosters />} />
           <Route path="streak" element={<Streak />} />
           <Route path="wallet" element={<CoinsWallet />} />
