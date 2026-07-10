@@ -146,7 +146,7 @@ export const allStudents = asyncHandler(async (_req, res) => {
   // Include plainPassword for admin viewing — never expose this to students
   const students = await User.find({ role: 'student' }).select('-password').lean();
   const [enrollments, testSeriesEnrollments] = await Promise.all([
-    Enrollment.find().populate('course', 'title category price plans').lean(),
+    Enrollment.find().populate('course', 'title category price plans isPowerCourse').lean(),
     TestSeriesEnrollment.find().populate('testSeries', 'title categories price').lean()
   ]);
 
@@ -175,7 +175,7 @@ export const allEnrollments = asyncHandler(async (_req, res) => {
   const [courseEnrolls, testSeriesEnrolls] = await Promise.all([
     Enrollment.find()
       .populate('student', 'name email studentId phone avatar createdAt')
-      .populate('course', 'title category price thumbnail')
+      .populate('course', 'title category price thumbnail isPowerCourse')
       .sort({ createdAt: -1 }),
     TestSeriesEnrollment.find()
       .populate('student', 'name email studentId phone avatar createdAt')
@@ -374,7 +374,7 @@ export const getStudent = asyncHandler(async (req, res) => {
     throw new Error('Student not found');
   }
   const enrollments = await Enrollment.find({ student: user._id })
-    .populate('course', 'title category price thumbnail courseType plans')
+    .populate('course', 'title category price thumbnail courseType plans isPowerCourse powerCourseDuration')
     .lean();
   const testSeriesEnrollments = await TestSeriesEnrollment.find({ student: user._id })
     .populate('testSeries', 'title price thumbnail')
@@ -475,7 +475,7 @@ export const adminEnrollStudent = asyncHandler(async (req, res) => {
     existing.validUntil = calculateValidityEndDate(course.validity);
     existing.createdAt = new Date();
     await existing.save();
-    await existing.populate('course', 'title category price thumbnail courseType');
+    await existing.populate('course', 'title category price thumbnail courseType isPowerCourse powerCourseDuration');
     return res.status(200).json(existing);
   }
 
@@ -492,7 +492,7 @@ export const adminEnrollStudent = asyncHandler(async (req, res) => {
   course.studentsEnrolled = (course.studentsEnrolled || 0) + 1;
   await course.save();
 
-  await enrollment.populate('course', 'title category price thumbnail courseType');
+  await enrollment.populate('course', 'title category price thumbnail courseType isPowerCourse powerCourseDuration');
   res.status(201).json(enrollment);
 });
 

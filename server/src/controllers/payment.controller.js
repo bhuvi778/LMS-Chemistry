@@ -227,7 +227,9 @@ export const createOrder = asyncHandler(async (req, res) => {
   if (req.body.isExtension) {
     originalAmount = item.extendValidityPrice || 0;
   } else if (isCourse) {
-    if (item.plans && item.plans[planType] && item.plans[planType].price > 0) {
+    if (item.isPowerCourse) {
+      originalAmount = item.price || 0;
+    } else if (item.plans && item.plans[planType] && item.plans[planType].price > 0) {
       const pConfig = item.plans[planType];
       if (!pConfig.enabled) {
         res.status(400);

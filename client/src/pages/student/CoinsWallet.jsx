@@ -3,6 +3,7 @@ import { Coins, ArrowUpRight, ArrowDownRight, Gift, Trophy, ShieldQuestion } fro
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/client.js';
+import BuyCoinsModal from '../../components/BuyCoinsModal.jsx';
 
 export default function CoinsWallet() {
   const { user, setUser } = useAuth();
@@ -10,18 +11,28 @@ export default function CoinsWallet() {
   const [redemptions, setRedemptions] = useState([]);
   const [plannerGoals, setPlannerGoals] = useState([]);
   const [testAttempts, setTestAttempts] = useState([]);
+  const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [showBuyModal, setShowBuyModal] = useState(false);
+  const [selectedRequestForProof, setSelectedRequestForProof] = useState(null);
 
-  useEffect(() => {
+  const fetchWalletData = () => {
+    setLoadingHistory(true);
     Promise.all([
       api.get('/auth/coin-redemptions').then(res => res.data).catch(() => []),
       api.get('/ace-track/planner').then(res => res.data).catch(() => []),
-      api.get('/tests/attempts/me').then(res => res.data).catch(() => [])
+      api.get('/tests/attempts/me').then(res => res.data).catch(() => []),
+      api.get('/coin-purchase/me').then(res => res.data).catch(() => []),
+      api.get('/auth/me').then(res => res.data).catch(() => null)
     ])
-      .then(([redData, plannerData, attemptsData]) => {
+      .then(([redData, plannerData, attemptsData, purchaseData, meData]) => {
         setRedemptions(redData || []);
         setPlannerGoals(plannerData || []);
         setTestAttempts(attemptsData || []);
+        setPurchaseRequests(purchaseData || []);
+        if (meData) {
+          setUser(meData);
+        }
       })
       .catch((err) => {
         console.error('Error fetching coin transaction data:', err);
@@ -29,6 +40,10 @@ export default function CoinsWallet() {
       .finally(() => {
         setLoadingHistory(false);
       });
+  };
+
+  useEffect(() => {
+    fetchWalletData();
   }, []);
 
   // Generate dynamic transaction history based on actual user events
@@ -106,8 +121,23 @@ export default function CoinsWallet() {
     });
   });
 
+  // 4b. Approved Coin Purchases
+  let purchasedCoins = 0;
+  purchaseRequests.forEach((req) => {
+    if (req.status === 'approved') {
+      purchasedCoins += req.coinsRequested;
+      history.push({
+        type: 'earn',
+        title: 'Purchased Ace Coins',
+        date: new Date(req.processedAt || req.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+        rawDate: new Date(req.processedAt || req.updatedAt),
+        amount: req.coinsRequested,
+      });
+    }
+  });
+
   // 5. Admin Adjustment Difference
-  const totalEarnedSoFar = attendanceCoins + plannerCoins + testCoins;
+  const totalEarnedSoFar = attendanceCoins + plannerCoins + testCoins + purchasedCoins;
   const totalSpentSoFar = redemptions.reduce((acc, curr) => acc + curr.coinsSpent, 0);
   const expectedBalance = totalEarnedSoFar - totalSpentSoFar;
 
@@ -184,7 +214,18 @@ export default function CoinsWallet() {
                 ≈ ₹{inrEquivalent} INR
               </span>
             </div>
-            <p className="text-xs opacity-75 pt-1">Conversion rate: 1 Coin = ₹1 💰</p>
+            <div className="flex flex-wrap justify-between items-center pt-2 gap-3">
+              <p className="text-xs opacity-75">Conversion rate: 1 Coin = ₹1 💰</p>
+              <button
+                onClick={() => {
+                  setSelectedRequestForProof(null);
+                  setShowBuyModal(true);
+                }}
+                className="bg-white hover:bg-slate-50 text-amber-700 font-extrabold text-xs px-4 py-2 rounded-xl transition shadow-sm hover:scale-[1.02] cursor-pointer"
+              >
+                Buy Ace Coins
+              </button>
+            </div>
           </div>
         </div>
 
@@ -238,6 +279,69 @@ export default function CoinsWallet() {
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Coin Purchase Requests Status Tracker */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
+            <h3 className="font-display font-extrabold text-slate-800 text-base border-b border-slate-50 pb-3 flex items-center justify-between">
+              <span>Coin Purchase Requests</span>
+              <span className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 uppercase tracking-wide">
+                {purchaseRequests.length} Total
+              </span>
+            </h3>
+            <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
+              {purchaseRequests.length === 0 ? (
+                <div className="text-center py-6 text-xs text-slate-400 font-medium">
+                  No coin purchase requests submitted yet.
+                </div>
+              ) : (
+                purchaseRequests.map((req) => (
+                  <div key={req._id} className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/30 flex flex-col gap-2">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <span className="text-xs font-black text-slate-800">+{req.coinsRequested} Ace Coins</span>
+                        <p className="text-[9px] text-slate-400 font-semibold mt-0.5">
+                          Requested on {new Date(req.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
+                        req.status === 'approved'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100/50'
+                          : req.status === 'rejected'
+                            ? 'bg-rose-50 text-rose-700 border-rose-100/50'
+                            : 'bg-yellow-50 text-yellow-700 border-yellow-100/50'
+                      }`}>
+                        {req.status.toUpperCase()}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[10px] text-slate-500 font-semibold mt-1">
+                      <span>Amount: ₹{req.amountPaid}</span>
+                      {req.referenceNumber ? (
+                        <span className="font-mono text-slate-400">Ref: {req.referenceNumber}</span>
+                      ) : (
+                        req.status === 'pending' && (
+                          <button
+                            onClick={() => {
+                              setSelectedRequestForProof(req);
+                              setShowBuyModal(true);
+                            }}
+                            className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+                          >
+                            + Upload Proof
+                          </button>
+                        )
+                      )}
+                    </div>
+                    {req.adminNote && (
+                      <div className="mt-1.5 p-2 rounded-xl bg-slate-100 border border-slate-200/50 text-[10px] text-slate-600 font-medium">
+                        <span className="font-bold text-slate-700">Admin Note:</span> {req.adminNote}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -343,6 +447,15 @@ export default function CoinsWallet() {
           </div>
         </div>
       </div>
+      <BuyCoinsModal
+        isOpen={showBuyModal}
+        onClose={() => {
+          setShowBuyModal(false);
+          setSelectedRequestForProof(null);
+        }}
+        initialRequest={selectedRequestForProof}
+        onRequestSubmitted={fetchWalletData}
+      />
     </div>
   );
 }

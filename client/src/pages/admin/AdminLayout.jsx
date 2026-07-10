@@ -222,6 +222,19 @@ export default function AdminLayout() {
           <LayoutDashboard size={17} /> Dashboard
         </NavLink>
 
+        <NavLink
+          to="/admin/power-courses"
+          onClick={() => setSidebarOpen(false)}
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all mb-1 ${isActive
+              ? 'bg-gradient-to-r from-brand-500 to-violet-600 text-white shadow-md'
+              : 'text-slate-400 hover:text-white hover:bg-white/8'
+            }`
+          }
+        >
+          <Flame size={17} /> Power Courses
+        </NavLink>
+
         {groups.map((group) => {
           const isOpen = !!openGroups[group.title];
           const hasActiveChild = group.items.some(

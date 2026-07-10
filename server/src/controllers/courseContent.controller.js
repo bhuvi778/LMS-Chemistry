@@ -266,3 +266,19 @@ export const toggleAnnouncementRead = asyncHandler(async (req, res) => {
   await enrolled.save();
   res.json({ message: 'Success', readAnnouncements: enrolled.readAnnouncements });
 });
+
+// ─── Admin: Daily Plan (Power Course calendar targets) ─────────────────────────
+export const adminGetDailyPlan = asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.courseId).select('dailyPlan title').lean();
+  if (!course) { res.status(404); throw new Error('Course not found'); }
+  res.json(course.dailyPlan || []);
+});
+
+export const adminUpdateDailyPlan = asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.courseId);
+  if (!course) { res.status(404); throw new Error('Course not found'); }
+
+  course.dailyPlan = req.body;
+  await course.save();
+  res.json(course.dailyPlan);
+});

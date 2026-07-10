@@ -1,7 +1,7 @@
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client.js';
-import { Atom, Menu, X, LogOut, LayoutDashboard, ShieldCheck, UserCircle, BookOpen, Trophy, Info, Home, User, Clock, ClipboardList, BookMarked, HelpCircle, ChevronDown, Rss, Mail, Crown } from 'lucide-react';
+import { Atom, Menu, X, LogOut, LayoutDashboard, ShieldCheck, UserCircle, BookOpen, Trophy, Info, Home, User, Clock, ClipboardList, BookMarked, HelpCircle, ChevronDown, Rss, Mail, Crown, Zap } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import NotificationBell from './NotificationBell.jsx';
 
@@ -10,6 +10,7 @@ const links = [
   { to: '/courses', label: 'Courses', icon: BookOpen },
   { to: '/ebooks', label: 'E-Books', icon: BookMarked },
   { to: '/tests', label: 'Test Series', icon: ClipboardList },
+  { to: '/power-courses', label: 'Power Courses', icon: Zap },
   { to: '/feed', label: 'Feed', icon: Rss },
 ];
 

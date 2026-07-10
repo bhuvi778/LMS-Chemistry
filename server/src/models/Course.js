@@ -91,6 +91,31 @@ const courseSchema = new mongoose.Schema(
       enum: ['recorded', 'live'],
       default: 'recorded',
     },
+    // Power Course configuration
+    isPowerCourse: { type: Boolean, default: false },
+    powerCourseType: {
+      type: String,
+      enum: ['micro', 'mini', 'crash', 'other'],
+      default: 'other',
+    },
+    powerCourseDuration: { type: Number, default: 7 }, // in days
+    dailyPlan: [
+      {
+        dayNumber: { type: Number, required: true },
+        title: { type: String, required: true },
+        description: { type: String, default: '' },
+        durationText: { type: String, default: '60 min' },
+        topicsCovered: [{ type: String }],
+        videoUrl: { type: String, default: '' },
+        videoTitle: { type: String, default: '' },
+        notesUrl: { type: String, default: '' },
+        notesTitle: { type: String, default: '' },
+        quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Test', default: null },
+        quizTitle: { type: String, default: '' },
+        assignmentUrl: { type: String, default: '' },
+        assignmentTitle: { type: String, default: '' },
+      }
+    ],
     totalLessons: { type: Number, default: 0 },
     instructor: { type: String, default: 'Ace2Examz Faculty' },
     educator: {
@@ -213,11 +238,19 @@ courseSchema.pre('save', function (next) {
   if (!this.plans || !this.plans.batch) {
     const basePrice = this.price || 0;
     const baseMrp = this.mrp || 0;
-    this.plans = {
-      batch: { enabled: true, price: basePrice, mrp: baseMrp },
-      pro: { enabled: true, price: Math.round(basePrice * 1.25), mrp: Math.round(baseMrp * 1.25) },
-      infinity: { enabled: true, price: Math.round(basePrice * 1.5), mrp: Math.round(baseMrp * 1.5), seatsLimit: 15, seatsReserved: 0 }
-    };
+    if (this.isPowerCourse) {
+      this.plans = {
+        batch: { enabled: true, price: basePrice, mrp: baseMrp },
+        pro: { enabled: false, price: 0, mrp: 0 },
+        infinity: { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0 }
+      };
+    } else {
+      this.plans = {
+        batch: { enabled: true, price: basePrice, mrp: baseMrp },
+        pro: { enabled: true, price: Math.round(basePrice * 1.25), mrp: Math.round(baseMrp * 1.25) },
+        infinity: { enabled: true, price: Math.round(basePrice * 1.5), mrp: Math.round(baseMrp * 1.5), seatsLimit: 15, seatsReserved: 0 }
+      };
+    }
   }
   if (this.lessons) this.totalLessons = this.lessons.length;
   next();

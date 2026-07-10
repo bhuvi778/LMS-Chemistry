@@ -53,6 +53,10 @@ const empty = {
   telegramJoinLink: '',
   batchInformation: '',
   isAdmissionClosed: false,
+  isPowerCourse: false,
+  powerCourseType: 'other',
+  powerCourseDuration: 7,
+  dailyPlan: [],
 };
 
 export default function AdminCourseForm() {
@@ -127,17 +131,36 @@ export default function AdminCourseForm() {
         if (d.extendValidityDurationValue === undefined) d.extendValidityDurationValue = 1;
         if (d.extendValidityDurationUnit === undefined) d.extendValidityDurationUnit = 'months';
         
+        // Power Course fields
+        if (d.isPowerCourse === undefined) d.isPowerCourse = false;
+        if (!d.powerCourseType) d.powerCourseType = 'other';
+        if (d.powerCourseDuration === undefined) d.powerCourseDuration = 7;
+        if (!d.dailyPlan) d.dailyPlan = [];
+
         // Ensure plans are initialized
         if (!d.plans) {
-          d.plans = {
-            batch: { enabled: true, price: d.price || 0, mrp: d.mrp || 0 },
-            pro: { enabled: true, price: Math.round((d.price || 0) * 1.25), mrp: Math.round((d.mrp || 0) * 1.25) },
-            infinity: { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0, courses: [], testSeries: [] }
-          };
+          if (d.isPowerCourse) {
+            d.plans = {
+              batch: { enabled: true, price: d.price || 0, mrp: d.mrp || 0 },
+              pro: { enabled: false, price: 0, mrp: 0 },
+              infinity: { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0, courses: [], testSeries: [] }
+            };
+          } else {
+            d.plans = {
+              batch: { enabled: true, price: d.price || 0, mrp: d.mrp || 0 },
+              pro: { enabled: true, price: Math.round((d.price || 0) * 1.25), mrp: Math.round((d.mrp || 0) * 1.25) },
+              infinity: { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0, courses: [], testSeries: [] }
+            };
+          }
         } else {
           if (!d.plans.batch) d.plans.batch = { enabled: true, price: d.price || 0, mrp: d.mrp || 0 };
-          if (!d.plans.pro) d.plans.pro = { enabled: true, price: Math.round((d.price || 0) * 1.25), mrp: Math.round((d.mrp || 0) * 1.25) };
-          if (!d.plans.infinity) d.plans.infinity = { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0, courses: [], testSeries: [] };
+          if (d.isPowerCourse) {
+            d.plans.pro = { enabled: false, price: 0, mrp: 0 };
+            d.plans.infinity = { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0, courses: [], testSeries: [] };
+          } else {
+            if (!d.plans.pro) d.plans.pro = { enabled: true, price: Math.round((d.price || 0) * 1.25), mrp: Math.round((d.mrp || 0) * 1.25) };
+            if (!d.plans.infinity) d.plans.infinity = { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0, courses: [], testSeries: [] };
+          }
           // Ensure arrays are initialized
           if (!d.plans.infinity.courses) d.plans.infinity.courses = [];
           if (!d.plans.infinity.testSeries) d.plans.infinity.testSeries = [];
@@ -152,8 +175,20 @@ export default function AdminCourseForm() {
 
         setForm(d);
       });
+    } else {
+      if (searchParams.get('type') === 'power') {
+        setForm(f => ({
+          ...f,
+          isPowerCourse: true,
+          plans: {
+            batch: { enabled: true, price: 0, mrp: 0 },
+            pro: { enabled: false, price: 0, mrp: 0 },
+            infinity: { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0 }
+          }
+        }));
+      }
     }
-  }, [id, duplicateFrom]);
+  }, [id, duplicateFrom, searchParams]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setNested = (k, k2, v) => setForm((f) => ({ ...f, [k]: { ...f[k], [k2]: v } }));
@@ -259,11 +294,14 @@ export default function AdminCourseForm() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <Link to="/admin/courses" className="text-sm text-brand-700 font-semibold">
-            <ArrowLeft size={14} className="inline" /> All Courses
+          <Link to={form.isPowerCourse ? "/admin/power-courses" : "/admin/courses"} className="text-sm text-brand-700 font-semibold">
+            <ArrowLeft size={14} className="inline" /> Back to {form.isPowerCourse ? 'Power Challenges' : 'Courses'}
           </Link>
           <h1 className="font-display text-3xl font-extrabold mt-2">
-            {edit ? 'Edit Course' : duplicateFrom ? 'Duplicate Course' : 'Add New Course'}
+            {form.isPowerCourse
+              ? (edit ? 'Edit Power Challenge' : duplicateFrom ? 'Duplicate Power Challenge' : 'Add New Power Challenge')
+              : (edit ? 'Edit Course' : duplicateFrom ? 'Duplicate Course' : 'Add New Course')
+            }
           </h1>
         </div>
       </div>
@@ -656,233 +694,114 @@ export default function AdminCourseForm() {
             </div>
 
             {!form.isFree ? (
-              <div className="space-y-4">
-                <p className="text-xs text-slate-500 font-medium">
-                  Configure pricing for Starter, Pro, and Infinity plans. You must enable between 2 and 3 plans.
-                </p>
-                
-                {/* Starter Plan */}
-                <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
-                  <div className="flex items-center gap-3 justify-between">
-                    <div className="flex-1 max-w-[200px]">
+              form.isPowerCourse ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Configure the flat purchase price for this Power Course.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label text-xs">Price (INR)</label>
                       <input
-                        type="text"
-                        placeholder="Plan Name"
-                        className="input text-xs py-1.5 px-2.5 font-bold text-slate-800 border-slate-200"
-                        value={form.plans?.batch?.name || 'Starter Plan'}
+                        type="number"
+                        className="input text-sm"
+                        value={form.price ?? 0}
                         onChange={(e) => {
-                          const val = e.target.value;
+                          const val = Number(e.target.value);
                           setForm((f) => ({
                             ...f,
+                            price: val,
                             plans: {
                               ...f.plans,
-                              batch: { ...f.plans?.batch, name: val }
+                              batch: { ...f.plans?.batch, price: val }
                             }
                           }));
                         }}
                       />
                     </div>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
+                    <div>
+                      <label className="label text-xs">MRP (INR)</label>
                       <input
-                        type="checkbox"
-                        checked={form.plans?.batch?.enabled ?? true}
+                        type="number"
+                        className="input text-sm"
+                        value={form.mrp ?? 0}
                         onChange={(e) => {
-                          const val = e.target.checked;
+                          const val = Number(e.target.value);
                           setForm((f) => ({
                             ...f,
+                            mrp: val,
                             plans: {
                               ...f.plans,
-                              batch: { ...f.plans?.batch, enabled: val }
+                              batch: { ...f.plans?.batch, mrp: val }
                             }
                           }));
                         }}
-                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                       />
-                      Active
-                    </label>
+                    </div>
                   </div>
-                  {(form.plans?.batch?.enabled ?? true) && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="label text-xs">Price (INR)</label>
-                        <input
-                          type="number"
-                          className="input text-sm"
-                          value={form.plans?.batch?.price ?? 0}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            setForm((f) => ({
-                              ...f,
-                              price: val, // Backwards compat
-                              plans: {
-                                ...f.plans,
-                                batch: { ...f.plans?.batch, price: val }
-                              }
-                            }));
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label className="label text-xs">MRP (INR)</label>
-                        <input
-                          type="number"
-                          className="input text-sm"
-                          value={form.plans?.batch?.mrp ?? 0}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            setForm((f) => ({
-                              ...f,
-                              mrp: val, // Backwards compat
-                              plans: {
-                                ...f.plans,
-                                batch: { ...f.plans?.batch, mrp: val }
-                              }
-                            }));
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
-
-                {/* Pro Plan */}
-                <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
-                  <div className="flex items-center gap-3 justify-between">
-                    <div className="flex-1 max-w-[200px]">
-                      <input
-                        type="text"
-                        placeholder="Plan Name"
-                        className="input text-xs py-1.5 px-2.5 font-bold text-slate-800 border-slate-200"
-                        value={form.plans?.pro?.name || 'Pro Plan'}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setForm((f) => ({
-                            ...f,
-                            plans: {
-                              ...f.plans,
-                              pro: { ...f.plans?.pro, name: val }
-                            }
-                          }));
-                        }}
-                      />
-                    </div>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={form.plans?.pro?.enabled ?? true}
-                        onChange={(e) => {
-                          const val = e.target.checked;
-                          setForm((f) => ({
-                            ...f,
-                            plans: {
-                              ...f.plans,
-                              pro: { ...f.plans?.pro, enabled: val }
-                            }
-                          }));
-                        }}
-                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                      />
-                      Active
-                    </label>
-                  </div>
-                  {(form.plans?.pro?.enabled ?? true) && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="label text-xs">Price (INR)</label>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Configure pricing for Starter, Pro, and Infinity plans. You must enable between 2 and 3 plans.
+                  </p>
+                  
+                  {/* Starter Plan */}
+                  <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
+                    <div className="flex items-center gap-3 justify-between">
+                      <div className="flex-1 max-w-[200px]">
                         <input
-                          type="number"
-                          className="input text-sm"
-                          value={form.plans?.pro?.price ?? 0}
+                          type="text"
+                          placeholder="Plan Name"
+                          className="input text-xs py-1.5 px-2.5 font-bold text-slate-800 border-slate-200"
+                          value={form.plans?.batch?.name || 'Starter Plan'}
                           onChange={(e) => {
-                            const val = Number(e.target.value);
+                            const val = e.target.value;
                             setForm((f) => ({
                               ...f,
                               plans: {
                                 ...f.plans,
-                                pro: { ...f.plans?.pro, price: val }
+                                batch: { ...f.plans?.batch, name: val }
                               }
                             }));
                           }}
                         />
                       </div>
-                      <div>
-                        <label className="label text-xs">MRP (INR)</label>
+                      <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
                         <input
-                          type="number"
-                          className="input text-sm"
-                          value={form.plans?.pro?.mrp ?? 0}
+                          type="checkbox"
+                          checked={form.plans?.batch?.enabled ?? true}
                           onChange={(e) => {
-                            const val = Number(e.target.value);
+                            const val = e.target.checked;
                             setForm((f) => ({
                               ...f,
                               plans: {
                                 ...f.plans,
-                                pro: { ...f.plans?.pro, mrp: val }
+                                batch: { ...f.plans?.batch, enabled: val }
                               }
                             }));
                           }}
+                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                         />
-                      </div>
+                        Active
+                      </label>
                     </div>
-                  )}
-                </div>
-
-                {/* Infinity Plan */}
-                <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
-                  <div className="flex items-center gap-3 justify-between">
-                    <div className="flex-1 max-w-[200px]">
-                      <input
-                        type="text"
-                        placeholder="Plan Name"
-                        className="input text-xs py-1.5 px-2.5 font-bold text-slate-800 border-slate-200"
-                        value={form.plans?.infinity?.name || 'Infinity Plan'}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setForm((f) => ({
-                            ...f,
-                            plans: {
-                              ...f.plans,
-                              infinity: { ...f.plans?.infinity, name: val }
-                            }
-                          }));
-                        }}
-                      />
-                    </div>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={form.plans?.infinity?.enabled ?? true}
-                        onChange={(e) => {
-                          const val = e.target.checked;
-                          setForm((f) => ({
-                            ...f,
-                            plans: {
-                              ...f.plans,
-                              infinity: { ...f.plans?.infinity, enabled: val }
-                            }
-                          }));
-                        }}
-                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                      />
-                      Active
-                    </label>
-                  </div>
-                  {(form.plans?.infinity?.enabled ?? true) && (
-                    <div className="space-y-3">
+                    {(form.plans?.batch?.enabled ?? true) && (
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="label text-xs">Price (INR)</label>
                           <input
                             type="number"
                             className="input text-sm"
-                            value={form.plans?.infinity?.price ?? 0}
+                            value={form.plans?.batch?.price ?? 0}
                             onChange={(e) => {
                               const val = Number(e.target.value);
                               setForm((f) => ({
                                 ...f,
+                                price: val, // Backwards compat
                                 plans: {
                                   ...f.plans,
-                                  infinity: { ...f.plans?.infinity, price: val }
+                                  batch: { ...f.plans?.batch, price: val }
                                 }
                               }));
                             }}
@@ -893,116 +812,284 @@ export default function AdminCourseForm() {
                           <input
                             type="number"
                             className="input text-sm"
-                            value={form.plans?.infinity?.mrp ?? 0}
+                            value={form.plans?.batch?.mrp ?? 0}
                             onChange={(e) => {
                               const val = Number(e.target.value);
                               setForm((f) => ({
                                 ...f,
+                                mrp: val, // Backwards compat
                                 plans: {
                                   ...f.plans,
-                                  infinity: { ...f.plans?.infinity, mrp: val }
+                                  batch: { ...f.plans?.batch, mrp: val }
                                 }
                               }));
                             }}
                           />
                         </div>
                       </div>
-                      <div>
-                        <label className="label text-xs">Seats Limit</label>
+                    )}
+                  </div>
+
+                  {/* Pro Plan */}
+                  <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
+                    <div className="flex items-center gap-3 justify-between">
+                      <div className="flex-1 max-w-[200px]">
                         <input
-                          type="number"
-                          className="input text-sm"
-                          value={form.plans?.infinity?.seatsLimit ?? 10}
+                          type="text"
+                          placeholder="Plan Name"
+                          className="input text-xs py-1.5 px-2.5 font-bold text-slate-800 border-slate-200"
+                          value={form.plans?.pro?.name || 'Pro Plan'}
                           onChange={(e) => {
-                            const val = Number(e.target.value);
+                            const val = e.target.value;
                             setForm((f) => ({
                               ...f,
                               plans: {
                                 ...f.plans,
-                                infinity: { ...f.plans?.infinity, seatsLimit: val }
+                                pro: { ...f.plans?.pro, name: val }
                               }
                             }));
                           }}
                         />
                       </div>
-
-                      {/* Bundled Courses for Infinity */}
-                      <div className="space-y-1">
-                        <label className="label text-xs font-semibold text-slate-700">Bundle Courses (Free Access)</label>
-                        <div className="border border-slate-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1 bg-white">
-                          {allCourses.filter(c => c._id !== id).map((c) => {
-                            const isChecked = (form.plans?.infinity?.courses || []).includes(c._id);
-                            return (
-                              <label key={c._id} className="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer hover:text-slate-800 transition">
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    const currentList = form.plans?.infinity?.courses || [];
-                                    const updatedList = e.target.checked
-                                      ? [...currentList, c._id]
-                                      : currentList.filter(courseId => courseId !== c._id);
-                                    
-                                    setForm(f => ({
-                                      ...f,
-                                      plans: {
-                                        ...f.plans,
-                                        infinity: { ...f.plans?.infinity, courses: updatedList }
-                                      }
-                                    }));
-                                  }}
-                                  className="rounded text-brand-600 focus:ring-brand-500"
-                                />
-                                <span>{c.title}</span>
-                              </label>
-                            );
-                          })}
-                          {allCourses.filter(c => c._id !== id).length === 0 && (
-                            <span className="text-[10px] text-slate-400 block text-center py-2">No other courses available.</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Bundled Test Series for Infinity */}
-                      <div className="space-y-1">
-                        <label className="label text-xs font-semibold text-slate-700">Bundle Test Series (Free Access)</label>
-                        <div className="border border-slate-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1 bg-white">
-                          {allTestSeries.map((ts) => {
-                            const isChecked = (form.plans?.infinity?.testSeries || []).includes(ts._id);
-                            return (
-                              <label key={ts._id} className="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer hover:text-slate-800 transition">
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    const currentList = form.plans?.infinity?.testSeries || [];
-                                    const updatedList = e.target.checked
-                                      ? [...currentList, ts._id]
-                                      : currentList.filter(tsId => tsId !== ts._id);
-                                    
-                                    setForm(f => ({
-                                      ...f,
-                                      plans: {
-                                        ...f.plans,
-                                        infinity: { ...f.plans?.infinity, testSeries: updatedList }
-                                      }
-                                    }));
-                                  }}
-                                  className="rounded text-brand-600 focus:ring-brand-500"
-                                />
-                                <span>{ts.title}</span>
-                              </label>
-                            );
-                          })}
-                          {allTestSeries.length === 0 && (
-                            <span className="text-[10px] text-slate-400 block text-center py-2">No test series available.</span>
-                          )}
-                        </div>
-                      </div>
+                      <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={form.plans?.pro?.enabled ?? true}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            setForm((f) => ({
+                              ...f,
+                              plans: {
+                                ...f.plans,
+                                pro: { ...f.plans?.pro, enabled: val }
+                              }
+                            }));
+                          }}
+                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        />
+                        Active
+                      </label>
                     </div>
-                  )}
+                    {(form.plans?.pro?.enabled ?? true) && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="label text-xs">Price (INR)</label>
+                          <input
+                            type="number"
+                            className="input text-sm"
+                            value={form.plans?.pro?.price ?? 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setForm((f) => ({
+                                ...f,
+                                plans: {
+                                  ...f.plans,
+                                  pro: { ...f.plans?.pro, price: val }
+                                }
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="label text-xs">MRP (INR)</label>
+                          <input
+                            type="number"
+                            className="input text-sm"
+                            value={form.plans?.pro?.mrp ?? 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setForm((f) => ({
+                                ...f,
+                                plans: {
+                                  ...f.plans,
+                                  pro: { ...f.plans?.pro, mrp: val }
+                                }
+                              }));
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Infinity Plan */}
+                  <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
+                    <div className="flex items-center gap-3 justify-between">
+                      <div className="flex-1 max-w-[200px]">
+                        <input
+                          type="text"
+                          placeholder="Plan Name"
+                          className="input text-xs py-1.5 px-2.5 font-bold text-slate-800 border-slate-200"
+                          value={form.plans?.infinity?.name || 'Infinity Plan'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setForm((f) => ({
+                              ...f,
+                              plans: {
+                                ...f.plans,
+                                infinity: { ...f.plans?.infinity, name: val }
+                              }
+                            }));
+                          }}
+                        />
+                      </div>
+                      <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={form.plans?.infinity?.enabled ?? true}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            setForm((f) => ({
+                              ...f,
+                              plans: {
+                                ...f.plans,
+                                infinity: { ...f.plans?.infinity, enabled: val }
+                              }
+                            }));
+                          }}
+                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        />
+                        Active
+                      </label>
+                    </div>
+                    {(form.plans?.infinity?.enabled ?? true) && (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="label text-xs">Price (INR)</label>
+                            <input
+                              type="number"
+                              className="input text-sm"
+                              value={form.plans?.infinity?.price ?? 0}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setForm((f) => ({
+                                  ...f,
+                                  plans: {
+                                    ...f.plans,
+                                    infinity: { ...f.plans?.infinity, price: val }
+                                  }
+                                }));
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label className="label text-xs">MRP (INR)</label>
+                            <input
+                              type="number"
+                              className="input text-sm"
+                              value={form.plans?.infinity?.mrp ?? 0}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setForm((f) => ({
+                                  ...f,
+                                  plans: {
+                                    ...f.plans,
+                                    infinity: { ...f.plans?.infinity, mrp: val }
+                                  }
+                                }));
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="label text-xs">Seats Limit</label>
+                          <input
+                            type="number"
+                            className="input text-sm"
+                            value={form.plans?.infinity?.seatsLimit ?? 10}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setForm((f) => ({
+                                ...f,
+                                plans: {
+                                  ...f.plans,
+                                  infinity: { ...f.plans?.infinity, seatsLimit: val }
+                                }
+                              }));
+                            }}
+                          />
+                        </div>
+
+                        {/* Bundled Courses for Infinity */}
+                        <div className="space-y-1">
+                          <label className="label text-xs font-semibold text-slate-700">Bundle Courses (Free Access)</label>
+                          <div className="border border-slate-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1 bg-white">
+                            {allCourses.filter(c => c._id !== id).map((c) => {
+                              const isChecked = (form.plans?.infinity?.courses || []).includes(c._id);
+                              return (
+                                <label key={c._id} className="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer hover:text-slate-800 transition">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const currentList = form.plans?.infinity?.courses || [];
+                                      const updatedList = e.target.checked
+                                        ? [...currentList, c._id]
+                                        : currentList.filter(courseId => courseId !== c._id);
+                                      
+                                      setForm(f => ({
+                                        ...f,
+                                        plans: {
+                                          ...f.plans,
+                                          infinity: { ...f.plans?.infinity, courses: updatedList }
+                                        }
+                                      }));
+                                    }}
+                                    className="rounded text-brand-600 focus:ring-brand-500"
+                                  />
+                                  <span>{c.title}</span>
+                                </label>
+                              );
+                            })}
+                            {allCourses.filter(c => c._id !== id).length === 0 && (
+                              <span className="text-[10px] text-slate-400 block text-center py-2">No other courses available.</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Bundled Test Series for Infinity */}
+                        <div className="space-y-1">
+                          <label className="label text-xs font-semibold text-slate-700">Bundle Test Series (Free Access)</label>
+                          <div className="border border-slate-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1 bg-white">
+                            {allTestSeries.map((ts) => {
+                              const isChecked = (form.plans?.infinity?.testSeries || []).includes(ts._id);
+                              return (
+                                <label key={ts._id} className="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer hover:text-slate-800 transition">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const currentList = form.plans?.infinity?.testSeries || [];
+                                      const updatedList = e.target.checked
+                                        ? [...currentList, ts._id]
+                                        : currentList.filter(tsId => tsId !== ts._id);
+                                      
+                                      setForm(f => ({
+                                        ...f,
+                                        plans: {
+                                          ...f.plans,
+                                          infinity: { ...f.plans?.infinity, testSeries: updatedList }
+                                        }
+                                      }));
+                                    }}
+                                    className="rounded text-brand-600 focus:ring-brand-500"
+                                  />
+                                  <span>{ts.title}</span>
+                                </label>
+                              );
+                            })}
+                            {allTestSeries.length === 0 && (
+                              <span className="text-[10px] text-slate-400 block text-center py-2">No test series available.</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )
             ) : (
               <div className="text-sm text-emerald-600 font-semibold bg-emerald-50 p-3 rounded-lg border border-emerald-100">
                 Free Course selected. All plan prices set to 0.
@@ -1236,6 +1323,40 @@ export default function AdminCourseForm() {
                 ))}
               </div>
             </div>
+            {/* Power Course Configuration */}
+            {form.isPowerCourse ? (
+              <div className="border-t border-slate-100 pt-3 space-y-3">
+                <div className="bg-brand-50 border border-brand-100 p-3 rounded-xl">
+                  <span className="text-xs font-black text-brand-700 uppercase tracking-wider block">Power Course Mode Active</span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">This challenge runs on daily targets calendar progression and flat pricing.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 pl-2 border-l-2 border-brand-200">
+                  <div>
+                    <label className="label text-xs">Power Course Type</label>
+                    <select
+                      className="input text-sm bg-white"
+                      value={form.powerCourseType || 'other'}
+                      onChange={(e) => set('powerCourseType', e.target.value)}
+                    >
+                      <option value="micro">Micro Course (1-7 Days)</option>
+                      <option value="mini">Mini Course (7-30 Days)</option>
+                      <option value="crash">Crash Course (15-45 Days)</option>
+                      <option value="other">Other Challenge</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label text-xs">Duration (Days)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="input text-sm"
+                      value={form.powerCourseDuration || 7}
+                      onChange={(e) => set('powerCourseDuration', Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div>
               <label className="label">Instructor</label>
               <input className="input" value={form.instructor || ''} onChange={(e) => set('instructor', e.target.value)} />

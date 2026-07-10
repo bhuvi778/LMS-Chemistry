@@ -31,6 +31,7 @@ import NotFound from './pages/NotFound.jsx';
 import AdminLayout from './pages/admin/AdminLayout.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import AdminCourses from './pages/admin/AdminCourses.jsx';
+import AdminPowerCourses from './pages/admin/AdminPowerCourses.jsx';
 import AdminCourseForm from './pages/admin/AdminCourseForm.jsx';
 import AdminCategories from './pages/admin/AdminCategories.jsx';
 import AdminStudents from './pages/admin/AdminStudents.jsx';
@@ -101,6 +102,12 @@ import Mentorship from './pages/student/Mentorship.jsx';
 import Downloads from './pages/student/Downloads.jsx';
 import WatchHistory from './pages/student/WatchHistory.jsx';
 import Flashcards from './pages/student/Flashcards.jsx';
+import NcertToolbox from './pages/student/NcertToolbox.jsx';
+import PowerCoursesDashboard from './pages/student/PowerCoursesDashboard.jsx';
+import PowerCourseDetail from './pages/student/PowerCourseDetail.jsx';
+import PowerCourseLearn from './pages/student/PowerCourseLearn.jsx';
+import PowerCoursesCatalog from './pages/PowerCoursesCatalog.jsx';
+
 
 import AdminSyllabusTracker from './pages/admin/AdminSyllabusTracker.jsx';
 import AdminMentorship from './pages/admin/AdminMentorship.jsx';
@@ -168,6 +175,7 @@ export default function App() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="courses" element={<AdminCourses />} />
+          <Route path="power-courses" element={<AdminPowerCourses />} />
           <Route path="courses/new" element={<AdminCourseForm />} />
           <Route path="courses/:id/edit" element={<AdminCourseForm />} />
           <Route path="courses/:id/content" element={<AdminCourseContent />} />
@@ -219,12 +227,16 @@ export default function App() {
           <Route path="ask-prepiify" element={<AskPrepiify />} />
           <Route path="toppers-pass" element={<ToppersPass />} />
           <Route path="courses" element={<StudentCourses />} />
+          <Route path="power-courses" element={<PowerCoursesDashboard />} />
+          <Route path="power-courses/:courseId" element={<PowerCourseDetail />} />
+          <Route path="power-courses/:courseId/learn" element={<PowerCourseLearn />} />
           <Route path="test-series" element={<MyTestSeries />} />
           <Route path="practice" element={<TestPortal />} />
           <Route path="library" element={<Ebooks />} />
           <Route path="downloads" element={<Downloads />} />
           <Route path="live-classes" element={<StudentLiveClasses />} />
           <Route path="flashcards" element={<Flashcards />} />
+          <Route path="ncert-toolbox" element={<NcertToolbox />} />
           <Route path="boosters" element={<Boosters />} />
           <Route path="streak" element={<Streak />} />
           <Route path="wallet" element={<CoinsWallet />} />
@@ -277,6 +289,8 @@ export default function App() {
                   <Route path="/" element={<Home />} />
                   <Route path="/courses" element={<Courses />} />
                   <Route path="/courses/:id" element={<CourseDetail />} />
+                  <Route path="/power-courses" element={<PowerCoursesCatalog />} />
+                  <Route path="/power-courses/:courseId" element={<PowerCourseDetail />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />

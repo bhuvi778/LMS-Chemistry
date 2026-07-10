@@ -4,7 +4,7 @@ import Category from '../models/Category.js';
 import Enrollment from '../models/Enrollment.js';
 
 export const listCourses = asyncHandler(async (req, res) => {
-  const { category, q, featured, includeUnpublished } = req.query;
+  const { category, q, featured, includeUnpublished, isPowerCourse } = req.query;
   const filter = {};
   // Only admins can see unpublished courses
   const isAdmin = req.user?.role === 'admin';
@@ -16,12 +16,21 @@ export const listCourses = asyncHandler(async (req, res) => {
   }
   if (featured === 'true') filter.isFeatured = true;
   if (q) filter.title = { $regex: q, $options: 'i' };
+  
+  if (isPowerCourse === 'true') {
+    filter.isPowerCourse = true;
+  } else if (isPowerCourse === 'false') {
+    filter.isPowerCourse = { $ne: true };
+  } else {
+    filter.isPowerCourse = { $ne: true };
+  }
+
   const courses = await Course.find(filter).sort({ createdAt: -1 });
   res.json(courses);
 });
 
 export const listPublicCourses = asyncHandler(async (req, res) => {
-  const { category, q, featured } = req.query;
+  const { category, q, featured, isPowerCourse } = req.query;
   const filter = { isPublished: true };
 
   if (category && category !== 'ALL') {
@@ -30,8 +39,16 @@ export const listPublicCourses = asyncHandler(async (req, res) => {
   if (featured === 'true') filter.isFeatured = true;
   if (q) filter.title = { $regex: q, $options: 'i' };
 
+  if (isPowerCourse === 'true') {
+    filter.isPowerCourse = true;
+  } else if (isPowerCourse === 'false') {
+    filter.isPowerCourse = { $ne: true };
+  } else {
+    filter.isPowerCourse = { $ne: true };
+  }
+
   const courses = await Course.find(filter)
-    .select('title slug category categories subject language thumbnail shortDescription description price mrp plans validity courseType totalLessons instructor rating studentsEnrolled highlights batchInformation createdAt')
+    .select('title slug category categories subject language thumbnail shortDescription description price mrp plans validity courseType totalLessons instructor rating studentsEnrolled highlights batchInformation createdAt isPowerCourse powerCourseType powerCourseDuration')
     .sort({ createdAt: -1 });
 
   res.json(courses);

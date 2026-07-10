@@ -2068,30 +2068,336 @@ function AssignTestsTab({ courseId }) {
   );
 }
 
+// ─── Daily Plan Tab ────────────────────────────────────────────────────────────
+function DailyPlanTab({ course }) {
+  const courseId = course._id;
+  const duration = course.powerCourseDuration || 7;
+  const [dailyPlan, setDailyPlan] = useState([]);
+  const [tests, setTests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [expandedDay, setExpandedDay] = useState(1);
+
+  useEffect(() => {
+    // Fetch daily plan
+    api.get(`/course-content/admin/daily-plan/${courseId}`)
+      .then((res) => {
+        const plan = res.data || [];
+        // Pre-fill days up to course duration
+        const fullPlan = [];
+        for (let i = 1; i <= duration; i++) {
+          const existing = plan.find((p) => p.dayNumber === i);
+          fullPlan.push(
+            existing || {
+              dayNumber: i,
+              title: `Day ${i} Target`,
+              description: '',
+              durationText: '60 min',
+              topicsCovered: [],
+              videoUrl: '',
+              videoTitle: 'Watch Lecture Video',
+              notesUrl: '',
+              notesTitle: 'Read Class Notes',
+              quizId: '',
+              quizTitle: 'Attempt Quiz',
+              assignmentUrl: '',
+              assignmentTitle: 'Daily Assignment'
+            }
+          );
+        }
+        setDailyPlan(fullPlan);
+      })
+      .catch((err) => toast.error('Failed to load daily plan'))
+      .finally(() => setLoading(false));
+
+    // Fetch tests
+    api.get('/tests/admin/tests')
+      .then((res) => setTests(res.data || []))
+      .catch(() => {});
+  }, [courseId, duration]);
+
+  const updateDay = (dayNum, fields) => {
+    setDailyPlan((prev) =>
+      prev.map((day) => (day.dayNumber === dayNum ? { ...day, ...fields } : day))
+    );
+  };
+
+  const handleFileUpload = async (file, dayNum, field) => {
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      toast.loading('Uploading...', { id: 'dp-upload' });
+      const { data } = await api.post('/upload/pdf', form, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      updateDay(dayNum, { [field]: data.url });
+      toast.success('Uploaded successfully!', { id: 'dp-upload' });
+    } catch (err) {
+      toast.error('Upload failed', { id: 'dp-upload' });
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.put(`/course-content/admin/daily-plan/${courseId}`, dailyPlan);
+      toast.success('Daily plan saved successfully!');
+    } catch (err) {
+      toast.error('Failed to save daily plan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="p-8 text-center text-slate-500">Loading daily plan...</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">Calendar Daily Targets</h2>
+          <p className="text-xs text-slate-500">Configure content, videos, tests, and assignments for each day of the {duration}-day power course.</p>
+        </div>
+        <button onClick={handleSave} disabled={saving} className="btn-primary">
+          {saving ? 'Saving...' : 'Save Daily Plan'}
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {dailyPlan.map((day) => {
+          const isExpanded = expandedDay === day.dayNumber;
+          return (
+            <div key={day.dayNumber} className="card border border-slate-150 overflow-hidden bg-white shadow-sm">
+              {/* Header Toggle */}
+              <button
+                type="button"
+                onClick={() => setExpandedDay(isExpanded ? null : day.dayNumber)}
+                className={`w-full flex items-center justify-between p-4 text-left transition ${
+                  isExpanded ? 'bg-slate-50 border-b border-slate-150' : 'hover:bg-slate-50/50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-brand-50 text-brand-700 flex items-center justify-center font-bold text-sm">
+                    {day.dayNumber}
+                  </span>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm">{day.title || `Day ${day.dayNumber} Target`}</h3>
+                    <p className="text-[11px] text-slate-400">
+                      {day.durationText || '60 min'} • {day.topicsCovered?.length || 0} topics configured
+                    </p>
+                  </div>
+                </div>
+                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+
+              {/* Day Editor Form */}
+              {isExpanded && (
+                <div className="p-5 space-y-4 bg-white">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="label text-xs">Day Title</label>
+                      <input
+                        className="input text-sm"
+                        value={day.title}
+                        onChange={(e) => updateDay(day.dayNumber, { title: e.target.value })}
+                        placeholder="e.g. Introduction to Aldehydes"
+                      />
+                    </div>
+                    <div>
+                      <label className="label text-xs">Duration Text</label>
+                      <input
+                        className="input text-sm"
+                        value={day.durationText}
+                        onChange={(e) => updateDay(day.dayNumber, { durationText: e.target.value })}
+                        placeholder="e.g. 60 min"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="label text-xs">Topics Covered (One per line)</label>
+                    <textarea
+                      rows={3}
+                      className="input text-sm"
+                      value={day.topicsCovered?.join('\n') || ''}
+                      onChange={(e) =>
+                        updateDay(day.dayNumber, {
+                          topicsCovered: e.target.value.split('\n').map((t) => t.trim()).filter(Boolean)
+                        })
+                      }
+                      placeholder="e.g.&#10;Galvanic vs Electrolytic Cell&#10;Components of Galvanic Cell"
+                    />
+                  </div>
+
+                  {/* 4 tasks grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+                    {/* Task 1: Video */}
+                    <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 space-y-3">
+                      <h4 className="font-bold text-xs text-brand-700 uppercase tracking-wider">🎬 Video Lecture</h4>
+                      <div>
+                        <label className="label text-[10px]">Video Task Title</label>
+                        <input
+                          className="input text-xs"
+                          value={day.videoTitle}
+                          onChange={(e) => updateDay(day.dayNumber, { videoTitle: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="label text-[10px]">YouTube / Bunny.net Video URL</label>
+                        <input
+                          className="input text-xs"
+                          value={day.videoUrl}
+                          onChange={(e) => updateDay(day.dayNumber, { videoUrl: e.target.value })}
+                          placeholder="Paste link..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Task 2: Notes */}
+                    <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 space-y-3">
+                      <h4 className="font-bold text-xs text-brand-700 uppercase tracking-wider">📘 Study Notes (PDF)</h4>
+                      <div>
+                        <label className="label text-[10px]">Notes Task Title</label>
+                        <input
+                          className="input text-xs"
+                          value={day.notesTitle}
+                          onChange={(e) => updateDay(day.dayNumber, { notesTitle: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="label text-[10px]">Notes PDF URL</label>
+                        <div className="flex gap-2">
+                          <input
+                            className="input text-xs flex-1"
+                            value={day.notesUrl}
+                            onChange={(e) => updateDay(day.dayNumber, { notesUrl: e.target.value })}
+                            placeholder="Paste or upload..."
+                          />
+                          <label className="btn-outline text-[11px] cursor-pointer shrink-0 py-1.5 px-3 flex items-center justify-center bg-white hover:bg-slate-50">
+                            Upload
+                            <input
+                              type="file"
+                              accept=".pdf,image/*"
+                              className="sr-only"
+                              onChange={(e) =>
+                                handleFileUpload(e.target.files?.[0], day.dayNumber, 'notesUrl')
+                              }
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Task 3: Quiz */}
+                    <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 space-y-3">
+                      <h4 className="font-bold text-xs text-brand-700 uppercase tracking-wider">🧪 Daily Quiz / MCQ</h4>
+                      <div>
+                        <label className="label text-[10px]">Quiz Task Title</label>
+                        <input
+                          className="input text-xs"
+                          value={day.quizTitle}
+                          onChange={(e) => updateDay(day.dayNumber, { quizTitle: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="label text-[10px]">Link Quiz from Test Bank</label>
+                        <select
+                          className="input text-xs bg-white"
+                          value={day.quizId || ''}
+                          onChange={(e) => updateDay(day.dayNumber, { quizId: e.target.value })}
+                        >
+                          <option value="">-- No Quiz assigned --</option>
+                          {tests.map((t) => (
+                            <option key={t._id} value={t._id}>
+                              {t.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Task 4: Assignment */}
+                    <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 space-y-3">
+                      <h4 className="font-bold text-xs text-brand-700 uppercase tracking-wider">📝 Daily Assignment</h4>
+                      <div>
+                        <label className="label text-[10px]">Assignment Task Title</label>
+                        <input
+                          className="input text-xs"
+                          value={day.assignmentTitle}
+                          onChange={(e) => updateDay(day.dayNumber, { assignmentTitle: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="label text-[10px]">Assignment PDF or Instruction URL</label>
+                        <div className="flex gap-2">
+                          <input
+                            className="input text-xs flex-1"
+                            value={day.assignmentUrl}
+                            onChange={(e) => updateDay(day.dayNumber, { assignmentUrl: e.target.value })}
+                            placeholder="Paste or upload..."
+                          />
+                          <label className="btn-outline text-[11px] cursor-pointer shrink-0 py-1.5 px-3 flex items-center justify-center bg-white hover:bg-slate-50">
+                            Upload
+                            <input
+                              type="file"
+                              accept=".pdf,image/*"
+                              className="sr-only"
+                              onChange={(e) =>
+                                handleFileUpload(e.target.files?.[0], day.dayNumber, 'assignmentUrl')
+                              }
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminCourseContent() {
   const { id: courseId } = useParams();
+  const [course, setCourse] = useState(null);
   const [courseName, setCourseName] = useState('');
   const [tab, setTab] = useState('subjects');
 
   useEffect(() => {
-    api.get(`/courses/${courseId}`).then((r) => setCourseName(r.data.title)).catch(() => {});
+    api.get(`/courses/${courseId}`).then((r) => {
+      setCourse(r.data);
+      setCourseName(r.data.title);
+      if (r.data.isPowerCourse) {
+        setTab('daily-plan');
+      }
+    }).catch(() => {});
   }, [courseId]);
 
-  const tabs = [
-    { k: 'subjects', l: 'Subjects & Chapters', icon: Layers },
-    { k: 'lessons', l: 'Video Classes', icon: PlayCircle },
-    { k: 'pdfs', l: 'PDF / Notes', icon: FileText },
-    { k: 'assign-tests', l: 'Test Bank', icon: ListChecks },
-    { k: 'live', l: 'Live Classes', icon: Video },
-    { k: 'announcements', l: 'Announcements', icon: Bell },
-  ];
+  const tabs = course?.isPowerCourse
+    ? [
+        { k: 'daily-plan', l: 'Daily Plan', icon: Calendar },
+        { k: 'announcements', l: 'Announcements', icon: Bell },
+      ]
+    : [
+        { k: 'subjects', l: 'Subjects & Chapters', icon: Layers },
+        { k: 'lessons', l: 'Video Classes', icon: PlayCircle },
+        { k: 'pdfs', l: 'PDF / Notes', icon: FileText },
+        { k: 'assign-tests', l: 'Test Bank', icon: ListChecks },
+        { k: 'live', l: 'Live Classes', icon: Video },
+        { k: 'announcements', l: 'Announcements', icon: Bell },
+      ];
 
   return (
     <div>
       <div className="mb-6">
-        <Link to="/admin/courses" className="text-sm text-brand-700 font-semibold flex items-center gap-1">
-          <ArrowLeft size={14} /> All Courses
+        <Link to={course?.isPowerCourse ? "/admin/power-courses" : "/admin/courses"} className="text-sm text-brand-700 font-semibold flex items-center gap-1">
+          <ArrowLeft size={14} /> Back to {course?.isPowerCourse ? 'Power Courses' : 'Courses'}
         </Link>
         <h1 className="font-display text-3xl font-extrabold mt-2">Course Content</h1>
         {courseName && (
@@ -2118,6 +2424,7 @@ export default function AdminCourseContent() {
         ))}
       </div>
 
+      {tab === 'daily-plan' && course && <DailyPlanTab course={course} />}
       {tab === 'subjects' && <SubjectsTab courseId={courseId} />}
       {tab === 'lessons' && <LessonsTab courseId={courseId} />}
       {tab === 'pdfs' && <PdfsTab courseId={courseId} />}

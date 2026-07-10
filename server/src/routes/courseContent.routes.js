@@ -20,6 +20,8 @@ import {
   adminCreateAnnouncement,
   adminDeleteAnnouncement,
   toggleAnnouncementRead,
+  adminGetDailyPlan,
+  adminUpdateDailyPlan,
 } from '../controllers/courseContent.controller.js';
 
 import Course from '../models/Course.js';
@@ -74,5 +76,9 @@ router.delete('/admin/tests/:id', adminDeleteTest);
 router.get('/admin/announcements/:courseId', adminGetAnnouncements);
 router.post('/admin/announcements/:courseId', adminCreateAnnouncement);
 router.delete('/admin/announcements/:courseId/:announcementId', adminDeleteAnnouncement);
+
+// Daily Plan (embedded in Course)
+router.get('/admin/daily-plan/:courseId', adminGetDailyPlan);
+router.put('/admin/daily-plan/:courseId', adminUpdateDailyPlan);
 
 export default router;

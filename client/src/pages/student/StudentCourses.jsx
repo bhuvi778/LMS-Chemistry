@@ -173,13 +173,13 @@ export default function StudentCourses() {
           api.get('/enroll/me'),
           api.get('/courses'),
         ]);
-        setEnrollments(enrollRes.data);
-        setAllCourses(coursesRes.data?.courses || coursesRes.data || []);
+        setEnrollments((enrollRes.data || []).filter(e => !e.course?.isPowerCourse));
+        setAllCourses((coursesRes.data?.courses || coursesRes.data || []).filter(c => !c.isPowerCourse));
       } catch {
         // fallback
         try {
           const enrollRes = await api.get('/enroll/me');
-          setEnrollments(enrollRes.data);
+          setEnrollments((enrollRes.data || []).filter(e => !e.course?.isPowerCourse));
         } catch { /* ignore */ }
       } finally {
         setLoading(false);

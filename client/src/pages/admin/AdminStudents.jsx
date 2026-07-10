@@ -6,7 +6,7 @@ import {
   Search, Filter, X, Mail, Phone, Calendar, ShieldCheck,
   KeyRound, LogOut, Loader2, Users as UsersIcon, User, BookOpen,
   Lock, Copy, RefreshCw, Check, Eye, EyeOff, ExternalLink,
-  UserPlus, PlusCircle, Trash2, GraduationCap, ListChecks, Coins, Layers,
+  UserPlus, PlusCircle, Trash2, GraduationCap, ListChecks, Coins, Layers, Flame,
 } from 'lucide-react';
 import Pagination, { usePaged } from '../../components/Pagination.jsx';
 
@@ -428,9 +428,10 @@ function StudentCard({ s, onOpen }) {
             </span>
           )}
           {s.enrollments?.filter(e => e.paymentStatus === 'paid' && (!e.validUntil || new Date(e.validUntil) >= new Date())).map((e, idx) => {
-            const customName = e.course?.plans?.[e.planType || 'batch']?.name || e.planType || 'batch';
+            const isPower = e.course?.isPowerCourse;
+            const customName = isPower ? 'Power' : (e.course?.plans?.[e.planType || 'batch']?.name || e.planType || 'batch');
             return (
-              <span key={idx} className="chip bg-indigo-50 text-indigo-750 text-[9px] uppercase font-bold px-1.5 py-0.5">
+              <span key={idx} className={`chip text-[9px] uppercase font-bold px-1.5 py-0.5 ${isPower ? 'bg-orange-50 text-orange-700 border border-orange-100' : 'bg-indigo-50 text-indigo-750'}`}>
                 {customName}
               </span>
             );
@@ -513,7 +514,14 @@ function StudentModal({ id, onClose, onChanged }) {
 
   const openEnroll = () => {
     if (!allCourses.length) {
-      api.get('/courses').then((r) => setAllCourses(r.data?.courses || r.data || []));
+      Promise.all([
+        api.get('/courses'),
+        api.get('/courses?isPowerCourse=true')
+      ]).then(([cRes, pRes]) => {
+        const std = cRes.data?.courses || cRes.data || [];
+        const pwr = pRes.data || [];
+        setAllCourses([...std, ...pwr]);
+      }).catch(() => {});
     }
     setShowEnroll(true);
   };
@@ -551,6 +559,64 @@ function StudentModal({ id, onClose, onChanged }) {
   const [allSeries, setAllSeries] = useState([]);
   const [seriesSearch, setSeriesSearch] = useState('');
   const [enrollSeriesBusy, setEnrollSeriesBusy] = useState('');
+
+  const [showEnrollPower, setShowEnrollPower] = useState(false);
+  const [allPowerCourses, setAllPowerCourses] = useState([]);
+  const [powerSearch, setPowerSearch] = useState('');
+  const [enrollPowerBusy, setEnrollPowerBusy] = useState('');
+
+  const enrolledPowerIds = useMemo(
+    () => new Set(
+      (data?.enrollments || [])
+        .filter(e => e.course?.isPowerCourse)
+        .map(e => String(e.course?._id || e.course))
+    ),
+    [data]
+  );
+
+  const filteredPowerCourses = useMemo(() => {
+    const s = powerSearch.toLowerCase();
+    return allPowerCourses.filter(
+      (c) => !enrolledPowerIds.has(String(c._id)) &&
+        (c.title?.toLowerCase().includes(s) || c.category?.toLowerCase().includes(s))
+    );
+  }, [allPowerCourses, enrolledPowerIds, powerSearch]);
+
+  const openEnrollPower = () => {
+    if (!allPowerCourses.length) {
+      api.get('/courses?isPowerCourse=true').then((r) => setAllPowerCourses(r.data || []));
+    }
+    setShowEnrollPower(true);
+  };
+
+  const enrollInPower = async (courseId) => {
+    setEnrollPowerBusy(courseId);
+    try {
+      await api.post(`/admin/students/${id}/enroll`, { courseId, planType: 'batch' });
+      toast.success('Power Challenge allotted!');
+      load();
+      onChanged?.();
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed');
+    } finally {
+      setEnrollPowerBusy('');
+    }
+  };
+
+  const removePowerEnrollment = async (courseId) => {
+    if (!confirm('Remove this Power Challenge enrollment?')) return;
+    setEnrollPowerBusy(courseId);
+    try {
+      await api.delete(`/admin/students/${id}/enroll/${courseId}`);
+      toast.success('Enrollment removed');
+      load();
+      onChanged?.();
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed');
+    } finally {
+      setEnrollPowerBusy('');
+    }
+  };
 
   const enrolledSeriesIds = useMemo(
     () => new Set((data?.testSeriesEnrollments || []).map((e) => String(e.testSeries?._id || e.testSeries))),
@@ -679,6 +745,9 @@ function StudentModal({ id, onClose, onChanged }) {
       setBusy(false);
     }
   };
+
+  const standardEnrollments = useMemo(() => (data?.enrollments || []).filter(e => !e.course?.isPowerCourse), [data]);
+  const powerEnrollments = useMemo(() => (data?.enrollments || []).filter(e => e.course?.isPowerCourse), [data]);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
@@ -939,7 +1008,7 @@ function StudentModal({ id, onClose, onChanged }) {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-bold text-sm flex items-center gap-2"><BookOpen size={14} className="text-brand-600" /> Enrolled Courses ({data.enrollments?.length || 0})</h4>
+                <h4 className="font-bold text-sm flex items-center gap-2"><BookOpen size={14} className="text-brand-600" /> Enrolled Courses ({standardEnrollments.length})</h4>
                 <button onClick={openEnroll} className="btn-primary text-xs flex items-center gap-1">
                   <PlusCircle size={13} /> Allot Course
                 </button>
@@ -1014,9 +1083,9 @@ function StudentModal({ id, onClose, onChanged }) {
                 </div>
               )}
 
-              {data.enrollments?.length ? (
+              {standardEnrollments.length ? (
                 <div className="space-y-2">
-                  {data.enrollments.map((e) => (
+                  {standardEnrollments.map((e) => (
                     <div key={e._id} className="rounded-xl border border-slate-100 p-3 flex items-center gap-3 bg-slate-50">
                       {e.course?.thumbnail && <img src={e.course.thumbnail} className="w-12 h-12 rounded-lg object-cover" alt="" />}
                       <div className="flex-1 min-w-0">
@@ -1077,7 +1146,95 @@ function StudentModal({ id, onClose, onChanged }) {
                   ))}
                 </div>
               ) : (
-                <div className="text-sm text-slate-400 italic">No enrollments yet.</div>
+                <div className="text-sm text-slate-400 italic">No courses allotted yet.</div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-bold text-sm flex items-center gap-2"><Flame size={14} className="text-orange-500 animate-pulse" /> Enrolled Power Challenges ({powerEnrollments.length})</h4>
+                <button onClick={openEnrollPower} className="btn-primary text-xs flex items-center gap-1">
+                  <PlusCircle size={13} /> Allot Power Challenge
+                </button>
+              </div>
+
+              {/* Power Course picker */}
+              {showEnrollPower && (
+                <div className="mb-3 rounded-xl border-2 border-orange-200 bg-orange-50/50 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-orange-700">Select a Power Challenge to allot</span>
+                    <button onClick={() => { setShowEnrollPower(false); setPowerSearch(''); }} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
+                  </div>
+                  <div className="relative">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={powerSearch}
+                      onChange={(e) => setPowerSearch(e.target.value)}
+                      placeholder="Search Power Challenges…"
+                      className="input w-full !pl-8 !py-1.5 text-xs"
+                    />
+                  </div>
+                  {filteredPowerCourses.length === 0 ? (
+                    <div className="text-xs text-slate-400 italic text-center py-2">
+                      {allPowerCourses.length === 0 ? 'Loading…' : 'No unenrolled challenges found'}
+                    </div>
+                  ) : (
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {filteredPowerCourses.map((c) => (
+                        <div key={c._id} className="flex items-center gap-2 bg-white rounded-lg p-2 border border-slate-100">
+                          {c.thumbnail && <img src={c.thumbnail} className="w-9 h-9 rounded object-cover shrink-0" alt="" />}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-xs truncate">{c.title}</div>
+                            <div className="text-[10px] text-slate-500">{c.powerCourseDuration} Days · {c.powerCourseType || 'challenge'}</div>
+                          </div>
+                          <button
+                            disabled={enrollPowerBusy === c._id}
+                            onClick={() => enrollInPower(c._id)}
+                            className="btn-primary text-[11px] px-2.5 py-1 shrink-0 disabled:opacity-50"
+                          >
+                            {enrollPowerBusy === c._id ? <Loader2 size={11} className="animate-spin" /> : 'Allot'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {powerEnrollments.length ? (
+                <div className="space-y-2">
+                  {powerEnrollments.map((e) => (
+                    <div key={e._id} className="rounded-xl border border-slate-100 p-3 flex items-center gap-3 bg-slate-50">
+                      {e.course?.thumbnail && <img src={e.course.thumbnail} className="w-12 h-12 rounded-lg object-cover" alt="" />}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm truncate">{e.course?.title || '— deleted course —'}</div>
+                        <div className="text-[11px] text-slate-500">
+                          {e.course?.powerCourseDuration} Days · Enrolled {new Date(e.createdAt).toLocaleDateString('en-IN')}
+                        </div>
+                        {e.paymentId?.startsWith('ADMIN_ALLOT_') && (
+                          <span className="text-[10px] font-semibold text-brand-600">Admin allotted</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`chip text-[10px] ${e.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {e.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                        </span>
+                        <button
+                          disabled={enrollPowerBusy === String(e.course?._id || e.course)}
+                          onClick={() => removePowerEnrollment(String(e.course?._id || e.course))}
+                          className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+                          title="Remove enrollment"
+                        >
+                          {enrollPowerBusy === String(e.course?._id || e.course)
+                            ? <Loader2 size={12} className="animate-spin" />
+                            : <Trash2 size={12} />}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-slate-400 italic">No Power Challenges allotted yet.</div>
               )}
             </div>
 

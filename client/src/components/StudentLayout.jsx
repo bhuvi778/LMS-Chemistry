@@ -70,6 +70,7 @@ const navSections = [
     icon: Library,
     items: [
       { to: '/student/courses', label: 'Courses', icon: BookOpen },
+      { to: '/student/power-courses', label: 'Power Challenges', icon: Calendar },
       { to: '/student/test-series', label: 'My Test Series', icon: Layers },
       { to: '/student/live-classes', label: 'Live Classes', icon: Video },
       { to: '/student/library', label: 'Library', icon: Library },
@@ -102,7 +103,8 @@ const navSections = [
     title: 'PREP ARENA',
     icon: Layers,
     items: [
-      { to: '/student/flashcards', label: 'Flash Card', icon: SquareStack }
+      { to: '/student/flashcards', label: 'Flash Card', icon: SquareStack },
+      { to: '/student/ncert-toolbox', label: 'NCERT Toolbox', icon: BookOpen }
     ]
   },
   {

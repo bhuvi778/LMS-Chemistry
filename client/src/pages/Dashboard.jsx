@@ -42,7 +42,7 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    api.get('/enroll/me').then(r => setEnrollments(r.data)).finally(() => setLoading(false));
+    api.get('/enroll/me').then(r => setEnrollments((r.data || []).filter(e => !e.course?.isPowerCourse))).finally(() => setLoading(false));
     api.get('/admin/live-classes/all').then(r => setLiveClasses(r.data)).catch(() => {});
     api.get('/exam-countdown/active').then(r => setCountdowns(r.data || [])).catch(() => {});
     loadNotifications();
