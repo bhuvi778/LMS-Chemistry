@@ -8,6 +8,7 @@ const sessionSchema = new mongoose.Schema(
     ip: { type: String, default: '' },
     lastActive: { type: Date, default: Date.now },
     isActive: { type: Boolean, default: true },
+    logoutTime: { type: Date, default: null },
   },
   { timestamps: true }
 );

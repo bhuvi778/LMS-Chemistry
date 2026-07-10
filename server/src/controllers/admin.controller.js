@@ -400,7 +400,7 @@ export const resetStudentPassword = asyncHandler(async (req, res) => {
   user.passwordSetByAdmin = true;
   await user.save();
   // Revoke all sessions of this user — force re-login
-  await Session.deleteMany({ userId: user._id });
+  await Session.updateMany({ userId: user._id, isActive: true }, { $set: { isActive: false, logoutTime: new Date() } });
   // Email the new password to the student
   sendPasswordResetEmail(user.email, user.name, newPassword).catch(() => {});
   res.json({ ok: true, message: 'Password reset and all sessions revoked' });
@@ -408,7 +408,7 @@ export const resetStudentPassword = asyncHandler(async (req, res) => {
 
 // ── Revoke single student sessions ─────────────────────────────
 export const revokeStudentSessions = asyncHandler(async (req, res) => {
-  await Session.deleteMany({ userId: req.params.id });
+  await Session.updateMany({ userId: req.params.id, isActive: true }, { $set: { isActive: false, logoutTime: new Date() } });
   res.json({ ok: true });
 });
 
@@ -632,7 +632,7 @@ export const updateStudent = asyncHandler(async (req, res) => {
 
   // If deactivated, force logout by revoking all active sessions
   if (isActive === false) {
-    await Session.deleteMany({ userId: user._id });
+    await Session.updateMany({ userId: user._id, isActive: true }, { $set: { isActive: false, logoutTime: new Date() } });
   }
 
   res.json({
@@ -684,7 +684,7 @@ export const deleteStudent = asyncHandler(async (req, res) => {
 
 export const revokeStudentSessionSingle = asyncHandler(async (req, res) => {
   const { id, sessionId } = req.params;
-  await Session.deleteOne({ _id: sessionId, userId: id });
+  await Session.updateOne({ _id: sessionId, userId: id }, { $set: { isActive: false, logoutTime: new Date() } });
   res.json({ ok: true });
 });
 
@@ -871,10 +871,13 @@ export const getLoginAnalytics = asyncHandler(async (_req, res) => {
   const downloadSetting = await SystemSetting.findOne({ key: 'appDownloadsCount' });
   const appDownloads = downloadSetting ? Number(downloadSetting.value || 0) : 0;
 
-  const sessions = await Session.find()
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const sessions = await Session.find({ createdAt: { $gte: sevenDaysAgo } })
     .populate('userId', 'name email studentId')
     .sort({ createdAt: -1 })
-    .limit(30)
     .lean();
 
   const loginLogs = sessions.map((s) => ({
@@ -885,6 +888,8 @@ export const getLoginAnalytics = asyncHandler(async (_req, res) => {
     deviceInfo: s.deviceInfo,
     ip: s.ip,
     loginTime: s.createdAt,
+    logoutTime: s.logoutTime || null,
+    isActive: s.isActive !== false,
   }));
 
   res.json({ appDownloads, loginLogs });

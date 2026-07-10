@@ -673,6 +673,17 @@ export const updateMentorshipBooking = asyncHandler(async (req, res) => {
   res.json(booking);
 });
 
+export const deleteMentorshipBooking = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const booking = await MentorshipBooking.findById(id);
+  if (!booking) {
+    res.status(404);
+    throw new Error('Mentorship booking not found');
+  }
+  await booking.deleteOne();
+  res.json({ success: true, message: 'Mentorship booking deleted successfully' });
+});
+
 export const submitMentorshipFeedback = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin') {
     const hasAccess = await checkInfinityAccess(req.user._id);

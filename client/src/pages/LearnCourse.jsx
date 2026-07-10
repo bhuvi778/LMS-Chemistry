@@ -1294,7 +1294,8 @@ function SubjectsTab({ subjects, myAttempts, courseId, onPlayVideo, onViewPdf })
             const testsCount = ch.tests?.length || 0;
             const dppsCount = (ch.dpps?.length || 0) + (ch.dppPdfs?.length || 0) + (ch.dppVideos?.length || 0);
             const pyqsCount = ch.pyqs?.length || 0;
-            const totalItems = videoCount + classNotesCount + studyMaterialCount + testsCount + dppsCount + pyqsCount;
+            const assignmentsCount = (ch.assignmentsPdfs?.length || 0) + (ch.assignmentsVideos?.length || 0);
+            const totalItems = videoCount + classNotesCount + studyMaterialCount + testsCount + dppsCount + pyqsCount + assignmentsCount;
 
             return (
               <div key={ch._id} className="card overflow-hidden border border-slate-100 shadow-soft">
@@ -1317,6 +1318,7 @@ function SubjectsTab({ subjects, myAttempts, courseId, onPlayVideo, onViewPdf })
                       {testsCount > 0 && <span>📝 {testsCount} Tests</span>}
                       {dppsCount > 0 && <span>📄 {dppsCount} DPPs</span>}
                       {pyqsCount > 0 && <span>❓ {pyqsCount} PYQs</span>}
+                      {assignmentsCount > 0 && <span>📝 {assignmentsCount} Assignments</span>}
                       {totalItems === 0 && <span>No content items yet</span>}
                     </div>
                   </div>
@@ -1649,6 +1651,53 @@ function SubjectsTab({ subjects, myAttempts, courseId, onPlayVideo, onViewPdf })
                               </div>
                             );
                           })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 📝 Assignments & Solutions */}
+                    {assignmentsCount > 0 && (
+                      <div className="mt-4">
+                        <h5 className="font-bold text-slate-700 text-xs uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                          <ClipboardList size={14} className="text-teal-600" /> Assignments & Solutions
+                        </h5>
+                        <div className="grid sm:grid-cols-2 gap-3">
+                          {ch.assignmentsPdfs?.map((item, idx) => (
+                            <div key={item._id || idx} className="p-3.5 rounded-xl border border-slate-100 bg-white hover:border-teal-200 transition flex items-start gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                                <FileText size={18} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold text-slate-800 text-sm truncate">{item.title}</div>
+                                {item.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{item.description}</p>}
+                                <button
+                                  onClick={() => onViewPdf(item)}
+                                  className="mt-2 text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 hover:underline"
+                                >
+                                  View Assignment PDF →
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+
+                          {ch.assignmentsVideos?.map((item, idx) => (
+                            <div key={item._id || idx} className="p-3.5 rounded-xl border border-slate-100 bg-white hover:border-teal-200 transition flex items-start gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                                <PlayCircle size={18} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold text-slate-800 text-sm truncate">{item.title}</div>
+                                {item.duration && <div className="text-xs text-slate-400 mt-0.5">🕒 {item.duration}</div>}
+                                {item.description && <p className="text-xs text-slate-500 mt-1 line-clamp-1">{item.description}</p>}
+                                <button
+                                  onClick={() => onPlayVideo(item.videoUrl, item.title)}
+                                  className="mt-2 text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 hover:underline"
+                                >
+                                  Watch Solution →
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}

@@ -25,6 +25,7 @@ import {
   CreditCard,
   AlertCircle,
   Check,
+  X,
 } from 'lucide-react';
 import BankTransferModal from '../components/BankTransferModal.jsx';
 
@@ -39,6 +40,21 @@ export default function Profile() {
     phone: user?.phone || '',
     avatar: user?.avatar || '',
   });
+
+  // Email verification/change state
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailOtp, setEmailOtp] = useState('');
+  const [emailStep, setEmailStep] = useState(1); // 1: new email, 2: enter OTP
+  const [emailBusy, setEmailBusy] = useState(false);
+
+  // Phone verification/change state
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [newPhone, setNewPhone] = useState('');
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [phoneStep, setPhoneStep] = useState(1); // 1: new phone, 2: enter OTP
+  const [phoneBusy, setPhoneBusy] = useState(false);
+
   const [academic, setAcademic] = useState({
     grade: user?.grade || '',
     stream: user?.stream || '',
@@ -105,6 +121,82 @@ export default function Profile() {
     .slice(0, 2)
     .join('')
     .toUpperCase();
+
+  const handleRequestEmailChange = async (e) => {
+    e.preventDefault();
+    if (!newEmail.trim()) return toast.error('Please enter a valid email');
+    setEmailBusy(true);
+    try {
+      await api.post('/auth/request-email-change', { email: newEmail.trim() });
+      toast.success('Verification OTP sent to your new email!');
+      setEmailStep(2);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to send OTP');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const handleVerifyEmailChange = async (e) => {
+    e.preventDefault();
+    if (!emailOtp.trim() || emailOtp.trim().length !== 6) {
+      return toast.error('Please enter the 6-digit OTP');
+    }
+    setEmailBusy(true);
+    try {
+      const { data } = await api.post('/auth/verify-email-change', { code: emailOtp.trim(), email: newEmail.trim() });
+      toast.success('Email updated successfully!');
+      setUser(data);
+      setShowEmailModal(false);
+      setNewEmail('');
+      setEmailOtp('');
+      setEmailStep(1);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Verification failed');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const handleRequestPhoneChange = async (e) => {
+    e.preventDefault();
+    const trimmed = newPhone.trim();
+    if (!trimmed) return toast.error('Please enter your phone number');
+    if (!/^\+91\d{10}$/.test(trimmed)) {
+      return toast.error('Please enter a valid +91 phone number (e.g. +919876543210)');
+    }
+    setPhoneBusy(true);
+    try {
+      await api.post('/auth/request-phone-verification', { phone: trimmed });
+      toast.success('Verification OTP sent to your WhatsApp!');
+      setPhoneStep(2);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to send OTP');
+    } finally {
+      setPhoneBusy(false);
+    }
+  };
+
+  const handleVerifyPhoneChange = async (e) => {
+    e.preventDefault();
+    if (!phoneOtp.trim() || phoneOtp.trim().length !== 6) {
+      return toast.error('Please enter the 6-digit OTP');
+    }
+    setPhoneBusy(true);
+    try {
+      const { data } = await api.post('/auth/verify-phone-verification', { code: phoneOtp.trim(), phone: newPhone.trim() });
+      toast.success('Phone number updated successfully!');
+      setUser(data);
+      setShowPhoneModal(false);
+      setNewPhone('');
+      setPhoneOtp('');
+      setPhoneStep(1);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Verification failed');
+    } finally {
+      setPhoneBusy(false);
+    }
+  };
 
   const saveInfo = async (e) => {
     e.preventDefault();
@@ -329,26 +421,72 @@ export default function Profile() {
                   </div>
                   <div>
                     <label className="label">Email</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input className="input !pl-9 bg-slate-50" value={user.email} disabled />
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input className="input !pl-9 bg-slate-50" value={user.email} disabled />
+                      </div>
+                      {isStudentPanel && user.isEmailVerified && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewEmail('');
+                            setEmailOtp('');
+                            setEmailStep(1);
+                            setShowEmailModal(true);
+                          }}
+                          className="px-3 py-2 text-xs font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-xl hover:bg-brand-100 transition shrink-0"
+                        >
+                          Change
+                        </button>
+                      )}
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-1">Email cannot be changed.</p>
+                    {user.isEmailVerified ? (
+                      <p className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+                        <ShieldCheck size={12} className="text-emerald-500" /> Email is verified.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-1">Email is not verified.</p>
+                    )}
                   </div>
                   <div>
                     <label className="label">Phone</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">+91</span>
-                      <input
-                        className="input !pl-14"
-                        value={form.phone ? String(form.phone).replace(/^\+?91\s?/, '') : ''}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/^\+?91\s?/, '');
-                          setForm({ ...form, phone: val ? '+91' + val : '' });
-                        }}
-                        placeholder="98765 43210"
-                      />
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">+91</span>
+                        <input
+                          className="input !pl-14"
+                          value={form.phone ? String(form.phone).replace(/^\+?91\s?/, '') : ''}
+                          disabled={isStudentPanel && user.isWhatsappVerified}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/^\+?91\s?/, '');
+                            setForm({ ...form, phone: val ? '+91' + val : '' });
+                          }}
+                          placeholder="98765 43210"
+                        />
+                      </div>
+                      {isStudentPanel && user.isWhatsappVerified && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewPhone('+91');
+                            setPhoneOtp('');
+                            setPhoneStep(1);
+                            setShowPhoneModal(true);
+                          }}
+                          className="px-3 py-2 text-xs font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-xl hover:bg-brand-100 transition shrink-0"
+                        >
+                          Change
+                        </button>
+                      )}
                     </div>
+                    {user.isWhatsappVerified ? (
+                      <p className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+                        <ShieldCheck size={12} className="text-emerald-500" /> Phone is verified on WhatsApp.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-1">Please enter your 10-digit phone number.</p>
+                    )}
                   </div>
                   <div>
                     <label className="label">Student ID</label>
@@ -747,6 +885,176 @@ export default function Profile() {
                     baseAmount={activeTransferModal.baseAmount}
                     initialRequest={activeTransferModal}
                   />
+                )}
+
+                {/* Email Verification Modal */}
+                {showEmailModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden">
+                      <div className="h-1.5 w-full bg-brand-500" />
+                      <div className="p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-display text-lg font-bold text-slate-800">Change Email Address</h3>
+                          <button
+                            onClick={() => setShowEmailModal(false)}
+                            className="p-1 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition"
+                          >
+                            <X size={18} />
+                          </button>
+                        </div>
+
+                        {emailStep === 1 ? (
+                          <form onSubmit={handleRequestEmailChange} className="space-y-4">
+                            <p className="text-xs text-slate-500">
+                              Enter your new email address. We will send a 6-digit verification code to it.
+                            </p>
+                            <div>
+                              <label className="label text-[10px] uppercase font-extrabold tracking-wider text-slate-450">New Email Address</label>
+                              <input
+                                type="email"
+                                required
+                                value={newEmail}
+                                onChange={(e) => setNewEmail(e.target.value)}
+                                placeholder="name@example.com"
+                                className="input"
+                              />
+                            </div>
+                            <button
+                              type="submit"
+                              disabled={emailBusy}
+                              className="w-full btn btn-brand py-2.5 flex items-center justify-center gap-2"
+                            >
+                              {emailBusy && <Loader2 className="animate-spin" size={14} />}
+                              Send Verification OTP
+                            </button>
+                          </form>
+                        ) : (
+                          <form onSubmit={handleVerifyEmailChange} className="space-y-4">
+                            <p className="text-xs text-slate-500">
+                              We sent a 6-digit OTP code to your new email: <b>{newEmail}</b>. Please enter the code below.
+                            </p>
+                            <div>
+                              <label className="label text-[10px] uppercase font-extrabold tracking-wider text-slate-455">Enter 6-Digit OTP</label>
+                              <input
+                                type="text"
+                                required
+                                maxLength={6}
+                                value={emailOtp}
+                                onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                placeholder="000000"
+                                className="input text-center text-lg font-black tracking-widest"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setEmailStep(1)}
+                                className="flex-1 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                              >
+                                Back
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={emailBusy}
+                                className="flex-1 btn btn-brand py-2 flex items-center justify-center gap-2"
+                              >
+                                {emailBusy && <Loader2 className="animate-spin" size={14} />}
+                                Verify & Update
+                              </button>
+                            </div>
+                          </form>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Phone Verification Modal */}
+                {showPhoneModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden">
+                      <div className="h-1.5 w-full bg-brand-500" />
+                      <div className="p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-display text-lg font-bold text-slate-800">Change Phone Number</h3>
+                          <button
+                            onClick={() => setShowPhoneModal(false)}
+                            className="p-1 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition"
+                          >
+                            <X size={18} />
+                          </button>
+                        </div>
+
+                        {phoneStep === 1 ? (
+                          <form onSubmit={handleRequestPhoneChange} className="space-y-4">
+                            <p className="text-xs text-slate-500">
+                              Enter your new mobile number. We will send a 6-digit verification code via WhatsApp.
+                            </p>
+                            <div>
+                              <label className="label text-[10px] uppercase font-extrabold tracking-wider text-slate-460">New Phone Number (with +91)</label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">+91</span>
+                                <input
+                                  type="tel"
+                                  required
+                                  value={newPhone.replace(/^\+91/, '')}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                    setNewPhone(val ? '+91' + val : '+91');
+                                  }}
+                                  placeholder="9876543210"
+                                  className="input !pl-12"
+                                />
+                              </div>
+                            </div>
+                            <button
+                              type="submit"
+                              disabled={phoneBusy}
+                              className="w-full btn btn-brand py-2.5 flex items-center justify-center gap-2"
+                            >
+                              {phoneBusy && <Loader2 className="animate-spin" size={14} />}
+                              Send Verification OTP
+                            </button>
+                          </form>
+                        ) : (
+                          <form onSubmit={handleVerifyPhoneChange} className="space-y-4">
+                            <p className="text-xs text-slate-500">
+                              We sent a 6-digit OTP code to: <b>{newPhone}</b> via WhatsApp. Please enter the code below.
+                            </p>
+                            <div>
+                              <label className="label text-[10px] uppercase font-extrabold tracking-wider text-slate-465">Enter 6-Digit OTP</label>
+                              <input
+                                type="text"
+                                required
+                                maxLength={6}
+                                value={phoneOtp}
+                                onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                placeholder="000000"
+                                className="input text-center text-lg font-black tracking-widest"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setPhoneStep(1)}
+                                className="flex-1 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                              >
+                                Back
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={phoneBusy}
+                                className="flex-1 btn btn-brand py-2 flex items-center justify-center gap-2"
+                              >
+                                {phoneBusy && <Loader2 className="animate-spin" size={14} />}
+                                Verify & Update
+                              </button>
+                            </div>
+                          </form>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

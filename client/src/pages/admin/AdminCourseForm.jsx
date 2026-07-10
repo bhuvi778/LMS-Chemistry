@@ -658,10 +658,10 @@ export default function AdminCourseForm() {
             {!form.isFree ? (
               <div className="space-y-4">
                 <p className="text-xs text-slate-500 font-medium">
-                  Configure pricing for Batch, Pro, and Infinity plans. You must enable between 2 and 3 plans.
+                  Configure pricing for Starter, Pro, and Infinity plans. You must enable between 2 and 3 plans.
                 </p>
                 
-                {/* Batch Plan */}
+                {/* Starter Plan */}
                 <div className="border border-slate-150 rounded-xl p-4 space-y-3 bg-slate-50/50">
                   <div className="flex items-center gap-3 justify-between">
                     <div className="flex-1 max-w-[200px]">

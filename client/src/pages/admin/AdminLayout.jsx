@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import NotificationBell from '../../components/NotificationBell.jsx';
+import { io } from 'socket.io-client';
+import toast from 'react-hot-toast';
+import { playNotificationSound } from '../../utils/audio.js';
 import {
   LayoutDashboard,
   BookOpen,
@@ -126,6 +129,40 @@ export default function AdminLayout() {
   const [openGroups, setOpenGroups] = useState({});
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return;
+
+    const token = localStorage.getItem('token');
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+
+    const socket = io(socketUrl, {
+      path: '/socket.io',
+      auth: { token: token || '' },
+      transports: ['polling'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1500,
+    });
+
+    socket.on('chat:admin-notification', (msg) => {
+      if (location.pathname === '/admin/support/chat') return;
+
+      playNotificationSound();
+      toast((t) => (
+        <span className="flex items-center gap-2 cursor-pointer" onClick={() => { toast.dismiss(t.id); n('/admin/support/chat'); }}>
+          <MessageSquare className="text-brand-500 shrink-0 animate-bounce" size={16} />
+          <span className="text-xs">
+            New support message from <strong>{msg.senderName}</strong>: "{msg.text.substring(0, 30)}"
+          </span>
+        </span>
+      ), { duration: 5000 });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user, location.pathname, n]);
 
 
 

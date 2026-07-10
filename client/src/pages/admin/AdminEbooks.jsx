@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2, BookOpen, ToggleLeft, ToggleRight, Upload, Loader
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 
-const EMPTY = { title: '', description: '', subject: '', grade: '', contentType: 'ebook', subCategory: '', chapter: '', coverImage: '', fileUrl: '', fileSize: '', isFree: false, isActive: true, order: 0, courses: [] };
+const EMPTY = { title: '', description: '', subject: '', grade: '', gradeType: '', contentType: 'ebook', subCategory: '', chapter: '', coverImage: '', fileUrl: '', fileSize: '', isFree: false, isActive: true, order: 0, courses: [] };
 
 export default function AdminEbooks() {
   const [ebooks, setEbooks] = useState([]);
@@ -196,19 +196,49 @@ export default function AdminEbooks() {
                     <input value={form.subject} onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))} className="input" placeholder="e.g. Organic" />
                   </div>
                   <div>
-                    <label className="label">Grade / Level</label>
-                    <select
-                      value={form.grade || ''}
-                      onChange={(e) => setForm((p) => ({ ...p, grade: e.target.value }))}
-                      className="input cursor-pointer"
-                    >
-                      <option value="">Select Grade / Level</option>
-                      {categories.map((cat) => (
-                        <option key={cat._id} value={cat.name}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="label">Grade - Type</label>
+                    <input value={form.gradeType || ''} onChange={(e) => setForm((p) => ({ ...p, gradeType: e.target.value }))} className="input" placeholder="e.g. Class 11" />
+                  </div>
+                  <div className="col-span-3">
+                    <label className="label">Exam Category</label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {categories.map((cat) => {
+                        let isSelected = false;
+                        if (Array.isArray(form.grade)) {
+                          isSelected = form.grade.includes(cat.name);
+                        } else if (typeof form.grade === 'string' && form.grade) {
+                          isSelected = form.grade === cat.name;
+                        }
+                        return (
+                          <button
+                            key={cat._id}
+                            type="button"
+                            onClick={() => {
+                              let current = [];
+                              if (Array.isArray(form.grade)) {
+                                current = form.grade;
+                              } else if (typeof form.grade === 'string' && form.grade) {
+                                current = [form.grade];
+                              }
+                              let updated;
+                              if (current.includes(cat.name)) {
+                                updated = current.filter((c) => c !== cat.name);
+                              } else {
+                                updated = [...current, cat.name];
+                              }
+                              setForm((p) => ({ ...p, grade: updated }));
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                              isSelected
+                                ? 'bg-brand-50 border-brand-500 text-brand-700 shadow-sm'
+                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/50'
+                            }`}
+                          >
+                            {cat.name}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -226,8 +256,9 @@ export default function AdminEbooks() {
                         <option value="Short Notes">Short Notes</option>
                         <option value="Handwritten Notes">Handwritten Notes</option>
                         <option value="VVIQ">VVIQ</option>
-                        <option value="Practice papers">Practice papers</option>
-                        <option value="Syllabus">Syllabus</option>
+                        <option value="Mindmaps">Mindmaps</option>
+                        <option value="Formula Charts">Formula Charts</option>
+                        <option value="PYQs">PYQs</option>
                       </select>
                     </div>
                     <div>

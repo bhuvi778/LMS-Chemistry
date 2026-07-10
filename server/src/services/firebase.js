@@ -30,6 +30,18 @@ export const sendPush = async (fcmToken, { title, body, link = '', image = '' })
     const message = {
       token: fcmToken,
       notification: { title, body, ...(image && { image }) },
+      android: {
+        notification: {
+          sound: 'default'
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default'
+          }
+        }
+      },
       webpush: {
         fcmOptions: { link: link || '/' },
         notification: {
@@ -37,6 +49,7 @@ export const sendPush = async (fcmToken, { title, body, link = '', image = '' })
           body,
           icon: '/icons/icon-192x192.png',
           badge: '/icons/badge-72x72.png',
+          sound: 'default',
           ...(image && { image }),
         },
         ...(image && {
@@ -70,6 +83,18 @@ export const sendPushToMany = async (fcmTokens, payload) => {
         body: payload.body,
         ...(payload.image && { image: payload.image })
       },
+      android: {
+        notification: {
+          sound: 'default'
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default'
+          }
+        }
+      },
       webpush: {
         fcmOptions: { link: payload.link || '/' },
         notification: {
@@ -77,6 +102,7 @@ export const sendPushToMany = async (fcmTokens, payload) => {
           body: payload.body,
           icon: '/icons/icon-192x192.png',
           badge: '/icons/badge-72x72.png',
+          sound: 'default',
           ...(payload.image && { image: payload.image }),
         },
         ...(payload.image && {

@@ -49,6 +49,10 @@ export function attachLiveSocket(server) {
   io.on('connection', (socket) => {
     let currentRoom = null;
 
+    if (socket.user && socket.user.role === 'admin') {
+      socket.join('admins');
+    }
+
     socket.on('join', async ({ liveClassId, role, passcode, agoraUid }, ack) => {
       try {
         const lc = await LiveClass.findById(liveClassId);
@@ -165,6 +169,15 @@ export function attachLiveSocket(server) {
         });
         const targetRoom = `chat:${studentId}`;
         io.to(targetRoom).emit('chat:message', msg);
+
+        if (!isAdmin) {
+          io.to('admins').emit('chat:admin-notification', {
+            studentId,
+            senderName,
+            text: text.trim(),
+            msg,
+          });
+        }
       } catch (err) {
         console.error('[Socket Chat Error]:', err.message);
       }

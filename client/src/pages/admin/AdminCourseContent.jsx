@@ -1100,6 +1100,8 @@ const CONTENT_TYPES_ADMIN = [
   { key: 'dppPdfs',        label: 'DPP PDFs',        icon: Download,      hasVideo: false, hasPdf: true  },
   { key: 'dppVideos',      label: 'DPP Videos',      icon: Video,         hasVideo: true,  hasPdf: false },
   { key: 'studyMaterials', label: 'Study Materials', icon: BookMarked,    hasVideo: false, hasPdf: true  },
+  { key: 'assignmentsPdfs',   label: 'Assignments (in Pdf)',        icon: Download,      hasVideo: false, hasPdf: true  },
+  { key: 'assignmentsVideos', label: 'Assignments Solutions (In Video)', icon: Video,         hasVideo: true,  hasPdf: false },
 ];
 
 function ContentTypeSection({ chapterData, setChapterData, ctKey, courseId }) {
@@ -1343,6 +1345,8 @@ function ChapterEditor({ chapter, subjectId, courseId, onSaved, onDeleted }) {
     dppPdfs: chapter.dppPdfs || [],
     dppVideos: chapter.dppVideos || [],
     studyMaterials: chapter.studyMaterials || [],
+    assignmentsPdfs: chapter.assignmentsPdfs || [],
+    assignmentsVideos: chapter.assignmentsVideos || [],
   }));
   const [saving, setSaving] = useState(false);
 
@@ -1358,6 +1362,8 @@ function ChapterEditor({ chapter, subjectId, courseId, onSaved, onDeleted }) {
       dppPdfs: chapter.dppPdfs || [],
       dppVideos: chapter.dppVideos || [],
       studyMaterials: chapter.studyMaterials || [],
+      assignmentsPdfs: chapter.assignmentsPdfs || [],
+      assignmentsVideos: chapter.assignmentsVideos || [],
     });
   }, [chapter]);
 
@@ -1399,6 +1405,8 @@ function ChapterEditor({ chapter, subjectId, courseId, onSaved, onDeleted }) {
   if (chapter.dppPdfs?.length) counts.push(`${chapter.dppPdfs.length} DPP PDFs`);
   if (chapter.dppVideos?.length) counts.push(`${chapter.dppVideos.length} DPP Videos`);
   if (chapter.studyMaterials?.length) counts.push(`${chapter.studyMaterials.length} Study Materials`);
+  if (chapter.assignmentsPdfs?.length) counts.push(`${chapter.assignmentsPdfs.length} Assignments (PDF)`);
+  if (chapter.assignmentsVideos?.length) counts.push(`${chapter.assignmentsVideos.length} Assignment Solutions (Video)`);
   const hasContent = counts.length > 0;
 
   return (

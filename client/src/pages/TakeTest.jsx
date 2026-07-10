@@ -62,92 +62,222 @@ function Timer({ totalSecs, onExpire }) {
 // ─── Instructions Modal ───────────────────────────────────────────────────────
 function InstructionsModal({ test, onStart }) {
   const { user } = useAuth();
+  const [checked, setChecked] = useState(false);
+
+  const positiveMarks = test.questions?.[0]?.marks || 4;
+  const negativeMarks = test.questions?.[0]?.negativeMarks ?? -1;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-100">
-        {/* Top accent */}
-        <div className="h-2 bg-gradient-to-r from-brand-500 to-violet2-500" />
-        <div className="p-8">
-          <div className="text-center mb-7">
-            <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-brand-100">
-              <ClipboardList size={28} className="text-brand-600" />
-            </div>
-            <h1 className="text-2xl font-bold text-slate-800">{test.title}</h1>
-            <p className="text-slate-500 mt-1 text-sm">{test.description || 'NTA pattern test series'}</p>
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      {/* Header bar */}
+      <header className="bg-[#0f172a] text-white py-3.5 px-6 flex justify-between items-center shadow-md select-none shrink-0">
+        <div className="flex items-center gap-3">
+          <ClipboardList className="text-emerald-400 animate-pulse" size={20} />
+          <span className="font-extrabold text-sm uppercase tracking-wider">{test.title} — General Instructions</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs bg-slate-800 text-slate-300 font-bold px-3 py-1.5 rounded-lg border border-slate-700 select-none">
+            Medium: English
+          </div>
+        </div>
+      </header>
+
+      {/* Main body wrapper */}
+      <div className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 flex flex-col gap-4 min-h-0">
+        <div className="text-center font-black text-slate-850 text-lg md:text-xl tracking-tight my-2">
+          Please read the instructions carefully
+        </div>
+
+        {/* Scrollable Container */}
+        <div className="flex-1 overflow-y-auto bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm space-y-6 scrollbar-thin">
+          {/* Dynamic notices (Attempt Cost & Limits) */}
+          <div className="grid md:grid-cols-2 gap-4 select-none">
+            {user?.role !== 'admin' && (
+              <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 text-xs text-amber-950 leading-relaxed shadow-sm">
+                <div className="font-extrabold mb-1 flex items-center gap-1.5 text-amber-800">
+                  <Coins size={14} className="text-amber-600 animate-bounce" /> Attempt Cost: 1 Ace Coin
+                </div>
+                <div className="text-amber-800 font-semibold">
+                  Starting this test will deduct <span className="font-black text-amber-950">1 Ace Coin</span> from your wallet. You currently have <span className="font-black text-indigo-900">{user?.coins || 0} Ace Coins</span>.
+                </div>
+              </div>
+            )}
+            
+            {test.maxQuestionsToAttempt > 0 && (
+              <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 text-xs text-blue-900 leading-relaxed shadow-sm">
+                <div className="font-extrabold mb-1 flex items-center gap-1.5 text-blue-800">
+                  <ClipboardList size={14} className="text-blue-600 animate-bounce" /> Optional Questions Attempt Limit
+                </div>
+                <div className="text-blue-850 font-semibold">
+                  You are allowed to attempt a maximum of <span className="font-black text-blue-950">{test.maxQuestionsToAttempt}</span> questions out of {test.questions?.length || 0}. Remaining questions will become locked.
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {[
-              { label: 'Questions', value: test.questions?.length || 0, color: 'text-brand-700', bg: 'bg-brand-50 border-brand-100' },
-              { label: 'Minutes', value: test.durationMins, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-100' },
-              { label: 'Total Marks', value: test.totalMarks, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100' },
-            ].map((stat) => (
-              <div key={stat.label} className={`text-center rounded-xl p-4 border ${stat.bg}`}>
-                <div className={`text-2xl font-extrabold ${stat.color}`}>{stat.value}</div>
-                <div className="text-xs text-slate-500 font-medium mt-0.5">{stat.label}</div>
+          {/* General instructions text block */}
+          <div className="space-y-4 text-slate-700 text-xs md:text-sm">
+            <h3 className="font-black text-slate-900 underline text-sm uppercase">General Instructions:</h3>
+            <ol className="list-decimal pl-5 space-y-3 font-medium">
+              <li>
+                Total duration of this test (<strong>{test.title}</strong>) is <strong>{test.durationMins} minutes</strong>.
+              </li>
+              <li>
+                The clock will be set at the server. The countdown timer in the top right corner of screen will display the remaining time available for you to complete the examination. When the timer reaches zero, the examination will end by itself. You will not be required to end or submit your examination.
+              </li>
+              <li>
+                The Questions Palette displayed on the right side of screen will show the status of each question using one of the following symbols:
+                <div className="mt-3 pl-2 space-y-3.5 border-l-2 border-slate-100">
+                  {/* Symbol 1 */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 font-bold text-[10px] flex items-center justify-center bg-[#f0f4f8] text-slate-600 border border-slate-300 rounded-md shrink-0 select-none">01</div>
+                    <span>You have not visited the question yet.</span>
+                  </div>
+
+                  {/* Symbol 2 */}
+                  <div className="flex items-center gap-3">
+                    <div style={{ clipPath: 'polygon(20% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 25%)' }} className="w-8 h-8 font-bold text-[10px] flex items-center justify-center bg-[#ea580c] text-white shrink-0 select-none">02</div>
+                    <span>You have not answered the question.</span>
+                  </div>
+
+                  {/* Symbol 3 */}
+                  <div className="flex items-center gap-3">
+                    <div style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 75%, 80% 100%, 0% 100%)' }} className="w-8 h-8 font-bold text-[10px] flex items-center justify-center bg-[#16a34a] text-white shrink-0 select-none">03</div>
+                    <span>You have answered the question.</span>
+                  </div>
+
+                  {/* Symbol 4 */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 font-bold text-[10px] flex items-center justify-center bg-[#6b21a8] text-white rounded-full shrink-0 select-none">04</div>
+                    <span>You have NOT answered the question, but have marked the question for review.</span>
+                  </div>
+
+                  {/* Symbol 5 */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 font-bold text-[10px] flex items-center justify-center bg-[#6b21a8] text-white rounded-full relative shrink-0 select-none">
+                      05
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#16a34a] border border-white rounded-full flex items-center justify-center shadow">
+                        <svg viewBox="0 0 24 24" className="w-2 h-2 text-white fill-current">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                      </span>
+                    </div>
+                    <span>The question(s) "Answered and Marked for Review" will be considered for evaluation.</span>
+                  </div>
+                </div>
+              </li>
+              <li>
+                You can click on the "&gt;" arrow which appears to the left of question palette to collapse the question palette thereby maximizing the question window. To view the question palette again, you can click on "&lt;" which appears on the right side of question window.
+              </li>
+              <li>
+                You can use the Question Palette panel or click the Back/Next navigation buttons to move between questions.
+              </li>
+            </ol>
+
+            <div className="h-px bg-slate-150 my-4" />
+
+            <h3 className="font-black text-slate-900 underline text-sm uppercase">Navigating to a Question:</h3>
+            <ol start="6" className="list-decimal pl-5 space-y-3 font-medium">
+              <li>
+                To answer a question, do the following:
+                <ul className="list-disc pl-5 mt-1.5 space-y-1.5">
+                  <li>Click on the question number in the Question Palette at the right of your screen to go to that numbered question directly. Note that using this option does NOT save your answer to the current question.</li>
+                  <li>Click on <strong>Save & Next</strong> to save your answer for the current question and then go to the next question.</li>
+                  <li>Click on <strong>Mark & Next</strong> to save your answer for the current question, mark it for review, and then go to the next question.</li>
+                </ul>
+              </li>
+            </ol>
+
+            <div className="h-px bg-slate-155 my-4" />
+
+            <h3 className="font-black text-slate-900 underline text-sm uppercase">Answering a Question:</h3>
+            <ol start="7" className="list-decimal pl-5 space-y-3 font-medium">
+              <li>
+                Procedure for answering a multiple choice type question:
+                <ul className="list-disc pl-5 mt-1.5 space-y-1.5">
+                  <li>To select your answer, click on the button of one of the options.</li>
+                  <li>To deselect your chosen answer, click on the button of the chosen option again or click on the <strong>Clear</strong> button.</li>
+                  <li>To change your chosen answer, click on the button of another option.</li>
+                  <li>To save your answer, you MUST click on the <strong>Save & Next</strong> button.</li>
+                  <li>To mark the question for review, click on the <strong>Mark & Next</strong> button.</li>
+                </ul>
+              </li>
+              <li>
+                To change your answer to a question that has already been answered, first select that question for answering and then follow the procedure for answering that type of question.
+              </li>
+            </ol>
+
+            <div className="h-px bg-slate-155 my-4" />
+
+            <h3 className="font-black text-slate-900 underline text-sm uppercase">Navigating through sections:</h3>
+            <ol start="9" className="list-decimal pl-5 space-y-3 font-medium">
+              <li>
+                Sections in this question paper are displayed on the top bar of the screen. Questions in a section can be viewed by clicking on the section name. The section you are currently viewing is highlighted.
+              </li>
+              <li>
+                After clicking the <strong>Save & Next</strong> button on the last question for a section, you will automatically be taken to the first question of the next section.
+              </li>
+              <li>
+                You can shuffle between sections and questions during the examination as per your convenience only during the time stipulated.
+              </li>
+              <li>
+                Candidate can view the corresponding section summary as part of the legend that appears in every section above the question palette.
+              </li>
+            </ol>
+
+            <div className="h-px bg-slate-155 my-4" />
+
+            <h3 className="font-black text-slate-800 text-xs uppercase tracking-wider mb-2">Marking Scheme (Specific for this Paper)</h3>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 font-semibold">
+              <div className="flex items-center gap-2.5 text-slate-700">
+                <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle size={12} className="text-emerald-600" />
+                </span>
+                Correct answer: <span className="font-black text-emerald-700">+{positiveMarks} marks</span>
               </div>
-            ))}
+              <div className="flex items-center gap-2.5 text-slate-700">
+                <span className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <X size={12} className="text-red-600" />
+                </span>
+                Wrong answer: <span className="font-black text-red-700">{negativeMarks} marks</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-slate-700">
+                <span className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                  <Circle size={12} className="text-slate-400" />
+                </span>
+                Unattempted: <span className="font-black text-slate-500">0 marks</span>
+              </div>
+            </div>
           </div>
-          
-          {user?.role !== 'admin' && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-950 leading-relaxed shadow-sm">
-              <div className="font-bold mb-1.5 flex items-center gap-1.5 text-amber-800">
-                <Coins size={14} className="text-amber-600 animate-bounce" /> Attempt Cost: 1 Ace Coin
-              </div>
-              <div className="text-amber-800 font-medium">
-                Starting this test will deduct <span className="font-extrabold text-amber-950">1 Ace Coin</span> from your wallet. You currently have <span className="font-extrabold text-indigo-900">{user?.coins || 0} Ace Coins</span>.
-              </div>
-            </div>
-          )}
-          
-          {test.maxQuestionsToAttempt > 0 && (
-            <div className="bg-blue-55 border border-blue-200 rounded-xl p-4 mb-5 text-sm text-blue-900 leading-relaxed shadow-sm">
-              <div className="font-bold mb-1.5 flex items-center gap-1.5 text-blue-800">
-                <ClipboardList size={14} className="text-blue-600 animate-bounce" /> Optional Questions Attempt Limit
-              </div>
-              <div className="text-blue-800 font-medium">
-                You are only allowed to attempt a maximum of <span className="font-extrabold text-blue-900">{test.maxQuestionsToAttempt}</span> questions out of the {test.questions?.length || 0} questions in this test. Once you attempt {test.maxQuestionsToAttempt} questions, any other questions will become inactive until you clear an existing response.
-              </div>
-            </div>
-          )}
+        </div>
 
-          {test.instructions && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-900 leading-relaxed">
-              <div className="font-bold mb-1.5 flex items-center gap-1.5 text-amber-800">
-                <AlertTriangle size={14} /> Instructions
-              </div>
-              <div className="text-amber-800">{test.instructions}</div>
-            </div>
-          )}
+        {/* Footer Area (Agreements, Warning & Proceed Button) */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col gap-4 mt-2 shrink-0">
+          <label className="flex items-start gap-3 cursor-pointer text-[11px] text-slate-650 hover:text-slate-850 select-none border-t border-slate-100 pt-3">
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => setChecked(e.target.checked)}
+              className="w-4 h-4 rounded text-emerald-600 border-slate-350 focus:ring-emerald-500 cursor-pointer mt-0.5"
+            />
+            <span className="leading-relaxed font-semibold">
+              I have read and understood the instructions. All computer hardware allotted to me are in proper working condition. I declare that I am not in possession of / not wearing / not carrying any prohibited gadget like mobile phone, bluetooth devices etc. /any prohibited material with me into the Examination Hall. I agree that in case of not adhering to the instructions, I shall be liable to be debarred from this Test and/or to disciplinary action, which may include ban from future Tests / Examinations.
+            </span>
+          </label>
 
-          <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100 space-y-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Marking Scheme</p>
-            <div className="flex items-center gap-2.5 text-sm text-slate-700">
-              <span className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                <CheckCircle size={13} className="text-emerald-600" />
-              </span>
-              Correct answer: <span className="font-bold text-emerald-700">+{test.questions?.[0]?.marks || 4} marks</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-sm text-slate-700">
-              <span className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <X size={13} className="text-red-600" />
-              </span>
-              Wrong answer: <span className="font-bold text-red-600">{test.questions?.[0]?.negativeMarks ?? -1} marks</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-sm text-slate-700">
-              <span className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
-                <Circle size={13} className="text-slate-400" />
-              </span>
-              Unattempted: <span className="font-bold text-slate-500">0 marks</span>
-            </div>
+          <div className="flex justify-center pt-3 border-t border-slate-100">
+            <button
+              onClick={onStart}
+              disabled={!checked}
+              className={`px-12 py-3 rounded-xl font-black text-xs tracking-wider transition-all shadow-md uppercase cursor-pointer ${
+                checked
+                  ? 'bg-[#22c55e] hover:bg-[#15803d] text-white hover:shadow-lg scale-105 active:scale-95'
+                  : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+              }`}
+            >
+              Proceed
+            </button>
           </div>
-
-          <button
-            onClick={onStart}
-            className="w-full py-3.5 bg-gradient-to-r from-brand-600 to-violet2-500 text-white rounded-xl font-bold text-base hover:opacity-90 transition shadow-md hover:shadow-lg"
-          >
-            Start Test →
-          </button>
         </div>
       </div>
     </div>

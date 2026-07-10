@@ -124,7 +124,7 @@ export default function Dashboard() {
           </div>
           <Link
             to="/student/courses"
-            className="flex items-center gap-2 bg-white text-brand-700 font-bold text-sm px-5 py-2.5 rounded-2xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+            className="flex items-center gap-2 bg-white text-brand-700 font-bold text-sm px-5 py-2.5 rounded-2xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto text-center justify-center"
           >
             <Play size={15} fill="currentColor" /> Continue Learning
           </Link>
@@ -151,7 +151,7 @@ export default function Dashboard() {
               const grad = colorClasses[c.color] || colorClasses.cyan;
               const timer = timers[c._id] || { days: 0, hours: 0, minutes: 0, seconds: 0 };
               return (
-                <div key={c._id} className="border border-slate-100 rounded-2xl p-4 bg-slate-55/20 flex flex-col justify-between hover:shadow-md transition-shadow">
+                <div key={c._id} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/20 flex flex-col justify-between hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between gap-2 mb-3">
                     <span className="font-extrabold text-slate-800 text-xs truncate flex items-center gap-1.5">
                       <i className={`fas ${c.icon} text-slate-500`}></i>
@@ -188,8 +188,8 @@ export default function Dashboard() {
             <div className={`w-10 h-10 rounded-xl ${s.bg} ${s.text} flex items-center justify-center mb-3`}>
               <s.icon size={20} />
             </div>
-            <div className="text-2xl font-extrabold text-slate-800 font-display">{s.value}</div>
-            <div className="text-xs text-slate-400 font-semibold mt-1">{s.label}</div>
+            <div className="text-xl sm:text-2xl font-extrabold text-slate-800 font-display truncate">{s.value}</div>
+            <div className="text-xs text-slate-400 font-semibold mt-1 truncate">{s.label}</div>
           </div>
         ))}
       </div>
@@ -252,12 +252,12 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-3">
               {enrollments.slice(0, 4).map(e => (
-                <div key={e._id} className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md transition-all duration-200 group">
-                  <div className="relative shrink-0">
+                <div key={e._id} className="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-md transition-all duration-200 group">
+                  <div className="relative shrink-0 w-full sm:w-20 h-32 sm:h-14 overflow-hidden rounded-xl bg-slate-100">
                     <img
                       src={e.course?.thumbnail}
                       alt={e.course?.title}
-                      className="w-20 h-14 object-cover rounded-xl"
+                      className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-brand-900/20 rounded-xl opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                       <Play size={18} className="text-white" fill="white" />
@@ -276,14 +276,14 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-1.5 shrink-0">
-                    <Link to={`/student/learn/${e.course?._id}`} className="px-3 py-1.5 bg-brand-50 text-brand-700 text-xs font-bold rounded-xl hover:bg-brand-100 transition text-center whitespace-nowrap">
+                  <div className="flex flex-row sm:flex-col gap-1.5 w-full sm:w-auto shrink-0 mt-3 sm:mt-0">
+                    <Link to={`/student/learn/${e.course?._id}`} className="flex-1 sm:flex-initial px-3 py-1.5 bg-brand-50 text-brand-700 text-xs font-bold rounded-xl hover:bg-brand-100 transition text-center whitespace-nowrap">
                       Continue
                     </Link>
                     {e.planType !== 'infinity' && (
                       <Link
                         to={`/courses/${e.course?.slug || e.course?._id}`}
-                        className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-extrabold rounded-xl transition text-center whitespace-nowrap"
+                        className="flex-1 sm:flex-initial px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-extrabold rounded-xl transition text-center whitespace-nowrap"
                       >
                         Upgrade
                       </Link>

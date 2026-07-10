@@ -87,6 +87,7 @@ export default function NotificationBell({ darkMode = false }) {
     // Foreground message handler
     const unsub = onForegroundMessage((payload) => {
       load(); // Refresh notifications on new push
+      playChime(); // Play notification sound immediately
     });
 
     return () => { clearInterval(id); if (unsub) unsub(); };

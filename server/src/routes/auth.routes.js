@@ -7,6 +7,7 @@ import {
   redeemCoins, streakPing, googleAuth, deleteMe, getCoinRedemptions,
   sendLoginOtp, verifyLoginOtp,
   requestPhoneVerification, verifyPhoneVerification,
+  requestEmailChange, verifyEmailChange,
 } from '../controllers/auth.controller.js';
 import { protect, protectTemp } from '../middleware/auth.js';
 
@@ -30,6 +31,8 @@ router.get('/me', protect, me);
 router.put('/me', protect, updateMe);
 router.post('/request-phone-verification', protect, requestPhoneVerification);
 router.post('/verify-phone-verification', protect, verifyPhoneVerification);
+router.post('/request-email-change', protect, requestEmailChange);
+router.post('/verify-email-change', protect, verifyEmailChange);
 router.delete('/delete-account', protect, deleteMe);
 router.post('/redeem', protect, redeemCoins);
 router.get('/coin-redemptions', protect, getCoinRedemptions);

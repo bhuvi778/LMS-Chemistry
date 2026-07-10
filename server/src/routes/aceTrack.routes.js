@@ -20,6 +20,7 @@ import {
   requestMentorship,
   getMentorshipBookings,
   updateMentorshipBooking,
+  deleteMentorshipBooking,
   submitMentorshipFeedback,
   getMentorshipSettings,
   getAllMentorshipSettings,
@@ -56,6 +57,7 @@ router.delete('/planner/:id', deletePlannerGoal);
 router.post('/mentorship', requestMentorship);
 router.get('/mentorship', getMentorshipBookings);
 router.put('/mentorship/:id', adminOnly, updateMentorshipBooking);
+router.delete('/mentorship/:id', adminOnly, deleteMentorshipBooking);
 router.put('/mentorship/:id/feedback', submitMentorshipFeedback);
 router.get('/mentorship/settings', getMentorshipSettings);
 router.get('/mentorship/settings/all', adminOnly, getAllMentorshipSettings);

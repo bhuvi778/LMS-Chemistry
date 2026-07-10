@@ -217,7 +217,7 @@ export default function Ebooks() {
           <div className="space-y-2 pt-2 border-t border-slate-100">
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Note Categories:</span>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-              {['all', 'Short Notes', 'Handwritten Notes', 'VVIQ', 'Practice papers', 'Syllabus'].map((sub) => (
+              {['all', 'Short Notes', 'Handwritten Notes', 'VVIQ', 'Mindmaps', 'Formula Charts', 'PYQs'].map((sub) => (
                 <button
                   key={sub}
                   onClick={() => setNoteSubTab(sub)}

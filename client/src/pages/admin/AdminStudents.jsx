@@ -1049,9 +1049,9 @@ function StudentModal({ id, onClose, onChanged }) {
                             disabled={enrollBusy === String(e.course?._id || e.course)}
                             className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 bg-white font-bold uppercase text-brand-700 focus:outline-none focus:border-brand-500 cursor-pointer"
                           >
-                            <option value="batch">{e.course?.plans?.batch?.name || 'batch'}</option>
-                            <option value="pro">{e.course?.plans?.pro?.name || 'pro'}</option>
-                            <option value="infinity">{e.course?.plans?.infinity?.name || 'infinity'}</option>
+                            <option value="batch">{e.course?.plans?.batch?.name || 'Starter Plan'}</option>
+                            <option value="pro">{e.course?.plans?.pro?.name || 'Pro Plan'}</option>
+                            <option value="infinity">{e.course?.plans?.infinity?.name || 'Infinity Plan'}</option>
                           </select>
                           {e.paymentId?.startsWith('ADMIN_ALLOT_') && (
                             <span className="text-[10px] font-semibold text-brand-600">Admin allotted</span>

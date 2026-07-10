@@ -7,12 +7,11 @@ export const listEbooks = asyncHandler(async (req, res) => {
   // Get student's enrolled course IDs
   let enrolledCourseIds = [];
   if (req.user) {
-    const enrollments = await Enrollment.find({ student: req.user._id, paymentStatus: 'paid' }).select('course');
+    const enrollments = await Enrollment.find({ student: req.user._id, paymentStatus: 'paid' }).select('course').lean();
     enrolledCourseIds = enrollments.map((e) => String(e.course));
   }
 
   const ebooks = await Ebook.find({ isActive: true })
-    .populate('courses', 'title thumbnail')
     .sort({ order: 1, createdAt: -1 })
     .lean();
 
@@ -23,7 +22,7 @@ export const listEbooks = asyncHandler(async (req, res) => {
       (req.user?.role === 'admin') ||
       (enrolledCourseIds.length > 0 && (
         eb.courses.length === 0 ||
-        eb.courses.some((c) => enrolledCourseIds.includes(String(c._id)))
+        eb.courses.some((c) => enrolledCourseIds.includes(String(c)))
       ));
     return { ...eb, hasAccess };
   });

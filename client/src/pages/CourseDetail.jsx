@@ -93,6 +93,8 @@ const CONTENT_TYPES = [
   { key: 'dppPdfs',        label: 'DPP PDFs',        icon: Download,     color: 'text-rose-600',    bg: 'bg-rose-50'    },
   { key: 'dppVideos',      label: 'DPP Videos',      icon: Video,        color: 'text-sky-600',     bg: 'bg-sky-50'     },
   { key: 'studyMaterials', label: 'Study Materials', icon: BookMarked,   color: 'text-orange-600',  bg: 'bg-orange-50'  },
+  { key: 'assignmentsPdfs',   label: 'Assignments (PDF)',        icon: Download,     color: 'text-rose-600',    bg: 'bg-rose-50'    },
+  { key: 'assignmentsVideos', label: 'Assignment Solutions',     icon: Video,        color: 'text-sky-600',     bg: 'bg-sky-50'     },
 ];
 
 // ─── Simple video embed (YouTube / Bunny / mp4) ───────────────────────────────

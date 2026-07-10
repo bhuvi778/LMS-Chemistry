@@ -12,11 +12,15 @@ import {
   Key,
   LogOut,
   AlertCircle,
-  Check
+  Check,
+  BarChart2,
+  Activity,
+  Calendar,
+  History
 } from 'lucide-react';
 
 export default function AdminSecurity() {
-  const [activeTab, setActiveTab] = useState('settings'); // 'settings' | 'manager'
+  const [activeTab, setActiveTab] = useState('settings'); // 'settings' | 'manager' | 'analytics'
   
   // Tab 1: Settings & Timeline States
   const [globalSettings, setGlobalSettings] = useState({ maxSessions: 5, studentSessionTimeout: 10 });
@@ -142,6 +146,36 @@ export default function AdminSecurity() {
     ).slice(0, 8); // limit to 8 results for clean layout
   }, [students, searchQuery]);
 
+  const todayLogins = useMemo(() => {
+    const todayStr = new Date().toDateString();
+    return loginLogs.filter(log => new Date(log.loginTime).toDateString() === todayStr);
+  }, [loginLogs]);
+
+  const last7DaysStats = useMemo(() => {
+    const statsMap = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+      statsMap[dateStr] = 0;
+    }
+    loginLogs.forEach(log => {
+      const dateStr = new Date(log.loginTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+      if (statsMap[dateStr] !== undefined) {
+        statsMap[dateStr] += 1;
+      }
+    });
+    return Object.entries(statsMap).map(([date, count]) => ({ date, count })).reverse();
+  }, [loginLogs]);
+
+  const maxDailyCount = useMemo(() => {
+    return Math.max(...last7DaysStats.map(s => s.count), 1);
+  }, [last7DaysStats]);
+
+  const total7DaysLogins = useMemo(() => {
+    return last7DaysStats.reduce((sum, s) => sum + s.count, 0);
+  }, [last7DaysStats]);
+
   return (
     <div className="space-y-6 w-full max-w-5xl">
       {/* Header */}
@@ -172,9 +206,19 @@ export default function AdminSecurity() {
         >
           Student Session Manager
         </button>
+        <button
+          onClick={() => setActiveTab('analytics')}
+          className={`px-5 py-3 rounded-t-xl text-xs font-bold transition-all border-b-2 ${
+            activeTab === 'analytics'
+              ? 'border-indigo-600 text-indigo-600 font-black bg-indigo-50/30'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Login & Logout Analytics
+        </button>
       </div>
 
-      {activeTab === 'settings' ? (
+      {activeTab === 'settings' && (
         <div className="grid lg:grid-cols-3 gap-5">
           {/* Settings Card */}
           <div className="card p-6 flex flex-col justify-between h-fit space-y-6">
@@ -285,8 +329,8 @@ export default function AdminSecurity() {
             <div className="flex items-center gap-2 mb-4">
               <Clock className="text-indigo-600" size={18} />
               <div>
-                <h3 className="font-bold text-slate-900">Recent Logins Timeline</h3>
-                <p className="text-xs text-slate-400">Real-time audit log of student logins</p>
+                <h3 className="font-bold text-slate-900">Today's Logins</h3>
+                <p className="text-xs text-slate-400">Real-time audit log of student logins today</p>
               </div>
             </div>
 
@@ -304,7 +348,7 @@ export default function AdminSecurity() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50/50">
-                      {loginLogs.map((log) => {
+                      {todayLogins.map((log) => {
                         const isMobile = /mobile|android|ios/i.test(log.deviceInfo || '');
                         return (
                           <tr key={log._id} className="text-xs hover:bg-slate-50/50 transition">
@@ -333,10 +377,10 @@ export default function AdminSecurity() {
                           </tr>
                         );
                       })}
-                      {loginLogs.length === 0 && (
+                      {todayLogins.length === 0 && (
                         <tr>
                           <td colSpan="3" className="py-8 text-center text-slate-400 text-sm">
-                            No login logs available yet.
+                            No student logins today yet.
                           </td>
                         </tr>
                       )}
@@ -347,7 +391,9 @@ export default function AdminSecurity() {
             )}
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'manager' && (
         <div className="grid md:grid-cols-3 gap-5">
           {/* Search student list */}
           <div className="card p-5 space-y-4 h-fit md:col-span-1">
@@ -468,6 +514,155 @@ export default function AdminSecurity() {
                 <p className="text-[10px] text-slate-400 mt-0.5 max-w-xs leading-normal">Search and select a student from the directory to audit their active login sessions and force logout specific devices.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'analytics' && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Analytics Summary Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="card p-5 flex items-center gap-4 bg-indigo-50/20 border-indigo-100">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
+                <Activity size={22} />
+              </div>
+              <div>
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Logins (Last 7 Days)</h4>
+                <p className="text-2xl font-black text-slate-800 mt-0.5">{total7DaysLogins}</p>
+              </div>
+            </div>
+            <div className="card p-5 flex items-center gap-4 bg-emerald-50/20 border-emerald-100">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 shadow-sm">
+                <Shield size={22} />
+              </div>
+              <div>
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Sessions Now</h4>
+                <p className="text-2xl font-black text-slate-800 mt-0.5">
+                  {loginLogs.filter(log => log.isActive).length}
+                </p>
+              </div>
+            </div>
+            <div className="card p-5 flex items-center gap-4 bg-rose-50/20 border-rose-100">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600 shadow-sm">
+                <LogOut size={22} />
+              </div>
+              <div>
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Completed Logouts</h4>
+                <p className="text-2xl font-black text-slate-800 mt-0.5">
+                  {loginLogs.filter(log => !log.isActive).length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Daywise Login Chart */}
+            <div className="card p-6 lg:col-span-1 space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <Calendar size={18} className="text-indigo-600" />
+                <h3 className="font-bold text-slate-900 text-sm">Daily Logins (Last 7 Days)</h3>
+              </div>
+              <div className="space-y-4">
+                {last7DaysStats.map((day) => {
+                  const percent = Math.max(8, (day.count / maxDailyCount) * 100);
+                  return (
+                    <div key={day.date} className="space-y-1">
+                      <div className="flex justify-between text-xs font-semibold text-slate-600">
+                        <span>{day.date}</span>
+                        <span className="font-black text-indigo-600">{day.count} logins</span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-indigo-500 to-violet-600 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Login & Logout History Table */}
+            <div className="card p-6 lg:col-span-2 space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <History size={18} className="text-indigo-600" />
+                <h3 className="font-bold text-slate-900 text-sm">Session Activity Log (Last 7 Days)</h3>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <div className="max-h-[400px] overflow-y-auto pr-1">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider sticky top-0 bg-white z-10">
+                      <tr>
+                        <th className="pb-2">Student</th>
+                        <th className="pb-2">Device / IP</th>
+                        <th className="pb-2">Login Time</th>
+                        <th className="pb-2 text-right">Status / Logout</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50/50">
+                      {loginLogs.map((log) => {
+                        const isMobile = /mobile|android|ios/i.test(log.deviceInfo || '');
+                        return (
+                          <tr key={log._id} className="text-xs hover:bg-slate-50/50 transition">
+                            <td className="py-2.5 pr-2">
+                              <div className="font-bold text-slate-800">{log.studentName}</div>
+                              <div className="text-[10px] text-slate-400 font-mono">{log.studentId} • {log.studentEmail}</div>
+                            </td>
+                            <td className="py-2.5 pr-2">
+                              <div className="flex items-center gap-1 text-slate-600">
+                                {isMobile ? <Smartphone size={12} className="text-slate-400" /> : <Laptop size={12} className="text-slate-400" />}
+                                <span className="font-semibold">{log.deviceInfo || 'Unknown'}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                <Globe size={10} /> {log.ip || 'N/A'}
+                              </div>
+                            </td>
+                            <td className="py-2.5 text-slate-500 whitespace-nowrap">
+                              {new Date(log.loginTime).toLocaleString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </td>
+                            <td className="py-2.5 text-right whitespace-nowrap">
+                              {log.isActive ? (
+                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold text-[10px] border border-emerald-100 shadow-3xs">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                  Active Now
+                                </span>
+                              ) : log.logoutTime ? (
+                                <div className="text-[11px] font-semibold text-slate-600">
+                                  {new Date(log.logoutTime).toLocaleString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </div>
+                              ) : (
+                                <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold border border-slate-200/60">
+                                  Logged Out / Revoked
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {loginLogs.length === 0 && (
+                        <tr>
+                          <td colSpan="4" className="py-8 text-center text-slate-400 text-sm">
+                            No login analytics logs available for the last 7 days.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

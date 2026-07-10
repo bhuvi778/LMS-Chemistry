@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { 
-  Search, 
-  ChevronLeft, 
-  ChevronRight, 
-  RotateCw, 
-  Check, 
-  X, 
-  Sparkles, 
-  Filter, 
-  RotateCcw, 
-  BookOpen, 
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  RotateCw,
+  Check,
+  X,
+  Sparkles,
+  Filter,
+  RotateCcw,
+  BookOpen,
   HelpCircle,
   Award,
   Layers,
@@ -22,7 +22,7 @@ import api from '../../api/client.js';
 export default function Flashcards() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Data State
   const [chapters, setChapters] = useState([]);
   const [topics, setTopics] = useState([]);
@@ -31,7 +31,7 @@ export default function Flashcards() {
   // Selections
   const [selectedChapterId, setSelectedChapterId] = useState('');
   const [selectedTopicId, setSelectedTopicId] = useState('all');
-  
+
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('all');
@@ -78,15 +78,15 @@ export default function Flashcards() {
       try {
         setLoading(true);
         const response = await api.get('/flashcards');
-        
+
         // Response matches structure: { success: true, chapters: [...], topics: [...], cards: [...] }
         const data = response.data;
-        
+
         if (data.success) {
           setChapters(data.chapters || []);
           setTopics(data.topics || []);
           setAllCards(data.cards || []);
-          
+
           if (data.chapters && data.chapters.length > 0) {
             setSelectedChapterId(data.chapters[0]._id);
           }
@@ -116,7 +116,7 @@ export default function Flashcards() {
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      cards = cards.filter(card => 
+      cards = cards.filter(card =>
         (card.question && card.question.toLowerCase().includes(query)) ||
         (card.answer && card.answer.toLowerCase().includes(query))
       );
@@ -148,7 +148,7 @@ export default function Flashcards() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (filteredCards.length === 0) return;
-      
+
       // Don't trigger shortcuts if focus is on inputs
       if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
         return;
@@ -244,7 +244,7 @@ export default function Flashcards() {
 
   const resetAllProgressForChapter = () => {
     if (!window.confirm('Are you sure you want to reset study progress for all cards in this chapter?')) return;
-    
+
     const chapterCardIds = allCards
       .filter(card => card.chapterId === selectedChapterId)
       .map(card => card._id);
@@ -309,8 +309,8 @@ export default function Flashcards() {
       <div className="bg-red-50 border border-red-200 rounded-3xl p-6 text-center max-w-lg mx-auto mt-12">
         <h3 className="text-red-800 font-bold text-lg mb-2">Error Connecting to Flashcards API</h3>
         <p className="text-red-600 text-sm mb-4">{error}</p>
-        <button 
-          onClick={() => window.location.reload()} 
+        <button
+          onClick={() => window.location.reload()}
           className="px-6 py-2.5 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition"
         >
           Try Again
@@ -350,7 +350,7 @@ export default function Flashcards() {
         <div>
           <h1 className="font-display text-2xl font-extrabold text-slate-800 flex items-center gap-2">
             <Sparkles className="text-brand-500 animate-pulse" size={24} />
-            Flashcard Study Portal
+            Flashcard
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Master Chemistry concepts with interactive flashcards. Progress is autosaved.
@@ -369,17 +369,17 @@ export default function Flashcards() {
 
       {/* Main Responsive Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* LEFT COLUMN: Chapters & Topics Sidebar (Lg: 4/12 width) */}
         <div className="lg:col-span-4 space-y-6">
-          
+
           {/* Chapter Selector */}
           <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-soft space-y-4">
             <h2 className="font-display font-extrabold text-slate-800 text-base flex items-center gap-2">
               <BookOpen size={18} className="text-indigo-600" />
               Chapters
             </h2>
-            
+
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {chapters.map((chapter) => {
                 const isSelected = selectedChapterId === chapter._id;
@@ -392,16 +392,14 @@ export default function Flashcards() {
                       setSelectedChapterId(chapter._id);
                       setSelectedTopicId('all');
                     }}
-                    className={`w-full text-left p-3.5 rounded-2xl border text-sm transition-all flex flex-col gap-2 ${
-                      isSelected
+                    className={`w-full text-left p-3.5 rounded-2xl border text-sm transition-all flex flex-col gap-2 ${isSelected
                         ? 'border-brand-500 bg-brand-50/50 shadow-sm'
                         : 'border-slate-100 bg-white hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <span className={`font-bold transition-colors ${
-                        isSelected ? 'text-brand-700' : 'text-slate-700'
-                      }`}>
+                      <span className={`font-bold transition-colors ${isSelected ? 'text-brand-700' : 'text-slate-700'
+                        }`}>
                         {chapter.name}
                       </span>
                       <span className="text-xs font-semibold text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full">
@@ -417,8 +415,8 @@ export default function Flashcards() {
                           <span>{stats.percentage}%</span>
                         </div>
                         <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                          <div 
-                            className="bg-gradient-brand h-full rounded-full transition-all duration-500" 
+                          <div
+                            className="bg-gradient-brand h-full rounded-full transition-all duration-500"
                             style={{ width: `${stats.percentage}%` }}
                           ></div>
                         </div>
@@ -437,31 +435,29 @@ export default function Flashcards() {
                 <Layers size={18} className="text-purple-600" />
                 Topics
               </h2>
-              
+
               <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
                 <button
                   onClick={() => setSelectedTopicId('all')}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold transition ${
-                    selectedTopicId === 'all'
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold transition ${selectedTopicId === 'all'
                       ? 'bg-purple-50 border border-purple-100 text-purple-700 font-extrabold'
                       : 'hover:bg-slate-50 text-slate-600'
-                  }`}
+                    }`}
                 >
                   All Topics ({allCards.filter(c => c.chapterId === selectedChapterId).length})
                 </button>
-                
+
                 {currentTopics.map((topic) => {
                   const topicCardsCount = allCards.filter(c => c.topicId === topic._id).length;
-                  
+
                   return (
                     <button
                       key={topic._id}
                       onClick={() => setSelectedTopicId(topic._id)}
-                      className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-between ${
-                        selectedTopicId === topic._id
+                      className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-between ${selectedTopicId === topic._id
                           ? 'bg-purple-50 border border-purple-100 text-purple-700 font-extrabold'
                           : 'hover:bg-slate-50 text-slate-600'
-                      }`}
+                        }`}
                     >
                       <span className="truncate pr-2">{topic.name}</span>
                       <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md flex-shrink-0 font-medium">
@@ -479,65 +475,36 @@ export default function Flashcards() {
         <div className="lg:col-span-8 space-y-6">
 
           {/* Filtering Header Bar */}
-          <div className="bg-white border border-slate-100 rounded-3xl p-4 shadow-soft flex flex-col md:flex-row gap-4 items-center justify-between">
-            {/* Search Input */}
-            <div className="relative w-full md:max-w-xs">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Search size={16} className="text-slate-400" />
-              </span>
-              <input
-                type="text"
-                placeholder="Search flashcards..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-sm rounded-2xl border border-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
-              />
+          <div className="bg-white border border-slate-100 rounded-3xl p-4 shadow-soft flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <Filter size={13} />
+              <span>Filters:</span>
             </div>
 
-            {/* Select dropdowns */}
-            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
-              <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                <Filter size={13} />
-                <span>Filters:</span>
-              </div>
-              
-              {/* Difficulty Filter */}
-              <select
-                value={difficultyFilter}
-                onChange={(e) => setDifficultyFilter(e.target.value)}
-                className="text-xs font-bold text-slate-600 bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-400"
-              >
-                <option value="all">All Difficulties</option>
-                <option value="Easy">Easy</option>
-                <option value="Medium">Medium</option>
-                <option value="Hard">Hard</option>
-              </select>
-
-              {/* Status Filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="text-xs font-bold text-slate-600 bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-400"
-              >
-                <option value="all">All Cards</option>
-                <option value="unseen">Unseen</option>
-                <option value="known">Mastered (Known)</option>
-                <option value="review">Needs Review</option>
-              </select>
-            </div>
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="text-xs font-bold text-slate-600 bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-400 cursor-pointer"
+            >
+              <option value="all">All Cards</option>
+              <option value="unseen">Unseen</option>
+              <option value="known">Mastered (Known)</option>
+              <option value="review">Needs Review</option>
+            </select>
           </div>
 
           {/* Cards Deck View */}
           {filteredCards.length > 0 ? (
             <div className="space-y-6">
-              
+
               {/* Deck Stats Bar */}
               <div className="flex items-center justify-between text-sm px-2">
                 <div className="flex items-center gap-3">
                   <span className="font-extrabold text-slate-700 bg-slate-100 px-3 py-1 rounded-xl text-xs">
                     Card {currentCardIndex + 1} of {filteredCards.length}
                   </span>
-                  
+
                   {/* Status Indicator for Current Card */}
                   {activeCard && (
                     <>
@@ -563,7 +530,7 @@ export default function Flashcards() {
 
               {/* Card deck slider progress */}
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="bg-brand-500 h-full rounded-full transition-all duration-300"
                   style={{ width: `${((currentCardIndex + 1) / filteredCards.length) * 100}%` }}
                 ></div>
@@ -571,10 +538,9 @@ export default function Flashcards() {
 
               {/* HERO: 3D Flip Card Container */}
               <div className="flashcard-container relative h-[380px] w-full cursor-pointer select-none" onClick={toggleFlip}>
-                <div className={`flashcard-inner relative w-full h-full preserve-3d shadow-soft rounded-3xl ${
-                  isFlipped ? 'flashcard-flipped' : ''
-                }`}>
-                  
+                <div className={`flashcard-inner relative w-full h-full preserve-3d shadow-soft rounded-3xl ${isFlipped ? 'flashcard-flipped' : ''
+                  }`}>
+
                   {/* FRONT SIDE (Question) */}
                   <div className="flashcard-front bg-gradient-to-tr from-white to-slate-50 border border-slate-100 rounded-3xl p-8 flex flex-col justify-between backface-hidden shadow-sm">
                     {/* Badge headers */}
@@ -591,7 +557,7 @@ export default function Flashcards() {
 
                     {/* Question text center area */}
                     <div className="flex-1 flex flex-col justify-center items-center text-center px-4 max-h-[220px] overflow-y-auto">
-                      <div 
+                      <div
                         className="font-display font-extrabold text-xl md:text-2xl text-slate-800 leading-relaxed max-w-xl"
                         dangerouslySetInnerHTML={{ __html: activeCard?.question }}
                       />
@@ -621,7 +587,7 @@ export default function Flashcards() {
 
                     {/* Answer text area */}
                     <div className="flex-1 flex flex-col justify-center items-center text-center px-4 max-h-[210px] overflow-y-auto">
-                      <div 
+                      <div
                         className="font-sans font-medium text-base md:text-lg text-slate-200 leading-relaxed max-w-xl prose prose-invert"
                         dangerouslySetInnerHTML={{ __html: activeCard?.answer }}
                       />

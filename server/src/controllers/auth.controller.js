@@ -125,7 +125,7 @@ const createSession = async (userId, token, req) => {
   const count = await Session.countDocuments({ userId, isActive: true });
   if (count >= maxSessions) {
     const oldest = await Session.findOne({ userId, isActive: true }).sort({ createdAt: 1 });
-    if (oldest) await Session.findByIdAndDelete(oldest._id);
+    if (oldest) await Session.findByIdAndUpdate(oldest._id, { isActive: false, logoutTime: new Date() });
   }
   const session = await Session.create({
     userId,
@@ -596,7 +596,7 @@ export const updateMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   if (!user) { res.status(404); throw new Error('User not found'); }
   if (name) user.name = name;
-  if (phone !== undefined) user.phone = phone;
+  if (phone !== undefined && !user.isWhatsappVerified) user.phone = phone;
   if (avatar !== undefined) user.avatar = avatar;
   if (grade !== undefined) user.grade = grade;
   if (stream !== undefined) user.stream = stream;
@@ -655,7 +655,7 @@ export const getSessions = asyncHandler(async (req, res) => {
 export const revokeSession = asyncHandler(async (req, res) => {
   const session = await Session.findOne({ _id: req.params.id, userId: req.user._id });
   if (!session) { res.status(404); throw new Error('Session not found'); }
-  await Session.findByIdAndDelete(session._id);
+  await Session.findByIdAndUpdate(session._id, { isActive: false, logoutTime: new Date() });
   res.json({ message: 'Session revoked' });
 });
 
@@ -663,9 +663,9 @@ export const revokeSession = asyncHandler(async (req, res) => {
 export const revokeAllSessions = asyncHandler(async (req, res) => {
   const auth = req.headers.authorization;
   const currentHash = auth ? hashToken(auth.split(' ')[1]) : null;
-  const query = { userId: req.user._id };
+  const query = { userId: req.user._id, isActive: true };
   if (currentHash) query.tokenHash = { $ne: currentHash };
-  await Session.deleteMany(query);
+  await Session.updateMany(query, { $set: { isActive: false, logoutTime: new Date() } });
   res.json({ message: 'All other sessions revoked' });
 });
 
@@ -674,7 +674,7 @@ export const logout = asyncHandler(async (req, res) => {
   const auth = req.headers.authorization;
   if (auth?.startsWith('Bearer ')) {
     const hash = hashToken(auth.split(' ')[1]);
-    await Session.deleteOne({ userId: req.user._id, tokenHash: hash });
+    await Session.updateOne({ userId: req.user._id, tokenHash: hash }, { $set: { isActive: false, logoutTime: new Date() } });
   }
   res.json({ message: 'Logged out' });
 });
@@ -1160,6 +1160,102 @@ export const verifyPhoneVerification = asyncHandler(async (req, res) => {
   const updatedUser = await User.findByIdAndUpdate(
     userId,
     { phone: targetPhone, isWhatsappVerified: true },
+    { new: true }
+  );
+
+  res.json(safeUser(updatedUser));
+});
+
+/** POST /api/auth/request-email-change — Send Email OTP to new email address */
+export const requestEmailChange = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    res.status(400);
+    throw new Error('A valid email address is required');
+  }
+
+  const targetEmail = email.trim().toLowerCase();
+
+  // Validate email is not already taken by another user
+  const existingUser = await User.findOne({ email: targetEmail, _id: { $ne: req.user._id } });
+  if (existingUser) {
+    res.status(400);
+    throw new Error('This email address is already registered to another account');
+  }
+
+  // Generate a 6-digit OTP
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const codeHash = await bcrypt.hash(code, 10);
+
+  // Store in OTP collection with purpose 'email_change'
+  await OTP.deleteMany({ userId: req.user._id, purpose: 'email_change' });
+  await OTP.create({
+    userId: req.user._id,
+    email: targetEmail,
+    codeHash,
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    purpose: 'email_change',
+  });
+
+  // Send email OTP
+  const fromEmail = process.env.SMTP_USER || process.env.FROM_EMAIL;
+  if (!process.env.SMTP_USER) {
+    console.log(`[EMAIL CHANGE OTP DEV] ${targetEmail} → ${code}`);
+  } else {
+    const transporter = getTransporter();
+    await transporter.sendMail({
+      from: `"Ace2Examz Security" <${fromEmail}>`,
+      to: targetEmail,
+      subject: 'Verify Your Email Change — Ace2Examz',
+      html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+        <h2 style="color:#6d28d9">Ace2Examz — Email Change Verification</h2>
+        <p>Hi ${req.user.name || 'there'},</p>
+        <p>You requested to change your email to this address. Your verification OTP code is:</p>
+        <div style="font-size:36px;font-weight:900;letter-spacing:8px;color:#6d28d9;margin:20px 0">${code}</div>
+        <p style="color:#888">Expires in <b>10 minutes</b>. Do not share it.</p>
+      </div>`,
+    });
+  }
+
+  res.json({ success: true, message: 'Verification OTP sent to your new email' });
+});
+
+/** POST /api/auth/verify-email-change — Verify OTP and update email */
+export const verifyEmailChange = asyncHandler(async (req, res) => {
+  const { code, email } = req.body;
+  if (!code || !email) {
+    res.status(400);
+    throw new Error('Code and email address are required');
+  }
+
+  const targetEmail = email.trim().toLowerCase();
+  const userId = req.user._id;
+
+  const record = await OTP.findOne({ userId, purpose: 'email_change', used: false });
+  if (!record) {
+    res.status(400);
+    throw new Error('No pending email verification found. Please try again.');
+  }
+  if (record.email !== targetEmail) {
+    res.status(400);
+    throw new Error('Email address mismatch.');
+  }
+  if (record.expiresAt < new Date()) {
+    await OTP.findByIdAndDelete(record._id);
+    res.status(400);
+    throw new Error('Verification code has expired. Please try again.');
+  }
+  if (!(await bcrypt.compare(String(code), record.codeHash))) {
+    res.status(400);
+    throw new Error('Invalid verification code');
+  }
+
+  await OTP.findByIdAndUpdate(record._id, { used: true });
+
+  // Update email on user
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { email: targetEmail, isEmailVerified: true },
     { new: true }
   );
 

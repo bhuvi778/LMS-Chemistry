@@ -8,7 +8,7 @@ const FREE_PREVIEW_COUNT = 0;
 function applyPreview(subject) {
   const cloned = JSON.parse(JSON.stringify(subject));
   cloned.chapters = (cloned.chapters || []).map((ch) => {
-    const types = ['videoClasses', 'classNotes', 'tests', 'dpps', 'dppPdfs', 'dppVideos', 'studyMaterials'];
+    const types = ['videoClasses', 'classNotes', 'tests', 'dpps', 'dppPdfs', 'dppVideos', 'studyMaterials', 'assignmentsPdfs', 'assignmentsVideos'];
     types.forEach((t) => {
       if (!Array.isArray(ch[t])) return;
       ch[t] = ch[t].map((item, i) => {

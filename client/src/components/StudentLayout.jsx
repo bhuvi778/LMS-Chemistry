@@ -66,14 +66,6 @@ const navSections = [
     ]
   },
   {
-    title: 'FLASH CARD',
-    icon: SquareStack,
-    isDirect: true,
-    items: [
-      { to: '/student/flashcards', label: 'Flash Card', icon: SquareStack }
-    ]
-  },
-  {
     title: 'LEARN',
     icon: Library,
     items: [
@@ -104,6 +96,13 @@ const navSections = [
       { to: '/student/planner', label: 'My Planner', icon: Calendar },
       { to: '/student/exam-counter', label: 'Exam Counter', icon: Clock },
       { to: '/student/mentorship', label: '1:1 Mentorship', icon: Users },
+    ]
+  },
+  {
+    title: 'PREP ARENA',
+    icon: Layers,
+    items: [
+      { to: '/student/flashcards', label: 'Flash Card', icon: SquareStack }
     ]
   },
   {
@@ -321,6 +320,20 @@ export default function StudentLayout() {
     };
   }, [user, navigate, logout]);
 
+  // Open the group containing the active item automatically
+  useEffect(() => {
+    const initialOpen = {};
+    navSections.forEach((section) => {
+      const hasActiveChild = section.items.some(
+        (item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/')
+      );
+      if (hasActiveChild) {
+        initialOpen[section.title] = true;
+      }
+    });
+    setOpenGroups(initialOpen);
+  }, [location.pathname]);
+
   // If student role and phone is empty or not verified
   if (user && user.role === 'student' && (!user.phone || !user.isWhatsappVerified)) {
     const handleSendOtp = async (e) => {
@@ -360,6 +373,9 @@ export default function StudentLayout() {
         if (setUser) {
           setUser(data);
         }
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       } catch (err) {
         toast.error(err.response?.data?.message || err.message || 'Verification failed');
       } finally {
@@ -490,20 +506,6 @@ export default function StudentLayout() {
       </div>
     );
   }
-
-  // Open the group containing the active item automatically
-  useEffect(() => {
-    const initialOpen = {};
-    navSections.forEach((section) => {
-      const hasActiveChild = section.items.some(
-        (item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/')
-      );
-      if (hasActiveChild) {
-        initialOpen[section.title] = true;
-      }
-    });
-    setOpenGroups(initialOpen);
-  }, [location.pathname]);
 
   const toggleGroup = (title) => {
     setOpenGroups((prev) => {

@@ -41,6 +41,8 @@ const chapterSchema = new mongoose.Schema(
     dppPdfs: [contentItemSchema],        // DPP problem PDFs
     dppVideos: [contentItemSchema],      // DPP solution videos
     studyMaterials: [contentItemSchema], // Additional resources
+    assignmentsPdfs: [contentItemSchema],   // Assignments (in Pdf)
+    assignmentsVideos: [contentItemSchema], // Assignments Solutions (In Video)
   },
   { _id: true }
 );

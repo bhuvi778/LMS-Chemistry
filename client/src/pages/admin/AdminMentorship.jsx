@@ -276,6 +276,17 @@ export default function AdminMentorship() {
     }
   };
 
+  const handleDeleteBooking = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this mentorship booking session request? This action cannot be undone.')) return;
+    try {
+      await api.delete(`/ace-track/mentorship/${id}`);
+      toast.success('Mentorship booking deleted successfully');
+      fetchBookings();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete booking');
+    }
+  };
+
   const filteredBookings = bookings.filter(b => b.status === activeTab);
 
   return (
@@ -489,6 +500,12 @@ export default function AdminMentorship() {
                       >
                         Cancel Request
                       </button>
+                      <button
+                        onClick={() => handleDeleteBooking(booking._id)}
+                        className="px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5 ml-auto"
+                      >
+                        <Trash2 size={13} /> Delete Request
+                      </button>
                     </div>
                   )}
 
@@ -521,6 +538,12 @@ export default function AdminMentorship() {
                         >
                           Cancel Session
                         </button>
+                        <button
+                          onClick={() => handleDeleteBooking(booking._id)}
+                          className="px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5 ml-auto"
+                        >
+                          <Trash2 size={13} /> Delete Session
+                        </button>
                       </div>
                     </div>
                   )}
@@ -546,27 +569,46 @@ export default function AdminMentorship() {
                         )}
                       </div>
 
-                      {/* Ratings left by student */}
-                      {booking.rating ? (
-                        <div className="flex items-center gap-2 bg-amber-50/50 border border-amber-100/60 p-3 rounded-xl">
-                          <span className="font-bold text-slate-600">Student Rating:</span>
-                          <div className="flex items-center text-amber-400">
-                            {[...Array(booking.rating)].map((_, i) => (
-                              <Star key={i} size={13} fill="currentColor" />
-                            ))}
-                            {[...Array(5 - booking.rating)].map((_, i) => (
-                              <Star key={i} size={13} />
-                            ))}
+                      {/* Ratings left by student & Delete Button */}
+                      <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-100/50">
+                        {booking.rating ? (
+                          <div className="flex items-center gap-2 bg-amber-50/50 border border-amber-100/60 p-3 rounded-xl flex-1">
+                            <span className="font-bold text-slate-600">Student Rating:</span>
+                            <div className="flex items-center text-amber-400">
+                              {[...Array(booking.rating)].map((_, i) => (
+                                <Star key={i} size={13} fill="currentColor" />
+                              ))}
+                              {[...Array(5 - booking.rating)].map((_, i) => (
+                                <Star key={i} size={13} />
+                              ))}
+                            </div>
+                            {booking.studentFeedback && (
+                              <span className="text-slate-500 italic ml-2">"{booking.studentFeedback}"</span>
+                            )}
                           </div>
-                          {booking.studentFeedback && (
-                            <span className="text-slate-500 italic ml-2">"{booking.studentFeedback}"</span>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded-lg inline-block">
-                          Awaiting Student Rating/Review
-                        </div>
-                      )}
+                        ) : (
+                          <div className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded-lg inline-block">
+                            Awaiting Student Rating/Review
+                          </div>
+                        )}
+                        <button
+                          onClick={() => handleDeleteBooking(booking._id)}
+                          className="px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5 ml-auto"
+                        >
+                          <Trash2 size={13} /> Delete Session
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {booking.status === 'Cancelled' && (
+                    <div className="flex justify-end pt-2 border-t border-slate-100/50">
+                      <button
+                        onClick={() => handleDeleteBooking(booking._id)}
+                        className="px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5"
+                      >
+                        <Trash2 size={13} /> Delete Session
+                      </button>
                     </div>
                   )}
                 </div>
