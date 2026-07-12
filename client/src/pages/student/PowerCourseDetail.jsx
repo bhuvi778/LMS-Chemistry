@@ -8,19 +8,13 @@ import {
   Zap,
   Shield,
   Calendar,
-  ChevronDown,
-  ChevronUp,
   Tag,
-  Plus,
   Check,
   Coins,
   Star,
   Award,
   Video,
   ListTodo,
-  FileText,
-  Download,
-  HelpCircle,
   Laptop,
   BookOpen
 } from 'lucide-react';
@@ -48,7 +42,7 @@ export default function PowerCourseDetail() {
   const [enrolled, setEnrolled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [expandedDays, setExpandedDays] = useState({ 1: true });
+  const [selectedPreviewDay, setSelectedPreviewDay] = useState(1);
   const [activeTab, setActiveTab] = useState('overview');
 
   // Coupons
@@ -151,10 +145,6 @@ export default function PowerCourseDetail() {
       }
     };
   }, [course]);
-
-  const toggleDay = (dayNum) => {
-    setExpandedDays(prev => ({ ...prev, [dayNum]: !prev[dayNum] }));
-  };
 
   const handleApplyCoupon = async (rawCode = couponCode) => {
     const code = rawCode.trim().toUpperCase();
@@ -349,6 +339,13 @@ export default function PowerCourseDetail() {
     date.setDate(date.getDate() + dayNum - 1);
     return formatDate(date, false);
   };
+  const getPreviewDay = (dayNum) => (course.dailyPlan || []).find((p) => p.dayNumber === dayNum) || {
+    dayNumber: dayNum,
+    title: `Day ${dayNum} Target Plan`,
+    durationText: '60 min',
+    topicsCovered: []
+  };
+  const selectedPlanDay = getPreviewDay(selectedPreviewDay);
 
   // Render type badges
   const getBadgeStyle = (type) => {
@@ -567,59 +564,100 @@ export default function PowerCourseDetail() {
                 </p>
               </div>
 
-              <div className="space-y-3">
-                {Array.from({ length: duration }, (_, idx) => {
-                  const dayNum = idx + 1;
-                  const planDay = (course.dailyPlan || []).find((p) => p.dayNumber === dayNum) || {
-                    dayNumber: dayNum,
-                    title: `Day ${dayNum} Target Plan`,
-                    durationText: '60 min',
-                    topicsCovered: []
-                  };
-                  const isExpanded = !!expandedDays[dayNum];
-
-                  return (
-                    <div key={dayNum} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
-                      <button
-                        onClick={() => toggleDay(dayNum)}
-                        className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50/50 transition duration-150"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-650 flex items-center justify-center font-bold text-xs shrink-0">
-                            {dayNum}
-                          </span>
-                          <div>
-                            <h4 className="font-extrabold text-slate-800 text-xs">{planDay.title}</h4>
-                            <span className="text-[9px] text-slate-450 font-bold bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 mt-0.5 inline-block">
-                              {hasCalendarMode && getDayDate(dayNum) ? `${getDayDate(dayNum)} · ` : ''}{planDay.durationText || '60 min'}
-                            </span>
-                          </div>
-                        </div>
-                        {isExpanded ? <ChevronUp size={14} className="text-slate-450" /> : <ChevronDown size={14} className="text-slate-450" />}
-                      </button>
-
-                      {isExpanded && (
-                        <div className="px-4 pb-4 pt-1 border-t border-slate-100/60 bg-slate-50/50 space-y-3">
-                          {planDay.topicsCovered?.length > 0 ? (
-                            <div className="space-y-1.5">
-                              <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Topics Covered</span>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pl-1">
-                                {planDay.topicsCovered.map((topic, i) => (
-                                  <div key={i} className="flex items-center gap-2 text-xs text-slate-600 font-semibold leading-snug">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />
-                                    <span>{topic}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-[10px] text-slate-450 italic">Live/recorded class, reference notes, and practice material will unlock on this day.</div>
-                          )}
-                        </div>
-                      )}
+              <div className="grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-4">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                      <h4 className="font-black text-slate-850 text-xs">Day Map</h4>
+                      <p className="text-[10px] font-semibold text-slate-450">{duration} targets in compact view</p>
                     </div>
-                  );
-                })}
+                    <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[10px] font-black text-brand-700 border border-brand-100">
+                      Day {selectedPreviewDay}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-5 sm:grid-cols-7 lg:grid-cols-5 xl:grid-cols-6 gap-2 max-h-56 overflow-y-auto pr-1">
+                    {Array.from({ length: duration }, (_, idx) => {
+                      const dayNum = idx + 1;
+                      const day = getPreviewDay(dayNum);
+                      const isActive = selectedPreviewDay === dayNum;
+                      const hasContent = !!(day.videoUrl || day.liveClassId || day.notesUrl || day.quizId || day.assignmentUrl || day.topicsCovered?.length);
+                      return (
+                        <button
+                          key={dayNum}
+                          type="button"
+                          onClick={() => setSelectedPreviewDay(dayNum)}
+                          title={day.title}
+                          className={`h-11 rounded-xl border text-center transition ${
+                            isActive
+                              ? 'border-brand-500 bg-brand-600 text-white shadow-sm'
+                              : hasContent
+                                ? 'border-slate-200 bg-slate-50 text-slate-700 hover:border-brand-200 hover:bg-brand-50'
+                                : 'border-slate-100 bg-white text-slate-400 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="block text-xs font-black leading-none">{dayNum}</span>
+                          {hasCalendarMode && getDayDate(dayNum) && (
+                            <span className={`mt-1 block text-[8px] font-bold leading-none ${isActive ? 'text-white/75' : 'text-slate-400'}`}>
+                              {getDayDate(dayNum)}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm min-h-[220px]">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-brand-600">
+                        Day {selectedPreviewDay}{hasCalendarMode && getDayDate(selectedPreviewDay) ? ` · ${getDayDate(selectedPreviewDay)}` : ''}
+                      </span>
+                      <h4 className="mt-1 font-black text-slate-900 text-sm leading-snug">{selectedPlanDay.title}</h4>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-black text-slate-500 border border-slate-100">
+                      {selectedPlanDay.durationText || '60 min'}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { label: 'Recorded', active: !!selectedPlanDay.videoUrl },
+                        { label: 'Live', active: !!selectedPlanDay.liveClassId },
+                        { label: 'Notes', active: !!selectedPlanDay.notesUrl },
+                        { label: 'Practice', active: !!selectedPlanDay.quizId },
+                      ].map((item) => (
+                        <div
+                          key={item.label}
+                          className={`rounded-xl border px-2 py-2 text-center text-[10px] font-black ${
+                            item.active ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-slate-100 bg-slate-50 text-slate-400'
+                          }`}
+                        >
+                          {item.label}
+                        </div>
+                      ))}
+                    </div>
+
+                    {selectedPlanDay.topicsCovered?.length > 0 ? (
+                      <div>
+                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-2">Topics Covered</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                          {selectedPlanDay.topicsCovered.map((topic, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs text-slate-600 font-semibold leading-snug">
+                              <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />
+                              <span>{topic}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-[11px] font-semibold text-slate-450">
+                        Live/recorded class, reference notes, and practice material will unlock on this day.
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

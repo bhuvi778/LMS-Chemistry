@@ -16,10 +16,7 @@ import {
   HelpCircle,
   Flame,
   Award,
-  BookOpen,
   MessageSquare,
-  ChevronDown,
-  ChevronUp,
   Share2,
   Star,
   Users,
@@ -98,7 +95,7 @@ export default function PowerCourseLearn() {
 
   const toggleExpandDay = (dayNum) => {
     if (!isDayUnlocked(dayNum)) return;
-    setExpandedDay(expandedDay === dayNum ? null : dayNum);
+    setExpandedDay(dayNum);
   };
 
   if (loading) {
@@ -208,6 +205,24 @@ export default function PowerCourseLearn() {
     if (!day?.liveClassId) return null;
     return liveClassMap.get(String(day.liveClassId)) || null;
   };
+
+  const getLearningDay = (dayNum) => (course.dailyPlan || []).find(p => p.dayNumber === dayNum) || {
+    dayNumber: dayNum,
+    title: `Target Day ${dayNum}`,
+    topicsCovered: [],
+    unlockDate: '',
+    videoUrl: '', videoTitle: 'Lecture video',
+    notesUrl: '', notesTitle: 'Notes PDF',
+    quizId: '', quizTitle: 'Practice checkpoint',
+    liveClassId: '', liveClassTitle: 'Attend live class',
+    assignmentUrl: '', assignmentTitle: 'Assignment PDF'
+  };
+  const selectedDayNum = expandedDay || 1;
+  const selectedDayData = getLearningDay(selectedDayNum);
+  const selectedAssignedLiveClass = getAssignedLiveClass(selectedDayData);
+  const selectedDayUnlocked = isDayUnlocked(selectedDayNum);
+  const selectedDayCalendarAvailable = isDayAvailableByCalendar(selectedDayNum);
+  const selectedDayCompleted = completedDays.has(selectedDayNum);
 
   const getLivePlatformLabel = (platform) => (
     platform === 'agora_call' ? 'Ace Video Call' :
@@ -377,241 +392,199 @@ export default function PowerCourseLearn() {
                 </div>
               </div>
 
-              {/* Day accordion cards list */}
-              <div className="space-y-3">
-                {Array.from({ length: duration }, (_, idx) => {
-                  const dayNum = idx + 1;
-                  const isCompleted = completedDays.has(dayNum);
-                  const isCalendarAvailable = isDayAvailableByCalendar(dayNum);
-                  const isUnlocked = isDayUnlocked(dayNum);
-                  const isExpanded = expandedDay === dayNum;
+              <div className="grid xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] gap-4">
+                <div className="rounded-2xl border border-slate-150 bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                      <h4 className="font-black text-slate-850 text-xs">Day Map</h4>
+                      <p className="text-[10px] font-semibold text-slate-450">Tap any unlocked day</p>
+                    </div>
+                    <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-black text-slate-600 border border-slate-150">
+                      {completedDays.size}/{duration}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-5 sm:grid-cols-8 xl:grid-cols-5 2xl:grid-cols-6 gap-2 max-h-60 overflow-y-auto pr-1">
+                    {Array.from({ length: duration }, (_, idx) => {
+                      const dayNum = idx + 1;
+                      const isCompleted = completedDays.has(dayNum);
+                      const isCalendarAvailable = isDayAvailableByCalendar(dayNum);
+                      const isUnlocked = isDayUnlocked(dayNum);
+                      const isActive = selectedDayNum === dayNum;
+                      const dayData = getLearningDay(dayNum);
+                      return (
+                        <button
+                          key={dayNum}
+                          type="button"
+                          onClick={() => toggleExpandDay(dayNum)}
+                          disabled={!isUnlocked}
+                          title={dayData.title}
+                          className={`relative h-12 rounded-xl border text-center transition disabled:cursor-not-allowed ${
+                            isActive
+                              ? 'border-brand-500 bg-brand-600 text-white shadow-sm'
+                              : isCompleted
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                : isUnlocked
+                                  ? 'border-slate-200 bg-white text-slate-700 hover:border-brand-200 hover:bg-brand-50'
+                                  : 'border-slate-100 bg-slate-50 text-slate-350'
+                          }`}
+                        >
+                          <span className="flex items-center justify-center gap-1 text-xs font-black leading-none">
+                            {!isUnlocked ? <Lock size={10} /> : isCompleted ? <CheckCircle size={10} /> : null}
+                            {dayNum}
+                          </span>
+                          {hasCalendarMode && getDayDate(dayNum) && (
+                            <span className={`mt-1 block text-[8px] font-bold leading-none ${isActive ? 'text-white/75' : 'text-slate-400'}`}>
+                              {formatDate(getDayDate(dayNum))}
+                            </span>
+                          )}
+                          {!isCalendarAvailable && (
+                            <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-400 border border-white" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                  const dayData = (course.dailyPlan || []).find(p => p.dayNumber === dayNum) || {
-                    dayNumber: dayNum,
-                    title: `Target Day ${dayNum}`,
-                    topicsCovered: [],
-                    unlockDate: '',
-                    videoUrl: '', videoTitle: 'Lecture video',
-                    notesUrl: '', notesTitle: 'Notes PDF',
-                    quizId: '', quizTitle: 'Practice checkpoint',
-                    liveClassId: '', liveClassTitle: 'Attend live class',
-                    assignmentUrl: '', assignmentTitle: 'Assignment PDF'
-                  };
-                  const assignedLiveClass = getAssignedLiveClass(dayData);
+                <div className={`border rounded-2xl bg-white shadow-sm overflow-hidden ${
+                  selectedDayCompleted ? 'border-emerald-200' : selectedDayUnlocked ? 'border-brand-200' : 'border-slate-150'
+                }`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 p-4">
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-brand-600">
+                        Day {selectedDayNum}{hasCalendarMode && getDayDate(selectedDayNum) ? ` · ${formatDate(getDayDate(selectedDayNum))}` : ''}
+                      </span>
+                      <h4 className="mt-1 font-black text-slate-900 text-sm truncate">{selectedDayData.title}</h4>
+                    </div>
+                    <span className={`chip text-[10px] font-bold shrink-0 ${
+                      selectedDayCompleted
+                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-150'
+                        : !selectedDayCalendarAvailable
+                          ? 'bg-amber-50 text-amber-700 border border-amber-150'
+                          : selectedDayUnlocked
+                            ? 'bg-brand-50 text-brand-700 border border-brand-100'
+                            : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {selectedDayCompleted ? '100%' : !selectedDayCalendarAvailable ? 'Date Locked' : selectedDayUnlocked ? 'Active' : 'Locked'}
+                    </span>
+                  </div>
 
-                  return (
-                    <div
-                      key={dayNum}
-                      className={`border rounded-2xl overflow-hidden bg-white shadow-xs transition duration-200 ${
-                        isExpanded ? 'border-brand-300 ring-2 ring-brand-500/5' : 'border-slate-155'
-                      } ${!isUnlocked ? 'opacity-70 bg-slate-50/50' : ''}`}
-                    >
-                      {/* Accordion Row Header */}
-                      <div
-                        onClick={() => toggleExpandDay(dayNum)}
-                        className={`flex items-center justify-between p-4 cursor-pointer select-none transition ${
-                          isUnlocked ? 'hover:bg-slate-55' : 'cursor-not-allowed'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {isCompleted ? (
-                            <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-                              <CheckCircle size={13} />
-                            </div>
-                          ) : isUnlocked ? (
-                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-black shrink-0 ${
-                              isExpanded ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-350 text-slate-500'
-                            }`}>
-                              {dayNum}
+                  {selectedDayUnlocked ? (
+                    <div className="p-4 space-y-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Recorded Class</span>
+                          {selectedDayData.videoUrl ? (
+                            <div className="rounded-xl overflow-hidden aspect-video bg-slate-900 border border-slate-800 shadow-inner">
+                              <SecureYTPlayer url={selectedDayData.videoUrl} title={selectedDayData.videoTitle} />
                             </div>
                           ) : (
-                            <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center shrink-0 border border-slate-200">
-                              <Lock size={10} />
+                            <div className="aspect-video bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 italic text-xs border border-slate-200 border-dashed">
+                              No recorded class configured
                             </div>
                           )}
-                          
-                          <div className="min-w-0">
-                            <span className="text-xs font-black uppercase tracking-wider text-slate-400 block">
-                              Day {dayNum}{hasCalendarMode && getDayDate(dayNum) ? ` · ${formatDate(getDayDate(dayNum))}` : ''}
-                            </span>
-                            <span className="font-extrabold text-slate-800 text-sm truncate block mt-0.5">{dayData.title}</span>
-                          </div>
                         </div>
 
-                        {/* Right side stats on accordion header */}
-                        <div className="flex items-center gap-4 shrink-0">
-                          <div className="hidden sm:flex items-center gap-3 text-[10px] text-slate-450 font-bold uppercase">
-                            {dayData.videoUrl && <span>Recorded</span>}
-                            {dayData.liveClassId && <span>Live</span>}
-                            {dayData.notesUrl && <span>Notes</span>}
-                            {dayData.quizId && <span>Practice</span>}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className={`chip text-[10px] font-bold ${
-                              isCompleted ? 'bg-emerald-50 text-emerald-600 border border-emerald-150' : 'bg-slate-100 text-slate-500'
-                            }`}>
-                              {isCompleted ? '100%' : !isCalendarAvailable ? 'Date Locked' : '0%'}
-                            </span>
-                            {isUnlocked ? (
-                              isExpanded ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />
-                            ) : (
-                              <Lock size={12} className="text-slate-400" />
+                        <div className="space-y-3">
+                          <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Topics Covered</span>
+                          {selectedDayData.topicsCovered?.length > 0 ? (
+                            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                              {selectedDayData.topicsCovered.map((topic, idx) => (
+                                <div key={idx} className="flex items-start gap-2 text-xs text-slate-650 font-semibold leading-tight">
+                                  <span className="text-brand-500 mt-0.5">✓</span>
+                                  <span>{topic}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic">No specific syllabus topics listed.</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-3 bg-white rounded-xl p-4 border border-slate-150/80 shadow-xs">
+                          <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block border-b pb-1">Day Class & Material Status</span>
+                          <div className="space-y-3">
+                            {selectedDayData.videoUrl && (
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <span className="font-semibold text-slate-700 flex items-center gap-1.5"><Play size={11} className="text-slate-400" /> Watch Recorded Class</span>
+                                {isTaskCompleted(selectedDayNum, 'video') ? (
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Complete</span>
+                                ) : (
+                                  <button onClick={() => handleCompleteTask(selectedDayNum, 'video')} className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full">Mark Done</button>
+                                )}
+                              </div>
+                            )}
+
+                            {selectedDayData.notesUrl && (
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <a href={selectedDayData.notesUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-650 hover:underline flex items-center gap-1.5">
+                                  <FileText size={11} className="text-brand-500" /> {selectedDayData.notesTitle || 'Notes PDF'}
+                                </a>
+                                {isTaskCompleted(selectedDayNum, 'notes') ? (
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Read</span>
+                                ) : (
+                                  <button onClick={() => handleCompleteTask(selectedDayNum, 'notes')} className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full">Mark Done</button>
+                                )}
+                              </div>
+                            )}
+
+                            {selectedDayData.quizId && (
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <Link to={`/student/practice`} className="font-semibold text-brand-650 hover:underline flex items-center gap-1.5">
+                                  <ClipboardList size={11} className="text-brand-500" /> Practice Checkpoint
+                                </Link>
+                                {isTaskCompleted(selectedDayNum, 'quiz') ? (
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Scored</span>
+                                ) : (
+                                  <button onClick={() => handleCompleteTask(selectedDayNum, 'quiz')} className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full">Mark Done</button>
+                                )}
+                              </div>
+                            )}
+
+                            {selectedDayData.liveClassId && (
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <div className="min-w-0">
+                                  <LiveJoinButton
+                                    day={selectedDayData}
+                                    lc={selectedAssignedLiveClass}
+                                    className="inline-flex !py-0 !px-0 !bg-transparent !shadow-none !text-brand-650 hover:!bg-transparent hover:underline font-semibold gap-1.5"
+                                  />
+                                  <p className="text-[10px] text-slate-400 truncate">
+                                    {selectedDayData.liveClassTitle || selectedAssignedLiveClass?.title || 'Live Class'}
+                                    {selectedAssignedLiveClass?.platform ? ` · ${getLivePlatformLabel(selectedAssignedLiveClass.platform)}` : ''}
+                                  </p>
+                                </div>
+                                {isTaskCompleted(selectedDayNum, 'live') ? (
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Attended</span>
+                                ) : (
+                                  <button onClick={() => handleCompleteTask(selectedDayNum, 'live')} className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full">Mark Done</button>
+                                )}
+                              </div>
+                            )}
+
+                            {selectedDayData.assignmentUrl && (
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <a href={selectedDayData.assignmentUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-650 hover:underline flex items-center gap-1.5">
+                                  <Download size={11} className="text-brand-500" /> {selectedDayData.assignmentTitle || 'Assignment PDF'}
+                                </a>
+                                {isTaskCompleted(selectedDayNum, 'assignment') ? (
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Submitted</span>
+                                ) : (
+                                  <button onClick={() => handleCompleteTask(selectedDayNum, 'assignment')} className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full">Mark Done</button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
                       </div>
-
-                      {/* Collapsible content (Accordion Drawer Body) */}
-                      {isExpanded && isUnlocked && (
-                        <div className="border-t border-slate-150 bg-slate-50/20 p-5 space-y-5">
-                          
-                          {/* Inner grid layout */}
-                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            
-                            {/* Inner Col 1: Video Player */}
-                            <div className="lg:col-span-1 space-y-2">
-                              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Recorded Class</span>
-                              {dayData.videoUrl ? (
-                                <div className="rounded-xl overflow-hidden aspect-video bg-slate-900 border border-slate-800 shadow-inner">
-                                  <SecureYTPlayer url={dayData.videoUrl} title={dayData.videoTitle} />
-                                </div>
-                              ) : (
-                                <div className="aspect-video bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 italic text-xs border border-slate-200 border-dashed">
-                                  No recorded class configured
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Inner Col 2: Topics list */}
-                            <div className="lg:col-span-1 space-y-3">
-                              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Topics Covered</span>
-                              {dayData.topicsCovered?.length > 0 ? (
-                                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                                  {dayData.topicsCovered.map((topic, idx) => (
-                                    <div key={idx} className="flex items-start gap-2 text-xs text-slate-650 font-semibold leading-tight">
-                                      <span className="text-brand-500 mt-0.5">✓</span>
-                                      <span>{topic}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-xs text-slate-400 italic">No specific syllabus topics listed.</p>
-                              )}
-                            </div>
-
-                            {/* Inner Col 3: Task grid checklist */}
-                            <div className="lg:col-span-1 space-y-3 bg-white rounded-xl p-4 border border-slate-150/80 shadow-xs">
-                              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block border-b pb-1">Day Class & Material Status</span>
-                              
-                              <div className="space-y-3">
-                                {/* Task 1: Video */}
-                                {dayData.videoUrl && (
-                                  <div className="flex items-center justify-between gap-2 text-xs">
-                                    <span className="font-semibold text-slate-700 flex items-center gap-1.5"><Play size={11} className="text-slate-400" /> Watch Recorded Class</span>
-                                    {isTaskCompleted(dayNum, 'video') ? (
-                                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Complete</span>
-                                    ) : (
-                                      <button
-                                        onClick={() => handleCompleteTask(dayNum, 'video')}
-                                        className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full"
-                                      >
-                                        Mark Done
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Task 2: Notes */}
-                                {dayData.notesUrl && (
-                                  <div className="flex items-center justify-between gap-2 text-xs">
-                                    <a href={dayData.notesUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-650 hover:underline flex items-center gap-1.5">
-                                      <FileText size={11} className="text-brand-500" /> {dayData.notesTitle || 'Notes PDF'}
-                                    </a>
-                                    {isTaskCompleted(dayNum, 'notes') ? (
-                                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Read</span>
-                                    ) : (
-                                      <button
-                                        onClick={() => handleCompleteTask(dayNum, 'notes')}
-                                        className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full"
-                                      >
-                                        Mark Done
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Task 3: Quiz */}
-                                {dayData.quizId && (
-                                  <div className="flex items-center justify-between gap-2 text-xs">
-                                    <Link to={`/student/practice`} className="font-semibold text-brand-650 hover:underline flex items-center gap-1.5">
-                                      <ClipboardList size={11} className="text-brand-500" /> Practice Checkpoint
-                                    </Link>
-                                    {isTaskCompleted(dayNum, 'quiz') ? (
-                                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Scored</span>
-                                    ) : (
-                                      <button
-                                        onClick={() => handleCompleteTask(dayNum, 'quiz')}
-                                        className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full"
-                                      >
-                                        Mark Done
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Task 4: Live Class */}
-                                {dayData.liveClassId && (
-                                  <div className="flex items-center justify-between gap-2 text-xs">
-                                    <div className="min-w-0">
-                                      <LiveJoinButton
-                                        day={dayData}
-                                        lc={assignedLiveClass}
-                                        className="inline-flex !py-0 !px-0 !bg-transparent !shadow-none !text-brand-650 hover:!bg-transparent hover:underline font-semibold gap-1.5"
-                                      />
-                                      <p className="text-[10px] text-slate-400 truncate">
-                                        {dayData.liveClassTitle || assignedLiveClass?.title || 'Live Class'}
-                                        {assignedLiveClass?.platform ? ` · ${getLivePlatformLabel(assignedLiveClass.platform)}` : ''}
-                                      </p>
-                                    </div>
-                                    {isTaskCompleted(dayNum, 'live') ? (
-                                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Attended</span>
-                                    ) : (
-                                      <button
-                                        onClick={() => handleCompleteTask(dayNum, 'live')}
-                                        className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full"
-                                      >
-                                        Mark Done
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Task 5: Assignment */}
-                                {dayData.assignmentUrl && (
-                                  <div className="flex items-center justify-between gap-2 text-xs">
-                                    <a href={dayData.assignmentUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-650 hover:underline flex items-center gap-1.5">
-                                      <Download size={11} className="text-brand-500" /> {dayData.assignmentTitle || 'Assignment PDF'}
-                                    </a>
-                                    {isTaskCompleted(dayNum, 'assignment') ? (
-                                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Submitted</span>
-                                    ) : (
-                                      <button
-                                        onClick={() => handleCompleteTask(dayNum, 'assignment')}
-                                        className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full"
-                                      >
-                                        Mark Done
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
+                  ) : (
+                    <div className="p-6 text-center text-xs font-semibold text-slate-450">
+                      <Lock size={18} className="mx-auto mb-2 text-slate-350" />
+                      {!selectedDayCalendarAvailable ? 'This day will unlock on its scheduled date.' : 'Complete the previous target to unlock this day.'}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
