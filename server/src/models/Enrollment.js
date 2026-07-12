@@ -135,6 +135,34 @@ enrollmentSchema.post('save', async function (doc, next) {
             }
           }
         }
+        if (courseObj.plans?.infinity?.powerCourses?.length > 0) {
+          const Enrollment = mongoose.model('Enrollment');
+          for (const powerCourseId of courseObj.plans.infinity.powerCourses) {
+            const existing = await Enrollment.findOne({
+              student: doc.student,
+              course: powerCourseId,
+            });
+            if (!existing) {
+              await Enrollment.create({
+                student: doc.student,
+                course: powerCourseId,
+                planType: 'infinity',
+                pricePaid: 0,
+                paymentId: doc.paymentId + '_INFINITY_POWER',
+                paymentStatus: 'paid',
+                validUntil: doc.validUntil,
+              });
+              await Course.findByIdAndUpdate(powerCourseId, {
+                $inc: { studentsEnrolled: 1 },
+              });
+            } else if (existing.paymentStatus !== 'paid' || existing.planType !== 'infinity') {
+              existing.paymentStatus = 'paid';
+              existing.planType = 'infinity';
+              existing.validUntil = doc.validUntil;
+              await existing.save();
+            }
+          }
+        }
         if (courseObj.plans?.infinity?.testSeries?.length > 0) {
           const TestSeriesEnrollment = mongoose.model('TestSeriesEnrollment');
           for (const tsId of courseObj.plans.infinity.testSeries) {

@@ -64,10 +64,10 @@ export default function AdminPowerCourses() {
   const paged = usePaged(filtered, page, PAGE_SIZE);
 
   const del = async (id) => {
-    if (!confirm('Delete this power course? This cannot be undone.')) return;
+    if (!confirm('Delete this power batch? This cannot be undone.')) return;
     try {
       await api.delete(`/courses/${id}`);
-      toast.success('Power course deleted');
+      toast.success('Power Batch deleted');
       load();
     } catch (e) {
       toast.error(e.response?.data?.message || 'Delete failed');
@@ -75,10 +75,10 @@ export default function AdminPowerCourses() {
   };
 
   const duplicate = async (id) => {
-    if (!confirm('Duplicate this power course?')) return;
+    if (!confirm('Duplicate this power batch?')) return;
     try {
       await api.post(`/courses/${id}/duplicate`);
-      toast.success('Power course duplicated successfully as Draft');
+      toast.success('Power Batch duplicated successfully as Draft');
       load();
     } catch (e) {
       toast.error(e.response?.data?.message || 'Duplication failed');
@@ -136,12 +136,12 @@ export default function AdminPowerCourses() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="font-display text-3xl font-extrabold flex items-center gap-2">
-            <Flame className="text-brand-500" /> Power Courses
+            <Flame className="text-brand-500" /> Power Batch
           </h1>
-          <p className="text-slate-500">Manage all short-term calendar challenges and crash courses.</p>
+          <p className="text-slate-500">Manage all short-term calendar challenges and power batches.</p>
         </div>
-        <Link to="/admin/courses/new?type=power" className="btn-primary self-start md:self-auto">
-          <Plus size={16} /> Add Power Course
+        <Link to="/admin/power-batch/new" className="btn-primary self-start md:self-auto">
+          <Plus size={16} /> Add Power Batch
         </Link>
       </div>
 
@@ -152,7 +152,7 @@ export default function AdminPowerCourses() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search power courses, type, instructor…"
+            placeholder="Search power batch, type, instructor…"
             className="input pl-9"
           />
         </div>
@@ -187,7 +187,7 @@ export default function AdminPowerCourses() {
         <div className="card p-12 text-center text-slate-500">Loading…</div>
       ) : filtered.length === 0 ? (
         <div className="card p-12 text-center text-slate-500">
-          No power courses found. Click "Add Power Course" to create one.
+          No power batch found. Click "Add Power Batch" to create one.
         </div>
       ) : view === 'grid' ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -302,21 +302,21 @@ export default function AdminPowerCourses() {
 
                   <div className="mt-3 pt-3 border-t border-slate-100 flex gap-1.5">
                     <Link
-                      to={`/admin/courses/${c._id}/edit`}
+                      to={`/admin/power-batch/${c._id}/edit`}
                       className="btn-outline !py-1.5 !px-2 text-xs"
-                      title="Edit Power Course"
+                      title="Edit Power Batch"
                     >
                       <Edit size={13} />
                     </Link>
                     <button
                       onClick={() => duplicate(c._id)}
                       className="btn-outline !py-1.5 !px-2 text-xs text-brand-700 border-brand-200 hover:bg-brand-50"
-                      title="Duplicate Power Course"
+                      title="Duplicate Power Batch"
                     >
                       <Copy size={13} />
                     </button>
                     <Link
-                      to={`/admin/courses/${c._id}/content`}
+                      to={`/admin/power-batch/${c._id}/content`}
                       className="flex-1 btn-primary !py-1.5 text-xs justify-center"
                     >
                       Daily Plan
@@ -392,7 +392,7 @@ export default function AdminPowerCourses() {
                   <td className="p-4 text-right">
                     <div className="inline-flex gap-2">
                       <Link
-                        to={`/admin/courses/${c._id}/edit`}
+                        to={`/admin/power-batch/${c._id}/edit`}
                         className="p-2 rounded-lg hover:bg-brand-50 text-brand-700"
                         title="Edit Course"
                       >
@@ -406,7 +406,7 @@ export default function AdminPowerCourses() {
                         <Copy size={16} />
                       </button>
                       <Link
-                        to={`/admin/courses/${c._id}/content`}
+                        to={`/admin/power-batch/${c._id}/content`}
                         className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700 hover:bg-brand-100"
                         title="Manage Daily Plan"
                       >

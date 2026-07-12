@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, Link, useSearchParams, useLocation } from 'react-router-dom';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save, Plus, Trash2, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
@@ -19,7 +19,7 @@ const empty = {
   plans: {
     batch: { enabled: true, price: 0, mrp: 0 },
     pro: { enabled: true, price: 0, mrp: 0 },
-    infinity: { enabled: true, price: 0, mrp: 0, seatsLimit: 10, seatsReserved: 0, courses: [], testSeries: [] }
+    infinity: { enabled: true, price: 0, mrp: 0, seatsLimit: 10, seatsReserved: 0, courses: [], powerCourses: [], testSeries: [] }
   },
   validity: { type: 'lifetime', durationValue: 12, durationUnit: 'months', endDate: '' },
   startDate: '',
@@ -62,10 +62,14 @@ const empty = {
 export default function AdminCourseForm() {
   const { id } = useParams();
   const nav = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const duplicateFrom = searchParams.get('duplicateFrom');
+  // Detect if accessed via /admin/power-batch/* path for automatic isPowerCourse handling
+  const isPowerCourseRoute = location.pathname.includes('/admin/power-batch');
   const [categories, setCategories] = useState([]);
   const [allCourses, setAllCourses] = useState([]);
+  const [allPowerCourses, setAllPowerCourses] = useState([]);
   const [allTestSeries, setAllTestSeries] = useState([]);
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
@@ -77,6 +81,7 @@ export default function AdminCourseForm() {
   useEffect(() => {
     api.get('/categories').then((r) => setCategories(r.data));
     api.get('/courses?includeUnpublished=true').then((r) => setAllCourses(r.data)).catch(() => {});
+    api.get('/courses?includeUnpublished=true&isPowerCourse=true').then((r) => setAllPowerCourses(r.data)).catch(() => {});
     api.get('/tests/admin/series').then((r) => setAllTestSeries(r.data)).catch(() => {});
     
     const targetId = id || duplicateFrom;
@@ -104,6 +109,8 @@ export default function AdminCourseForm() {
         }
         if (!d.upsell) d.upsell = empty.upsell;
         if (!d.upsell.targetType) d.upsell.targetType = 'course';
+        if (!['course', 'power_course', 'test_series'].includes(d.upsell.targetType)) d.upsell.targetType = 'course';
+        if (!d.upsell.courseId) d.upsell.courseId = '';
         if (!d.upsell.testSeriesId) d.upsell.testSeriesId = '';
         if (!d.seo) d.seo = empty.seo;
         if (!d.faqs) d.faqs = [];
@@ -131,7 +138,7 @@ export default function AdminCourseForm() {
         if (d.extendValidityDurationValue === undefined) d.extendValidityDurationValue = 1;
         if (d.extendValidityDurationUnit === undefined) d.extendValidityDurationUnit = 'months';
         
-        // Power Course fields
+        // Power Batch fields
         if (d.isPowerCourse === undefined) d.isPowerCourse = false;
         if (!d.powerCourseType) d.powerCourseType = 'other';
         if (d.powerCourseDuration === undefined) d.powerCourseDuration = 7;
@@ -143,31 +150,35 @@ export default function AdminCourseForm() {
             d.plans = {
               batch: { enabled: true, price: d.price || 0, mrp: d.mrp || 0 },
               pro: { enabled: false, price: 0, mrp: 0 },
-              infinity: { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0, courses: [], testSeries: [] }
+              infinity: { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0, courses: [], powerCourses: [], testSeries: [] }
             };
           } else {
             d.plans = {
               batch: { enabled: true, price: d.price || 0, mrp: d.mrp || 0 },
               pro: { enabled: true, price: Math.round((d.price || 0) * 1.25), mrp: Math.round((d.mrp || 0) * 1.25) },
-              infinity: { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0, courses: [], testSeries: [] }
+              infinity: { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0, courses: [], powerCourses: [], testSeries: [] }
             };
           }
         } else {
           if (!d.plans.batch) d.plans.batch = { enabled: true, price: d.price || 0, mrp: d.mrp || 0 };
           if (d.isPowerCourse) {
             d.plans.pro = { enabled: false, price: 0, mrp: 0 };
-            d.plans.infinity = { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0, courses: [], testSeries: [] };
+            d.plans.infinity = { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0, courses: [], powerCourses: [], testSeries: [] };
           } else {
             if (!d.plans.pro) d.plans.pro = { enabled: true, price: Math.round((d.price || 0) * 1.25), mrp: Math.round((d.mrp || 0) * 1.25) };
-            if (!d.plans.infinity) d.plans.infinity = { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0, courses: [], testSeries: [] };
+            if (!d.plans.infinity) d.plans.infinity = { enabled: true, price: Math.round((d.price || 0) * 1.5), mrp: Math.round((d.mrp || 0) * 1.5), seatsLimit: 10, seatsReserved: 0, courses: [], powerCourses: [], testSeries: [] };
           }
           // Ensure arrays are initialized
           if (!d.plans.infinity.courses) d.plans.infinity.courses = [];
+          if (!d.plans.infinity.powerCourses) d.plans.infinity.powerCourses = [];
           if (!d.plans.infinity.testSeries) d.plans.infinity.testSeries = [];
         }
 
         if (d.plans?.infinity?.courses) {
           d.plans.infinity.courses = d.plans.infinity.courses.map((cc) => (typeof cc === 'object' && cc !== null ? cc._id : cc));
+        }
+        if (d.plans?.infinity?.powerCourses) {
+          d.plans.infinity.powerCourses = d.plans.infinity.powerCourses.map((cc) => (typeof cc === 'object' && cc !== null ? cc._id : cc));
         }
         if (d.plans?.infinity?.testSeries) {
           d.plans.infinity.testSeries = d.plans.infinity.testSeries.map((ts) => (typeof ts === 'object' && ts !== null ? ts._id : ts));
@@ -176,19 +187,19 @@ export default function AdminCourseForm() {
         setForm(d);
       });
     } else {
-      if (searchParams.get('type') === 'power') {
+      if (isPowerCourseRoute || searchParams.get('type') === 'power') {
         setForm(f => ({
           ...f,
           isPowerCourse: true,
           plans: {
             batch: { enabled: true, price: 0, mrp: 0 },
             pro: { enabled: false, price: 0, mrp: 0 },
-            infinity: { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0 }
+            infinity: { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0, courses: [], powerCourses: [], testSeries: [] }
           }
         }));
       }
     }
-  }, [id, duplicateFrom, searchParams]);
+  }, [id, duplicateFrom, searchParams, isPowerCourseRoute]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setNested = (k, k2, v) => setForm((f) => ({ ...f, [k]: { ...f[k], [k2]: v } }));
@@ -256,12 +267,13 @@ export default function AdminCourseForm() {
     });
   const removeTimetableSlot = (i) => setForm((f) => ({ ...f, timetable: f.timetable.filter((_, idx) => idx !== i) }));
 
+  const isPowerMode = form.isPowerCourse || isPowerCourseRoute;
+
   const submit = async (e) => {
     e.preventDefault();
     if (!form.categories?.length) { toast.error('Select at least one category'); return; }
-    
-    // Validate number of active plans
-    if (!form.isFree) {
+
+    if (!form.isFree && !isPowerMode) {
       const enabledPlans = ['batch', 'pro', 'infinity'].filter(
         (key) => form.plans?.[key]?.enabled
       );
@@ -275,6 +287,27 @@ export default function AdminCourseForm() {
     try {
       // Keep legacy category field in sync with first selected category
       const payload = { ...form, category: form.categories[0] || '' };
+      if (isPowerMode) {
+        payload.isPowerCourse = true;
+        payload.powerCourseDuration = Number(payload.powerCourseDuration) || 1;
+        payload.isCombo = false;
+        payload.comboDescription = '';
+        payload.comboCourses = [];
+        payload.comboTestSeries = [];
+        payload.allowExtendValidity = false;
+        payload.allowFreeze = false;
+        payload.extendValidityPrice = 0;
+        payload.extendValidityDurationValue = 1;
+        payload.extendValidityDurationUnit = 'months';
+        payload.telegramJoinLink = '';
+        payload.demoVideoUrl = '';
+        payload.orientationVideoUrl = '';
+        payload.batchInformation = '';
+        payload.syllabus = [];
+        payload.faqs = [];
+        payload.timetable = [];
+        payload.isFeatured = false;
+      }
       if (edit) {
         await api.put(`/courses/${id}`, payload);
         toast.success('Course updated');
@@ -282,7 +315,8 @@ export default function AdminCourseForm() {
         await api.post('/courses', payload);
         toast.success('Course created');
       }
-      nav('/admin/courses');
+      // Redirect to the correct list URL based on course type
+      nav(isPowerMode ? '/admin/power-batch' : '/admin/courses');
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -291,24 +325,24 @@ export default function AdminCourseForm() {
   };
 
   return (
-    <div>
+    <div className="max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <Link to={form.isPowerCourse ? "/admin/power-courses" : "/admin/courses"} className="text-sm text-brand-700 font-semibold">
-            <ArrowLeft size={14} className="inline" /> Back to {form.isPowerCourse ? 'Power Challenges' : 'Courses'}
+          <Link to={isPowerMode ? "/admin/power-batch" : "/admin/courses"} className="text-sm text-brand-700 font-semibold">
+            <ArrowLeft size={14} className="inline" /> Back to {isPowerMode ? 'Power Batch' : 'Courses'}
           </Link>
           <h1 className="font-display text-3xl font-extrabold mt-2">
-            {form.isPowerCourse
-              ? (edit ? 'Edit Power Challenge' : duplicateFrom ? 'Duplicate Power Challenge' : 'Add New Power Challenge')
+            {isPowerMode
+              ? (edit ? 'Edit Power Batch' : duplicateFrom ? 'Duplicate Power Batch' : 'Add New Power Batch')
               : (edit ? 'Edit Course' : duplicateFrom ? 'Duplicate Course' : 'Add New Course')
             }
           </h1>
         </div>
       </div>
 
-      <form onSubmit={submit} className="grid lg:grid-cols-3 gap-6">
+      <form onSubmit={submit} className="grid lg:grid-cols-3 gap-6 max-w-full">
         {/* ── LEFT COLUMN ── */}
-        <div className="lg:col-span-2 space-y-5">
+        <div className="lg:col-span-2 min-w-0 space-y-5">
 
           {/* Basic Info */}
           <div className="card p-6 space-y-4">
@@ -434,6 +468,7 @@ export default function AdminCourseForm() {
               <textarea className="input min-h-[90px]" value={(form.highlights || []).join('\n')} onChange={(e) => setList('highlights', e.target.value)} />
             </div>
 
+            {!isPowerMode && (
             <div className="space-y-1 mt-3 text-left">
               <label className="text-sm font-semibold text-slate-700 block">Batch Information PDF / Attachment (Optional)</label>
               <div className="flex gap-2">
@@ -469,9 +504,11 @@ export default function AdminCourseForm() {
                 </label>
               </div>
             </div>
+            )}
           </div>
 
           {/* Syllabus */}
+          {!isPowerMode && (
           <div className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-2">
               <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide">Syllabus</h2>
@@ -540,8 +577,10 @@ export default function AdminCourseForm() {
               </div>
             ))}
           </div>
+          )}
 
           {/* FAQs */}
+          {!isPowerMode && (
           <div className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-2">
               <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide">FAQs</h2>
@@ -575,8 +614,10 @@ export default function AdminCourseForm() {
               </div>
             ))}
           </div>
+          )}
 
           {/* Timetable */}
+          {!isPowerMode && (
           <div className="card p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-2">
               <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide">Class Time Table</h2>
@@ -630,17 +671,20 @@ export default function AdminCourseForm() {
               </div>
             ))}
           </div>
+          )}
 
           {/* SEO Settings */}
           <div className="card p-6 space-y-4">
-            <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide border-b pb-2">SEO Settings</h2>
+            <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide border-b pb-2">
+              {isPowerMode ? 'Power Batch SEO Settings' : 'SEO Settings'}
+            </h2>
             <div>
               <label className="label">Meta Title</label>
               <input
                 className="input"
                 value={form.seo?.metaTitle || ''}
                 onChange={(e) => setNested('seo', 'metaTitle', e.target.value)}
-                placeholder="Custom page title for search engines (60 chars)"
+                placeholder={isPowerMode ? 'Power Batch page title for search engines' : 'Custom page title for search engines (60 chars)'}
                 maxLength={60}
               />
               <p className="text-[11px] text-slate-400 mt-1">{(form.seo?.metaTitle || '').length}/60 characters</p>
@@ -651,7 +695,7 @@ export default function AdminCourseForm() {
                 className="input min-h-[80px]"
                 value={form.seo?.metaDescription || ''}
                 onChange={(e) => setNested('seo', 'metaDescription', e.target.value)}
-                placeholder="Brief description for search results (160 chars)"
+                placeholder={isPowerMode ? 'Short Power Batch description for search results' : 'Brief description for search results (160 chars)'}
                 maxLength={160}
               />
               <p className="text-[11px] text-slate-400 mt-1">{(form.seo?.metaDescription || '').length}/160 characters</p>
@@ -660,7 +704,7 @@ export default function AdminCourseForm() {
         </div>
 
         {/* ── RIGHT COLUMN ── */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
 
           {/* Pricing */}
           <div className="card p-6 space-y-4">
@@ -689,15 +733,15 @@ export default function AdminCourseForm() {
                   }}
                   className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                 />
-                Free Course
+                {isPowerMode ? 'Free Power Batch' : 'Free Course'}
               </label>
             </div>
 
             {!form.isFree ? (
-              form.isPowerCourse ? (
+              isPowerMode ? (
                 <div className="space-y-3">
                   <p className="text-xs text-slate-500 font-medium">
-                    Configure the flat purchase price for this Power Course.
+                    Configure the flat purchase price for this Power Batch.
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -1049,6 +1093,43 @@ export default function AdminCourseForm() {
                           </div>
                         </div>
 
+                        {/* Bundled Power Batches for Infinity */}
+                        <div className="space-y-1">
+                          <label className="label text-xs font-semibold text-slate-700">Bundle Power Batch (Free Access)</label>
+                          <div className="border border-slate-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1 bg-white">
+                            {allPowerCourses.filter(c => c._id !== id).map((c) => {
+                              const isChecked = (form.plans?.infinity?.powerCourses || []).includes(c._id);
+                              return (
+                                <label key={c._id} className="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer hover:text-slate-800 transition">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const currentList = form.plans?.infinity?.powerCourses || [];
+                                      const updatedList = e.target.checked
+                                        ? [...currentList, c._id]
+                                        : currentList.filter(courseId => courseId !== c._id);
+
+                                      setForm(f => ({
+                                        ...f,
+                                        plans: {
+                                          ...f.plans,
+                                          infinity: { ...f.plans?.infinity, powerCourses: updatedList }
+                                        }
+                                      }));
+                                    }}
+                                    className="rounded text-brand-600 focus:ring-brand-500"
+                                  />
+                                  <span>{c.title}</span>
+                                </label>
+                              );
+                            })}
+                            {allPowerCourses.filter(c => c._id !== id).length === 0 && (
+                              <span className="text-[10px] text-slate-400 block text-center py-2">No power batch available.</span>
+                            )}
+                          </div>
+                        </div>
+
                         {/* Bundled Test Series for Infinity */}
                         <div className="space-y-1">
                           <label className="label text-xs font-semibold text-slate-700">Bundle Test Series (Free Access)</label>
@@ -1092,7 +1173,7 @@ export default function AdminCourseForm() {
               )
             ) : (
               <div className="text-sm text-emerald-600 font-semibold bg-emerald-50 p-3 rounded-lg border border-emerald-100">
-                Free Course selected. All plan prices set to 0.
+                {isPowerMode ? 'Free Power Batch selected. The purchase price is set to 0.' : 'Free Course selected. All plan prices set to 0.'}
               </div>
             )}
 
@@ -1227,7 +1308,14 @@ export default function AdminCourseForm() {
 
           {/* Course Validity */}
           <div className="card p-6 space-y-4">
-            <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide border-b pb-2">Course Validity</h2>
+            <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide border-b pb-2">
+              {isPowerMode ? 'Power Batch Validity & Calendar' : 'Course Validity'}
+            </h2>
+            {isPowerMode && (
+              <p className="text-[11px] text-slate-500 font-semibold">
+                Validity controls how long the student can access this Power Batch after purchase. Calendar dates below only control fixed day-wise scheduling.
+              </p>
+            )}
             <div className="grid grid-cols-3 gap-2">
               {['lifetime', 'duration', 'endDate'].map((t) => (
                 <button
@@ -1272,11 +1360,18 @@ export default function AdminCourseForm() {
               />
             )}
             {form.validity?.type === 'lifetime' && (
-              <p className="text-xs text-emerald-600 font-semibold">♾ Students get lifetime access to this course.</p>
+              <p className="text-xs text-emerald-600 font-semibold">♾ Students get lifetime access to this {isPowerMode ? 'power batch' : 'course'}.</p>
             )}
             {/* Batch Start / End Dates */}
             <div className="border-t border-slate-100 pt-4 space-y-3">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Batch Dates (Optional)</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                {isPowerMode ? 'Calendar Mode Dates (Optional)' : 'Batch Dates (Optional)'}
+              </p>
+              {isPowerMode && (
+                <p className="text-[11px] text-slate-500">
+                  Set start/end dates to run this as a calendar batch. Leave both blank for flexible day-wise mode.
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label text-xs">Start Date</label>
@@ -1302,9 +1397,9 @@ export default function AdminCourseForm() {
 
           {/* Course Settings */}
           <div className="card p-6 space-y-4">
-            <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide border-b pb-2">Course Settings</h2>
+            <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide border-b pb-2">{isPowerMode ? 'Batch Settings' : 'Course Settings'}</h2>
             <div>
-              <label className="label">Course Type</label>
+              <label className="label">{isPowerMode ? 'Batch Type' : 'Course Type'}</label>
               <div className="flex gap-2">
                 {[{ v: 'recorded', l: 'Recorded Batch' }, { v: 'live', l: 'Live Batch' }].map(({ v, l }) => (
                   <button
@@ -1323,26 +1418,34 @@ export default function AdminCourseForm() {
                 ))}
               </div>
             </div>
-            {/* Power Course Configuration */}
-            {form.isPowerCourse ? (
+            {/* Power Batch Configuration */}
+            {isPowerMode ? (
               <div className="border-t border-slate-100 pt-3 space-y-3">
                 <div className="bg-brand-50 border border-brand-100 p-3 rounded-xl">
-                  <span className="text-xs font-black text-brand-700 uppercase tracking-wider block">Power Course Mode Active</span>
+                  <span className="text-xs font-black text-brand-700 uppercase tracking-wider block">Power Batch Mode Active</span>
                   <p className="text-[11px] text-slate-500 mt-0.5">This challenge runs on daily targets calendar progression and flat pricing.</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3 pl-2 border-l-2 border-brand-200">
                   <div>
-                    <label className="label text-xs">Power Course Type</label>
+                    <label className="label text-xs">Power Batch Type</label>
                     <select
                       className="input text-sm bg-white"
                       value={form.powerCourseType || 'other'}
                       onChange={(e) => set('powerCourseType', e.target.value)}
                     >
-                      <option value="micro">Micro Course (1-7 Days)</option>
-                      <option value="mini">Mini Course (7-30 Days)</option>
+                      <option value="micro">Micro Batch (1-7 Days)</option>
+                      <option value="mini">Mini Batch (7-30 Days)</option>
                       <option value="crash">Crash Course (15-45 Days)</option>
-                      <option value="other">Other Challenge</option>
+                      <option value="other">Other Batch</option>
                     </select>
+                    {form.powerCourseType === 'other' && (
+                      <input
+                        className="input text-sm mt-2"
+                        placeholder="Custom challenge name…"
+                        value={form.powerCourseCustomName || ''}
+                        onChange={(e) => set('powerCourseCustomName', e.target.value)}
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="label text-xs">Duration (Days)</label>
@@ -1350,8 +1453,8 @@ export default function AdminCourseForm() {
                       type="number"
                       min="1"
                       className="input text-sm"
-                      value={form.powerCourseDuration || 7}
-                      onChange={(e) => set('powerCourseDuration', Number(e.target.value))}
+                      value={form.powerCourseDuration ?? ''}
+                      onChange={(e) => set('powerCourseDuration', e.target.value === '' ? '' : Number(e.target.value))}
                     />
                   </div>
                 </div>
@@ -1362,7 +1465,7 @@ export default function AdminCourseForm() {
               <input className="input" value={form.instructor || ''} onChange={(e) => set('instructor', e.target.value)} />
             </div>
             <div>
-              <label className="label">Baseline Course Rating</label>
+              <label className="label">{isPowerMode ? 'Baseline Batch Rating' : 'Baseline Course Rating'}</label>
               <input
                 type="number"
                 step="0.1"
@@ -1436,13 +1539,16 @@ export default function AdminCourseForm() {
               <label className="label">Language</label>
               <input className="input" value={form.language || ''} onChange={(e) => set('language', e.target.value)} />
             </div>
+            {!isPowerMode && (
             <div>
               <label className="label">Telegram Join Link</label>
               <input className="input" placeholder="e.g. https://t.me/joinchat/..." value={form.telegramJoinLink || ''} onChange={(e) => set('telegramJoinLink', e.target.value)} />
               <p className="text-[11px] text-slate-400 mt-1">If set, students will see this link on their enrolled course page.</p>
             </div>
+            )}
 
             {/* Demo & Orientation Videos */}
+            {!isPowerMode && (
             <div className="border-t border-slate-100 pt-4 space-y-3">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">📹 Demo & Orientation Videos</p>
               <p className="text-[11px] text-slate-400">These videos are public — visible to all students without enrollment.</p>
@@ -1467,14 +1573,17 @@ export default function AdminCourseForm() {
                 <p className="text-[11px] text-slate-400 mt-1">Shown in Demo tab — sample lecture video</p>
               </div>
             </div>
+            )}
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={form.isPublished} onChange={(e) => set('isPublished', e.target.checked)} />
               <span className="font-semibold text-sm">Published</span>
             </label>
+            {!isPowerMode && (
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={form.isFeatured} onChange={(e) => set('isFeatured', e.target.checked)} />
               <span className="font-semibold text-sm">Featured on home</span>
             </label>
+            )}
           </div>
 
           {/* Additional (Optional) Settings */}
@@ -1484,78 +1593,14 @@ export default function AdminCourseForm() {
               <input type="checkbox" checked={form.isAdmissionClosed || false} onChange={(e) => set('isAdmissionClosed', e.target.checked)} />
               <span className="font-semibold text-sm text-red-600">This batch admission has been closed (Disables payments)</span>
             </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={form.isCombo || false} onChange={(e) => set('isCombo', e.target.checked)} />
-              <span className="font-semibold text-sm">Make this a Combo course</span>
-            </label>
-            {form.isCombo && (
-              <div className="space-y-3 pl-4 border-l-2 border-brand-200">
-                <div>
-                  <label className="label text-xs">Combo Description</label>
-                  <input className="input text-sm" placeholder="e.g. Includes JEE Main + Advanced batches" value={form.comboDescription || ''} onChange={(e) => set('comboDescription', e.target.value)} />
-                </div>
-                <div>
-                  <label className="label text-xs font-bold block mb-1.5 text-slate-600">Select Courses Included in Combo</label>
-                  <div className="max-h-[180px] overflow-y-auto border border-slate-200 rounded-lg p-2.5 space-y-1.5 bg-slate-50/50">
-                    {allCourses.filter((c) => c._id !== id && !c.isCombo).map((c) => {
-                      const selected = (form.comboCourses || []).includes(c._id);
-                      return (
-                        <label key={c._id} className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-slate-700 hover:text-slate-900">
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setForm((f) => ({
-                                ...f,
-                                comboCourses: checked
-                                  ? [...(f.comboCourses || []), c._id]
-                                  : (f.comboCourses || []).filter((cid) => cid !== c._id)
-                              }));
-                            }}
-                            className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                          />
-                          {c.title}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <label className="label text-xs font-bold block mb-1.5 text-slate-600">Select Test Series Included in Combo</label>
-                  <div className="max-h-[180px] overflow-y-auto border border-slate-200 rounded-lg p-2.5 space-y-1.5 bg-slate-50/50">
-                    {allTestSeries.map((ts) => {
-                      const selected = (form.comboTestSeries || []).includes(ts._id);
-                      return (
-                        <label key={ts._id} className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-slate-700 hover:text-slate-900">
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setForm((f) => ({
-                                ...f,
-                                comboTestSeries: checked
-                                  ? [...(f.comboTestSeries || []), ts._id]
-                                  : (f.comboTestSeries || []).filter((tsid) => tsid !== ts._id)
-                              }));
-                            }}
-                            className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                          />
-                          {ts.title}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
 
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={form.allowExtendValidity || false} onChange={(e) => set('allowExtendValidity', e.target.checked)} />
-              <span className="font-semibold text-sm">Allow extend validity</span>
-            </label>
-            {form.allowExtendValidity && (
+            {!isPowerMode && (
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={form.allowExtendValidity || false} onChange={(e) => set('allowExtendValidity', e.target.checked)} />
+                <span className="font-semibold text-sm">Allow extend validity</span>
+              </label>
+            )}
+            {!isPowerMode && form.allowExtendValidity && (
               <div className="space-y-3 pl-4 border-l-2 border-brand-200">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -1594,10 +1639,129 @@ export default function AdminCourseForm() {
                 </div>
               </div>
             )}
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={form.allowFreeze || false} onChange={(e) => set('allowFreeze', e.target.checked)} />
-              <span className="font-semibold text-sm">Allow course freezing</span>
-            </label>
+            {!isPowerMode && (
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={form.allowFreeze || false} onChange={(e) => set('allowFreeze', e.target.checked)} />
+                <span className="font-semibold text-sm">Allow course freezing</span>
+              </label>
+            )}
+
+            {!isPowerMode && (
+              <div className="border-t border-slate-100 pt-4 space-y-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.isCombo || false}
+                    onChange={(e) => set('isCombo', e.target.checked)}
+                  />
+                  <span className="font-semibold text-sm">Make this a combo course</span>
+                </label>
+
+                {form.isCombo && (
+                  <div className="pl-4 border-l-2 border-brand-100 space-y-3">
+                    <div>
+                      <label className="label text-xs">Combo Description</label>
+                      <textarea
+                        rows={3}
+                        className="input text-sm"
+                        placeholder="Describe what students get in this combo..."
+                        value={form.comboDescription || ''}
+                        onChange={(e) => set('comboDescription', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="label text-xs">Included Courses</label>
+                        <div className="border border-slate-200 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1 bg-white">
+                          {allCourses.filter((c) => c._id !== id).map((c) => {
+                            const isChecked = (form.comboCourses || []).includes(c._id);
+                            return (
+                              <label key={c._id} className="flex items-start gap-2 text-[11px] text-slate-600 cursor-pointer hover:text-slate-800 transition">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    const current = form.comboCourses || [];
+                                    const next = e.target.checked
+                                      ? [...current, c._id]
+                                      : current.filter((courseId) => courseId !== c._id);
+                                    set('comboCourses', next);
+                                  }}
+                                  className="mt-0.5 shrink-0 rounded text-brand-600 focus:ring-brand-500"
+                                />
+                                <span className="min-w-0 break-words leading-snug">{c.title}</span>
+                              </label>
+                            );
+                          })}
+                          {allCourses.filter((c) => c._id !== id).length === 0 && (
+                            <span className="text-[10px] text-slate-400 block text-center py-2">No other courses available.</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="label text-xs">Included Power Batch</label>
+                        <div className="border border-slate-200 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1 bg-white">
+                          {allPowerCourses.filter((c) => c._id !== id).map((c) => {
+                            const isChecked = (form.comboCourses || []).includes(c._id);
+                            return (
+                              <label key={c._id} className="flex items-start gap-2 text-[11px] text-slate-600 cursor-pointer hover:text-slate-800 transition">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    const current = form.comboCourses || [];
+                                    const next = e.target.checked
+                                      ? [...current, c._id]
+                                      : current.filter((courseId) => courseId !== c._id);
+                                    set('comboCourses', next);
+                                  }}
+                                  className="mt-0.5 shrink-0 rounded text-brand-600 focus:ring-brand-500"
+                                />
+                                <span className="min-w-0 break-words leading-snug">{c.title}</span>
+                              </label>
+                            );
+                          })}
+                          {allPowerCourses.filter((c) => c._id !== id).length === 0 && (
+                            <span className="text-[10px] text-slate-400 block text-center py-2">No power batch available.</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="label text-xs">Included Test Series</label>
+                        <div className="border border-slate-200 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1 bg-white">
+                          {allTestSeries.map((ts) => {
+                            const isChecked = (form.comboTestSeries || []).includes(ts._id);
+                            return (
+                              <label key={ts._id} className="flex items-start gap-2 text-[11px] text-slate-600 cursor-pointer hover:text-slate-800 transition">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    const current = form.comboTestSeries || [];
+                                    const next = e.target.checked
+                                      ? [...current, ts._id]
+                                      : current.filter((testSeriesId) => testSeriesId !== ts._id);
+                                    set('comboTestSeries', next);
+                                  }}
+                                  className="mt-0.5 shrink-0 rounded text-brand-600 focus:ring-brand-500"
+                                />
+                                <span className="min-w-0 break-words leading-snug">{ts.title}</span>
+                              </label>
+                            );
+                          })}
+                          {allTestSeries.length === 0 && (
+                            <span className="text-[10px] text-slate-400 block text-center py-2">No test series available.</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Upsell */}
@@ -1622,15 +1786,17 @@ export default function AdminCourseForm() {
                       className="input text-sm bg-white"
                       value={form.upsell?.targetType || 'course'}
                       onChange={(e) => {
-                        setNested('upsell', 'targetType', e.target.value);
-                        if (e.target.value === 'course') {
-                          setNested('upsell', 'testSeriesId', '');
-                        } else {
+                        const nextTargetType = e.target.value;
+                        setNested('upsell', 'targetType', nextTargetType);
+                        if (nextTargetType === 'test_series') {
                           setNested('upsell', 'courseId', '');
+                        } else {
+                          setNested('upsell', 'testSeriesId', '');
                         }
                       }}
                     >
                       <option value="course">Course</option>
+                      <option value="power_course">Power Batch</option>
                       <option value="test_series">Test Series</option>
                     </select>
                   </div>
@@ -1645,6 +1811,20 @@ export default function AdminCourseForm() {
                         <option value="">— Select a test series —</option>
                         {allTestSeries.map((ts) => (
                           <option key={ts._id} value={ts._id}>{ts.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : form.upsell?.targetType === 'power_course' ? (
+                    <div>
+                      <label className="label text-xs">Suggest Power Batch</label>
+                      <select
+                        className="input text-sm bg-white"
+                        value={form.upsell?.courseId || ''}
+                        onChange={(e) => setNested('upsell', 'courseId', e.target.value)}
+                      >
+                        <option value="">— Select a power batch —</option>
+                        {allPowerCourses.filter((c) => c._id !== id).map((c) => (
+                          <option key={c._id} value={c._id}>{c.title}</option>
                         ))}
                       </select>
                     </div>
@@ -1667,12 +1847,12 @@ export default function AdminCourseForm() {
               </div>
             )}
             {!form.upsell?.enabled && (
-              <p className="text-xs text-slate-400">Enable upsell to suggest a related course during enrollment.</p>
+              <p className="text-xs text-slate-400">Enable upsell to suggest a related course, power batch, or test series during enrollment.</p>
             )}
           </div>
 
           <button disabled={saving} className="btn-primary w-full justify-center">
-            <Save size={16} /> {saving ? 'Saving…' : edit ? 'Update Course' : 'Create Course'}
+            <Save size={16} /> {saving ? 'Saving…' : edit ? (isPowerMode ? 'Update Power Batch' : 'Update Course') : (isPowerMode ? 'Create Power Batch' : 'Create Course')}
           </button>
         </div>
       </form>

@@ -4,13 +4,15 @@ import api from '../api/client.js';
 import { Atom, Menu, X, LogOut, LayoutDashboard, ShieldCheck, UserCircle, BookOpen, Trophy, Info, Home, User, Clock, ClipboardList, BookMarked, HelpCircle, ChevronDown, Rss, Mail, Crown, Zap } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import NotificationBell from './NotificationBell.jsx';
+import ThemeToggle from './ThemeToggle.jsx';
+import { useTheme } from '../context/ThemeContext.jsx';
 
 const links = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/courses', label: 'Courses', icon: BookOpen },
   { to: '/ebooks', label: 'E-Books', icon: BookMarked },
   { to: '/tests', label: 'Test Series', icon: ClipboardList },
-  { to: '/power-courses', label: 'Power Courses', icon: Zap },
+  { to: '/power-batch', label: 'Power Batch', icon: Zap },
   { to: '/feed', label: 'Feed', icon: Rss },
 ];
 
@@ -22,6 +24,7 @@ const moreLinks = [
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const { theme } = useTheme();
   const nav = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -57,6 +60,7 @@ export default function Navbar() {
   }, [user]);
 
   const isHome = location.pathname === '/';
+  const useDarkHeader = (isHome && !scrolled) || theme === 'dark';
 
   useEffect(() => {
     if (!menu) return;
@@ -85,7 +89,7 @@ export default function Navbar() {
       <div className="container-x h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center">
           <img
-            src={isHome && !scrolled ? '/logo-light.png' : '/logo-dark.png'}
+            src={useDarkHeader ? '/logo-light.png' : '/logo-dark.png'}
             alt="Ace2Examz Logo"
             className="h-10 w-auto object-contain"
           />
@@ -152,6 +156,7 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden md:flex items-center gap-2 relative">
+          <ThemeToggle />
 
           {!user ? (
             <>
@@ -186,7 +191,7 @@ export default function Navbar() {
                   Upgrade
                 </Link>
               )}
-              <NotificationBell darkMode={isHome && !scrolled} />
+              <NotificationBell darkMode={useDarkHeader} />
               <button
                 onClick={() => setMenu((v) => !v)}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50"
@@ -265,13 +270,16 @@ export default function Navbar() {
           )}
         </div>
 
-        <button
-          className={`md:hidden p-2 rounded-lg transition ${isHome && !scrolled ? 'text-white hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'}`}
-          onClick={() => setOpen((v) => !v)}
-          aria-label="menu"
-        >
-          {open ? <X size={22} /> : <Menu size={22} />}
-        </button>
+        <div className="md:hidden flex items-center gap-2">
+          <button
+            className={`p-2 rounded-lg transition ${isHome && !scrolled ? 'text-white hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'}`}
+            onClick={() => setOpen((v) => !v)}
+            aria-label="menu"
+          >
+            {open ? <X size={22} /> : <Menu size={22} />}
+          </button>
+          <ThemeToggle compact className={isHome && !scrolled ? 'text-white hover:bg-white/10' : ''} />
+        </div>
       </div>
 
       {open && (
@@ -310,6 +318,9 @@ export default function Navbar() {
               ))}
             </div>
             <div className="flex gap-2 pt-2 flex-wrap">
+              <div className="w-full">
+                <ThemeToggle />
+              </div>
               {!user ? (
                 <>
                   <Link to="/login" className="btn-outline flex-1" onClick={() => setOpen(false)}>

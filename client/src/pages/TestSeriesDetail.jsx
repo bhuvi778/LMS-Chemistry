@@ -23,7 +23,8 @@ import {
   Building2,
   Share2,
   Coins,
-  FileText
+  FileText,
+  Repeat
 } from 'lucide-react';
 
 
@@ -43,6 +44,8 @@ const DIFFICULTY_COLORS = {
   intermediate: 'bg-amber-100 text-amber-700',
   advanced: 'bg-red-100 text-red-700',
 };
+
+const TEST_SERIES_COIN_MINIMUM = 50;
 
 export default function TestSeriesDetail() {
   const { id } = useParams();
@@ -147,7 +150,7 @@ export default function TestSeriesDetail() {
       const { data: orderData } = await api.post('/payment/create-order', {
         testSeriesId: id,
         couponCode: couponApplied?.couponCode || '',
-        redeemCoins: redeemCoins,
+        redeemCoins: redeemCoins && (user?.coins || 0) >= TEST_SERIES_COIN_MINIMUM,
       });
 
       if (orderData.free) {
@@ -209,9 +212,10 @@ export default function TestSeriesDetail() {
 
   const canAccess = series?.isFree || enrolled;
   const finalPrice = couponApplied ? couponApplied.finalAmount : (series?.price || 0);
+  const canRedeemCoins = user && user.role !== 'admin' && (user.coins || 0) >= TEST_SERIES_COIN_MINIMUM;
   let displayPrice = finalPrice;
   let coinDiscount = 0;
-  if (redeemCoins && user) {
+  if (redeemCoins && canRedeemCoins) {
     const maxCoinsNeeded = Math.floor(finalPrice);
     const coinsToRedeem = Math.min(user.coins || 0, maxCoinsNeeded);
     coinDiscount = coinsToRedeem;
@@ -442,20 +446,23 @@ export default function TestSeriesDetail() {
             )}
 
             {/* Coin Redemption checkbox */}
-            {user && user.role !== 'admin' && user.coins >= 250 && (
+            {user && user.role !== 'admin' && (
               <div className="p-3 bg-amber-50/50 border border-amber-200 rounded-xl flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Coins className="text-amber-500 animate-pulse" size={16} />
                   <div>
                     <p className="text-xs font-bold text-slate-800">Redeem Ace Coins</p>
-                    <p className="text-[10px] text-slate-500 font-semibold">You have {user.coins} coins (≈ {user.coins} INR)</p>
+                    <p className="text-[10px] text-slate-500 font-semibold">
+                      You have {user.coins || 0} coins · minimum {TEST_SERIES_COIN_MINIMUM} required
+                    </p>
                   </div>
                 </div>
                 <input
                   type="checkbox"
-                  checked={redeemCoins}
-                  onChange={(e) => setRedeemCoins(e.target.checked)}
-                  className="w-4 h-4 text-amber-500 border-slate-350 rounded focus:ring-amber-500 cursor-pointer"
+                  checked={redeemCoins && canRedeemCoins}
+                  disabled={!canRedeemCoins}
+                  onChange={(e) => setRedeemCoins(e.target.checked && canRedeemCoins)}
+                  className="w-4 h-4 text-amber-500 border-slate-350 rounded focus:ring-amber-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
             )}
@@ -465,7 +472,7 @@ export default function TestSeriesDetail() {
               const initialAmt = (finalPrice !== null && finalPrice !== undefined) ? finalPrice : (series?.price || 0);
               let baseAmt = initialAmt;
               let coinDiscountVal = 0;
-              if (redeemCoins && user.coins >= 250) {
+              if (redeemCoins && canRedeemCoins) {
                 const maxCoinsNeeded = Math.floor(initialAmt);
                 const coinsToRedeem = Math.min(user.coins || 0, maxCoinsNeeded);
                 coinDiscountVal = coinsToRedeem;
@@ -636,9 +643,13 @@ export default function TestSeriesDetail() {
             )}
             {displayTests.map(({ test, customTags, subType }, idx) => {
               if (!test) return null;
-              const attempt = myAttempts.find(
+              const testAttempts = myAttempts.filter(
                 (a) => a.test?._id === test._id || a.test === test._id
               );
+              const attempt = testAttempts[0];
+              const attemptsAllowed = test.attemptsAllowed ?? 0;
+              const remainingAttempts = attemptsAllowed > 0 ? Math.max(0, attemptsAllowed - testAttempts.length) : null;
+              const canReattempt = attemptsAllowed === 0 || remainingAttempts > 0;
               const testCanAccess = test.isFree || canAccess;
               const dc = DIFFICULTY_COLORS[test.difficulty] || DIFFICULTY_COLORS.intermediate;
 
@@ -672,10 +683,12 @@ export default function TestSeriesDetail() {
                   </div>
                   <div className="flex-shrink-0">
                     {attempt ? (
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         <div className="text-right">
                           <div className="text-sm font-bold text-slate-700">{attempt.percentage}%</div>
-                          <div className="text-xs text-slate-400">Attempted</div>
+                          <div className="text-xs text-slate-400">
+                            {attemptsAllowed > 0 ? `${remainingAttempts} left` : 'Attempted'}
+                          </div>
                         </div>
                         <Link
                           to={`/test-result/${attempt._id}`}
@@ -683,6 +696,14 @@ export default function TestSeriesDetail() {
                         >
                           Result
                         </Link>
+                        {canReattempt && testCanAccess && (
+                          <Link
+                            to={`/take-test/${test._id}?seriesId=${series._id}`}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700"
+                          >
+                            <Repeat size={13} /> Re-attempt
+                          </Link>
+                        )}
                       </div>
                     ) : testCanAccess ? (
                       <Link

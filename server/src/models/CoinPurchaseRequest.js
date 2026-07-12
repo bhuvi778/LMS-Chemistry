@@ -9,6 +9,12 @@ const coinPurchaseRequestSchema = new mongoose.Schema(
     studentPhone: { type: String, required: true },
     studentEmail: { type: String, required: true },
     referenceNumber: { type: String, default: '' },
+    paymentMethod: { type: String, enum: ['manual', 'razorpay'], default: 'manual' },
+    paymentGateway: { type: String, default: '' },
+    razorpayOrderId: { type: String, default: '', index: true },
+    razorpayPaymentId: { type: String, default: '', index: true },
+    paidCoins: { type: Number, default: 0 },
+    bonusCoins: { type: Number, default: 0 },
     screenshotUrl: { type: String, default: '' },
     notes: { type: String, default: '' },
     status: {

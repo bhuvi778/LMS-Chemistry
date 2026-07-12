@@ -45,9 +45,13 @@ export default function AdminLiveClasses() {
 
   useEffect(() => {
     load();
-    api.get('/courses?includeUnpublished=true').then((r) => setCourses(r.data)).catch(() =>
-      api.get('/courses').then((r) => setCourses(r.data)).catch(() => {})
-    );
+    Promise.all([
+      api.get('/courses?includeUnpublished=true').then((r) => r.data || []).catch(() => []),
+      api.get('/courses?includeUnpublished=true&isPowerCourse=true').then((r) => r.data || []).catch(() => []),
+    ]).then(([normalCourses, powerCourses]) => {
+      const merged = [...powerCourses, ...normalCourses];
+      setCourses(Array.from(new Map(merged.map((c) => [c._id, c])).values()));
+    });
   }, []);
 
   const save = async (e) => {
@@ -99,6 +103,8 @@ export default function AdminLiveClasses() {
 
   const upcoming = list.filter((lc) => new Date(lc.scheduledAt) >= new Date());
   const past = list.filter((lc) => new Date(lc.scheduledAt) < new Date());
+  const powerCourses = courses.filter((c) => c.isPowerCourse);
+  const normalCourses = courses.filter((c) => !c.isPowerCourse);
 
   const handleEdit = (lc) => {
     setEditing({
@@ -143,38 +149,50 @@ export default function AdminLiveClasses() {
               <div>
                 <label className="label">Linked Courses (Select one or more)</label>
                 <div className="border border-slate-200 rounded-xl p-3 max-h-36 overflow-y-auto space-y-2 bg-slate-50">
-                  {courses.map((c) => {
-                    const selectedCourses = editing.courses || (editing.course ? [editing.course] : []);
-                    const isSelected = selectedCourses.includes(c._id);
-                    return (
-                      <label key={c._id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-1 rounded transition text-xs">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            let nextCourses = [...selectedCourses];
-                            if (e.target.checked) {
-                              if (!nextCourses.includes(c._id)) nextCourses.push(c._id);
-                            } else {
-                              nextCourses = nextCourses.filter((id) => id !== c._id);
-                            }
-                            setEditing((prev) => ({
-                              ...prev,
-                              courses: nextCourses,
-                              course: nextCourses[0] || null,
-                              courseName: nextCourses.length > 0 
-                                ? courses.find(x => x._id === nextCourses[0])?.title || ''
-                                : ''
-                            }));
-                          }}
-                        />
-                        <span className="text-slate-700">
-                          <span className="font-semibold text-slate-500 mr-1">[{c.category}]</span>
-                          {c.title}
-                        </span>
-                      </label>
-                    );
-                  })}
+                  {[
+                    { label: 'Power Batch', items: powerCourses },
+                    { label: 'Courses', items: normalCourses },
+                  ].map((group) => group.items.length > 0 && (
+                    <div key={group.label} className="space-y-1">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1 pt-1">
+                        {group.label}
+                      </div>
+                      {group.items.map((c) => {
+                        const selectedCourses = editing.courses || (editing.course ? [editing.course] : []);
+                        const isSelected = selectedCourses.includes(c._id);
+                        return (
+                          <label key={c._id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-1 rounded transition text-xs">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                let nextCourses = [...selectedCourses];
+                                if (e.target.checked) {
+                                  if (!nextCourses.includes(c._id)) nextCourses.push(c._id);
+                                } else {
+                                  nextCourses = nextCourses.filter((id) => id !== c._id);
+                                }
+                                setEditing((prev) => ({
+                                  ...prev,
+                                  courses: nextCourses,
+                                  course: nextCourses[0] || null,
+                                  courseName: nextCourses.length > 0
+                                    ? courses.find(x => x._id === nextCourses[0])?.title || ''
+                                    : ''
+                                }));
+                              }}
+                            />
+                            <span className="text-slate-700 min-w-0">
+                              <span className={`font-semibold mr-1 ${c.isPowerCourse ? 'text-rose-600' : 'text-slate-500'}`}>
+                                [{c.isPowerCourse ? 'Power Batch' : c.category}]
+                              </span>
+                              {c.title}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -315,6 +333,8 @@ export default function AdminLiveClasses() {
 function ClassCard({ lc, onEdit, onDelete, past }) {
   const isEmbedRoom = ['internal', 'agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast', 'youtube'].includes(lc.platform || (lc.useInternalRoom ? 'internal' : 'meet'));
   const isAgoraClass = ['agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast'].includes(lc.platform);
+  const linkedCourses = lc.courses && lc.courses.length > 0 ? lc.courses : (lc.course ? [lc.course] : []);
+  const hasPowerBatch = linkedCourses.some((c) => c?.isPowerCourse);
   const [recording, setRecording] = useState(lc.recordingStatus || 'idle');
   const [recordingUrl, setRecordingUrl] = useState(lc.recordingUrl || null);
   const [recordingBusy, setRecordingBusy] = useState(false);
@@ -379,6 +399,11 @@ function ClassCard({ lc, onEdit, onDelete, past }) {
                    lc.platform === 'meet' ? 'Meet' :
                    lc.platform || 'Ace Call'}
                 </span>
+                {hasPowerBatch && (
+                  <span className="text-[9px] font-extrabold bg-rose-50 border border-rose-100 text-rose-700 px-1 py-0.5 rounded uppercase shrink-0">
+                    Power Batch
+                  </span>
+                )}
                 {recording === 'recording' && (
                   <span className="text-[9px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 animate-pulse">
                     <Circle size={6} className="fill-red-500" /> REC

@@ -380,7 +380,7 @@ function PdfsTab({ pdfs, onViewPdf }) {
 
 // ─── Tests Tab ────────────────────────────────────────────────────────────────
 function TestsTab({ tests, courseId, myAttempts = [] }) {
-  const getAttempt = (testId) => myAttempts.find((a) => a.test === testId || a.test?._id === testId);
+  const getAttempts = (testId) => myAttempts.filter((a) => a.test === testId || a.test?._id === testId);
 
   const DIFF_COLORS = {
     basic: 'bg-emerald-100 text-emerald-700',
@@ -400,7 +400,11 @@ function TestsTab({ tests, courseId, myAttempts = [] }) {
   return (
     <div className="grid sm:grid-cols-2 gap-4">
       {tests.map((t) => {
-        const attempt = getAttempt(t._id);
+        const testAttempts = getAttempts(t._id);
+        const attempt = testAttempts[0];
+        const attemptsAllowed = t.attemptsAllowed ?? 0;
+        const remainingAttempts = attemptsAllowed > 0 ? Math.max(0, attemptsAllowed - testAttempts.length) : null;
+        const canRetake = attemptsAllowed === 0 || remainingAttempts > 0;
         return (
           <div key={t._id} className="card p-5 hover:shadow-md transition flex flex-col justify-between">
             <div className="flex items-start gap-3 mb-4">
@@ -434,6 +438,11 @@ function TestsTab({ tests, courseId, myAttempts = [] }) {
                 }`}>
                   Last score: {attempt.percentage?.toFixed(1)}%
                 </div>
+                {attemptsAllowed > 0 && (
+                  <div className="text-[11px] font-bold text-slate-500 text-center">
+                    {remainingAttempts} attempt{remainingAttempts === 1 ? '' : 's'} left
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Link
                     to={`/test-result/${attempt._id}`}
@@ -441,12 +450,21 @@ function TestsTab({ tests, courseId, myAttempts = [] }) {
                   >
                     View Result
                   </Link>
-                  <Link
-                    to={`/take-test/${t._id}?courseId=${courseId}`}
-                    className="btn-primary flex-1 !py-2 text-xs justify-center"
-                  >
-                    Retake
-                  </Link>
+                  {canRetake ? (
+                    <Link
+                      to={`/take-test/${t._id}?courseId=${courseId}`}
+                      className="btn-primary flex-1 !py-2 text-xs justify-center"
+                    >
+                      Re-attempt
+                    </Link>
+                  ) : (
+                    <button
+                      disabled
+                      className="btn-outline flex-1 !py-2 text-xs justify-center opacity-50 cursor-not-allowed"
+                    >
+                      Limit Over
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (

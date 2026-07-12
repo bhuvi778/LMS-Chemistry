@@ -207,8 +207,8 @@ export const allEnrollments = asyncHandler(async (_req, res) => {
 // ── Live Classes ────────────────────────────────────────────────
 export const getLiveClasses = asyncHandler(async (_req, res) => {
   const list = await LiveClass.find()
-    .populate('course', 'title category')
-    .populate('courses', 'title category')
+    .populate('course', 'title category isPowerCourse powerCourseType powerCourseDuration')
+    .populate('courses', 'title category isPowerCourse powerCourseType powerCourseDuration')
     .sort({ scheduledAt: 1 });
   res.json(list);
 });
@@ -697,6 +697,8 @@ export const liveClassesForCourse = asyncHandler(async (req, res) => {
     ],
     isActive: true
   })
+    .populate('course', 'title category isPowerCourse powerCourseType powerCourseDuration')
+    .populate('courses', 'title category isPowerCourse powerCourseType powerCourseDuration')
     .sort({ scheduledAt: -1 })
     .limit(50);
   res.json(list);

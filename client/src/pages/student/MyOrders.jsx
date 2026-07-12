@@ -7,6 +7,7 @@ import BankTransferModal from '../../components/BankTransferModal.jsx';
 export default function MyOrders() {
   const [enrollments, setEnrollments] = useState([]);
   const [seriesEnrollments, setSeriesEnrollments] = useState([]);
+  const [coinPurchases, setCoinPurchases] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
   // Bank Transfer requests
@@ -17,12 +18,14 @@ export default function MyOrders() {
   const fetchOrders = useCallback(async () => {
     setLoadingOrders(true);
     try {
-      const [enrollRes, seriesRes] = await Promise.all([
+      const [enrollRes, seriesRes, coinRes] = await Promise.all([
         api.get('/enroll/me'),
         api.get('/payment/my-series'),
+        api.get('/coin-purchase/me').catch(() => ({ data: [] })),
       ]);
       setEnrollments(enrollRes.data || []);
       setSeriesEnrollments(seriesRes.data || []);
+      setCoinPurchases((coinRes.data || []).filter((req) => req.status === 'approved'));
     } catch {
       toast.error('Failed to load purchase history');
     } finally {
@@ -47,9 +50,12 @@ export default function MyOrders() {
     fetchTransfers();
   }, [fetchOrders, fetchTransfers]);
 
-  const downloadInvoice = async (paymentId, invoiceNumber) => {
+  const downloadInvoice = async (paymentId, invoiceNumber, invoiceType = 'payment') => {
     try {
-      const resp = await api.get(`/payment/invoice/${paymentId}`, { responseType: 'blob' });
+      const endpoint = invoiceType === 'coin'
+        ? `/coin-purchase/invoice/${paymentId}`
+        : `/payment/invoice/${paymentId}`;
+      const resp = await api.get(endpoint, { responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
@@ -81,6 +87,17 @@ export default function MyOrders() {
       date: se.createdAt,
       paymentId: se.paymentId,
       invoiceNumber: se.invoiceNumber,
+    })),
+    ...coinPurchases.map(cp => ({
+      _id: cp._id,
+      type: 'coin_purchase',
+      title: `${cp.coinsRequested} Ace Coins`,
+      thumbnail: '',
+      price: cp.amountPaid,
+      date: cp.processedAt || cp.updatedAt || cp.createdAt,
+      paymentId: cp._id,
+      invoiceType: 'coin',
+      invoiceNumber: `ACE-COIN-${cp._id?.slice(-8)?.toUpperCase()}`,
     })),
   ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -124,7 +141,7 @@ export default function MyOrders() {
                   )}
                   <div>
                     <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                      {purchase.type === 'course' ? 'Course Enrollment' : 'Test Series Access'}
+                      {purchase.type === 'course' ? 'Course Enrollment' : purchase.type === 'coin_purchase' ? 'Ace Coins Purchase' : 'Test Series Access'}
                     </span>
                     <h4 className="font-bold text-slate-800 text-xs sm:text-sm leading-snug">{purchase.title}</h4>
                     <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
@@ -136,16 +153,16 @@ export default function MyOrders() {
                 </div>
 
                 <div className="shrink-0 self-start md:self-center">
-                  {purchase.paymentId && purchase.paymentId !== 'FREE' && !purchase.paymentId?.startsWith('FREE_') ? (
+                  {purchase.paymentId ? (
                     <button
-                      onClick={() => downloadInvoice(purchase.paymentId, purchase.invoiceNumber)}
+                      onClick={() => downloadInvoice(purchase.paymentId, purchase.invoiceNumber, purchase.invoiceType)}
                       className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 hover:border-brand-200 hover:text-brand-700 bg-white hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 transition shadow-sm"
                     >
                       <Download size={14} /> Download Invoice
                     </button>
                   ) : (
                     <span className="px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold">
-                      Free Access
+                      Invoice Pending
                     </span>
                   )}
                 </div>

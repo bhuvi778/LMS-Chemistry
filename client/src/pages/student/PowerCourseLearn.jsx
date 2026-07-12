@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../../api/client.js';
 import {
   ArrowLeft,
+  Calendar,
   Clock,
   Zap,
   CheckCircle,
@@ -23,7 +24,8 @@ import {
   Star,
   Users,
   Video,
-  ListTodo
+  ListTodo,
+  ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SecureYTPlayer from '../../components/SecureYTPlayer.jsx';
@@ -36,16 +38,19 @@ export default function PowerCourseLearn() {
   const [activeTab, setActiveTab] = useState('daily-plan');
   const [expandedDay, setExpandedDay] = useState(1);
   const [activeVideo, setActiveVideo] = useState(null); // { url, title } (for popup backup if needed, else inline)
+  const [liveClasses, setLiveClasses] = useState([]);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [courseRes, progressRes] = await Promise.all([
+        const [courseRes, progressRes, liveRes] = await Promise.all([
           api.get(`/courses/${courseId}`),
-          api.get(`/power-courses/progress/${courseId}`)
+          api.get(`/power-courses/progress/${courseId}`),
+          api.get(`/admin/live-classes/by-course/${courseId}`).catch(() => ({ data: [] }))
         ]);
         setCourse(courseRes.data);
         setProgress(progressRes.data);
+        setLiveClasses(liveRes.data || []);
 
         // Pre-expand the first incomplete day
         const completedDays = new Set(progressRes.data?.completedDays || []);
@@ -107,8 +112,45 @@ export default function PowerCourseLearn() {
 
   const duration = course.powerCourseDuration || 7;
   const completedDays = new Set(progress?.completedDays || []);
+  const hasPerDayUnlockDates = (course.dailyPlan || []).some((day) => !!day.unlockDate);
+  const hasCalendarMode = !!course.startDate || !!course.endDate || hasPerDayUnlockDates;
+  const formatDate = (value) => value
+    ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    : '';
+  const formatFullDate = (value) => value
+    ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
+  const dailyUnlockDates = (course.dailyPlan || [])
+    .map((day) => day.unlockDate)
+    .filter(Boolean)
+    .map((date) => new Date(date))
+    .filter((date) => !Number.isNaN(date.getTime()))
+    .sort((a, b) => a - b);
+  const firstUnlockDate = dailyUnlockDates[0] || (course.startDate ? new Date(course.startDate) : null);
+  const getDayConfig = (dayNum) => (course.dailyPlan || []).find((p) => p.dayNumber === dayNum);
+  const getDayDate = (dayNum) => {
+    const dayConfig = getDayConfig(dayNum);
+    if (dayConfig?.unlockDate) {
+      const date = new Date(dayConfig.unlockDate);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+    if (!course.startDate) return null;
+    const date = new Date(course.startDate);
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + dayNum - 1);
+    return date;
+  };
+  const isDayAvailableByCalendar = (dayNum) => {
+    const dayDate = getDayDate(dayNum);
+    if (!dayDate) return true;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return dayDate <= today;
+  };
 
   const isDayUnlocked = (dayNum) => {
+    if (!isDayAvailableByCalendar(dayNum)) return false;
     if (dayNum === 1) return true;
     return completedDays.has(dayNum - 1);
   };
@@ -127,6 +169,11 @@ export default function PowerCourseLearn() {
 
   const totalQuizzes = (course.dailyPlan || []).filter(d => d.quizId).length;
   const completedQuizzes = dayProgressList.reduce((acc, curr) => acc + (curr.tasksCompleted?.includes('quiz') ? 1 : 0), 0);
+
+  const totalLiveClasses = (course.dailyPlan || []).filter(d => d.liveClassId).length;
+  const completedLiveClasses = dayProgressList.reduce((acc, curr) => acc + (curr.tasksCompleted?.includes('live') ? 1 : 0), 0);
+  const totalClasses = totalLessons + totalLiveClasses;
+  const completedClasses = completedLessons + completedLiveClasses;
 
   const totalAssignments = (course.dailyPlan || []).filter(d => d.assignmentUrl).length;
   const completedAssignments = dayProgressList.reduce((acc, curr) => acc + (curr.tasksCompleted?.includes('assignment') ? 1 : 0), 0);
@@ -148,11 +195,64 @@ export default function PowerCourseLearn() {
     }
   };
 
+  const getTypeLabel = (type) => {
+    if (type === 'micro') return 'Micro Batch';
+    if (type === 'mini') return 'Mini Batch';
+    if (type === 'crash') return 'Crash Course';
+    return 'challenge';
+  };
+
+  const liveClassMap = new Map((liveClasses || []).map((lc) => [lc._id, lc]));
+
+  const getAssignedLiveClass = (day) => {
+    if (!day?.liveClassId) return null;
+    return liveClassMap.get(String(day.liveClassId)) || null;
+  };
+
+  const getLivePlatformLabel = (platform) => (
+    platform === 'agora_call' ? 'Ace Video Call' :
+    platform === 'agora_interactive' ? 'Ace Interactive' :
+    platform === 'agora_broadcast' ? 'Ace Broadcast' :
+    platform === 'agora_stream' ? 'Ace Stream (Legacy)' :
+    platform === 'youtube' ? 'YouTube Live' :
+    platform === 'zoom' ? 'Zoom Meeting' :
+    platform === 'meet' ? 'Google Meet' :
+    'Ace Video Call'
+  );
+
+  const isInAppLiveClass = (lc) => {
+    const platform = lc?.platform || (lc?.useInternalRoom ? 'internal' : 'meet');
+    return ['internal', 'agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast', 'youtube'].includes(platform);
+  };
+
+  const getLiveClassUrl = (day, lc) => {
+    if (!lc) return `/live/${day.liveClassId}`;
+    return isInAppLiveClass(lc) ? `/live/${lc._id}` : (lc.meetLink || lc.meetingUrl || `/live/${lc._id}`);
+  };
+
+  const LiveJoinButton = ({ day, lc, className = '' }) => {
+    const href = getLiveClassUrl(day, lc);
+    const inApp = !lc || isInAppLiveClass(lc);
+    const Icon = inApp ? Video : ExternalLink;
+    const label = lc?.status === 'live' ? 'Join Now' : inApp ? 'Open Room' : 'Join Class';
+    const classes = `btn-primary justify-center ${className}`;
+
+    return inApp ? (
+      <Link to={href} className={classes}>
+        <Icon size={12} /> {label}
+      </Link>
+    ) : (
+      <a href={href} target="_blank" rel="noreferrer" className={classes}>
+        <Icon size={12} /> {label}
+      </a>
+    );
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Back link */}
-      <Link to="/student/power-courses" className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-505 hover:text-brand-650 transition">
-        <ArrowLeft size={13} /> My Enrolled Power Courses
+      <Link to="/student/power-batch" className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-505 hover:text-brand-650 transition">
+        <ArrowLeft size={13} /> My Enrolled Power Batch
       </Link>
 
       {/* ── TOP HERO HEADER BANNER ── */}
@@ -164,7 +264,7 @@ export default function PowerCourseLearn() {
         <div className="relative flex-1 space-y-4">
           <div className="flex items-center gap-2">
             <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md ${getBadgeStyle(course.powerCourseType)}`}>
-              {course.powerCourseType ? `${course.powerCourseType} course` : 'challenge'}
+              {getTypeLabel(course.powerCourseType)}
             </span>
           </div>
 
@@ -172,19 +272,20 @@ export default function PowerCourseLearn() {
             <h1 className="text-3xl font-black font-display tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
               {course.title}
             </h1>
-            <p className="text-sm font-bold text-indigo-300">Complete Revision</p>
+            <p className="text-sm font-bold text-indigo-300">Complete Target</p>
           </div>
 
           {/* Metadata Grid */}
           <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-300 pt-1">
             <div className="flex items-center gap-1.5"><Clock size={14} className="text-brand-400" /> Duration: {duration} Days</div>
-            <div className="flex items-center gap-1.5"><Star size={14} className="text-brand-400" /> Level: Class 12</div>
-            <div className="flex items-center gap-1.5"><Video size={14} className="text-brand-400" /> Lessons: {totalLessons}</div>
-            <div className="flex items-center gap-1.5"><ListTodo size={14} className="text-brand-400" /> Quizzes: {totalQuizzes}</div>
+            <div className="flex items-center gap-1.5"><Star size={14} className="text-brand-400" /> {hasCalendarMode ? 'Calendar Mode' : 'Flexible Mode'}</div>
+            <div className="flex items-center gap-1.5"><Video size={14} className="text-brand-400" /> Classes: {totalClasses}</div>
+            <div className="flex items-center gap-1.5"><Users size={14} className="text-brand-400" /> Live: {totalLiveClasses}</div>
+            <div className="flex items-center gap-1.5"><ListTodo size={14} className="text-brand-400" /> Practice: {totalQuizzes}</div>
           </div>
 
           <p className="text-slate-400 text-xs max-w-2xl leading-relaxed pt-1">
-            {course.shortDescription || 'Master topics step-by-step with high impact concept clarity, formulas, PYQs, and daily targeted tasks.'}
+            {course.shortDescription || 'Master topics step-by-step with live/recorded classes, notes, formulas, PYQs, and daily practice.'}
           </p>
 
           {/* Progress summary bar */}
@@ -200,7 +301,7 @@ export default function PowerCourseLearn() {
               />
             </div>
             <div className="text-[10px] text-slate-500 font-semibold">
-              {completedDays.size} of {duration} Days Completed · {completedLessons} of {totalLessons} Lessons Completed
+              {completedDays.size} of {duration} Days Completed · {completedClasses} of {totalClasses} Classes Completed
             </div>
           </div>
         </div>
@@ -211,11 +312,11 @@ export default function PowerCourseLearn() {
           <div className="space-y-3 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-500">Access Mode</span>
-              <span className="font-bold text-slate-200">Recorded + Notes</span>
+              <span className="font-bold text-slate-200">Live + Recorded</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Start Date</span>
-              <span className="font-bold text-slate-200">{new Date(progress?.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              <span className="text-slate-500">{firstUnlockDate ? 'First Unlock' : 'Start Date'}</span>
+              <span className="font-bold text-slate-200">{firstUnlockDate ? formatFullDate(firstUnlockDate) : formatFullDate(progress?.createdAt || Date.now())}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Language</span>
@@ -228,7 +329,7 @@ export default function PowerCourseLearn() {
           </div>
           <div className="bg-indigo-950/40 border border-indigo-900/40 rounded-xl p-3 text-center mt-2">
             <div className="text-[10px] text-slate-450 uppercase font-black tracking-wider">Remaining Days</div>
-            <div className="text-base font-black text-brand-400 mt-0.5">Active Tracker</div>
+            <div className="text-base font-black text-brand-400 mt-0.5">{hasCalendarMode ? 'Calendar Tracker' : 'Active Tracker'}</div>
           </div>
         </div>
       </div>
@@ -244,7 +345,8 @@ export default function PowerCourseLearn() {
             {[
               { id: 'daily-plan', label: 'Daily Plan' },
               { id: 'content', label: 'Content Index' },
-              { id: 'quizzes', label: 'Quizzes' },
+              { id: 'live', label: 'Live Classes' },
+              { id: 'quizzes', label: 'Practice' },
               { id: 'assignments', label: 'Assignments' },
               { id: 'notes', label: 'Notes' }
             ].map((tab) => (
@@ -280,6 +382,7 @@ export default function PowerCourseLearn() {
                 {Array.from({ length: duration }, (_, idx) => {
                   const dayNum = idx + 1;
                   const isCompleted = completedDays.has(dayNum);
+                  const isCalendarAvailable = isDayAvailableByCalendar(dayNum);
                   const isUnlocked = isDayUnlocked(dayNum);
                   const isExpanded = expandedDay === dayNum;
 
@@ -287,11 +390,14 @@ export default function PowerCourseLearn() {
                     dayNumber: dayNum,
                     title: `Target Day ${dayNum}`,
                     topicsCovered: [],
+                    unlockDate: '',
                     videoUrl: '', videoTitle: 'Lecture video',
-                    notesUrl: '', notesTitle: 'Study notes pdf',
-                    quizId: '', quizTitle: 'Practice quiz test',
-                    assignmentUrl: '', assignmentTitle: 'Homework assignment'
+                    notesUrl: '', notesTitle: 'Notes PDF',
+                    quizId: '', quizTitle: 'Practice checkpoint',
+                    liveClassId: '', liveClassTitle: 'Attend live class',
+                    assignmentUrl: '', assignmentTitle: 'Assignment PDF'
                   };
+                  const assignedLiveClass = getAssignedLiveClass(dayData);
 
                   return (
                     <div
@@ -325,7 +431,9 @@ export default function PowerCourseLearn() {
                           )}
                           
                           <div className="min-w-0">
-                            <span className="text-xs font-black uppercase tracking-wider text-slate-400 block">Day {dayNum}</span>
+                            <span className="text-xs font-black uppercase tracking-wider text-slate-400 block">
+                              Day {dayNum}{hasCalendarMode && getDayDate(dayNum) ? ` · ${formatDate(getDayDate(dayNum))}` : ''}
+                            </span>
                             <span className="font-extrabold text-slate-800 text-sm truncate block mt-0.5">{dayData.title}</span>
                           </div>
                         </div>
@@ -333,15 +441,16 @@ export default function PowerCourseLearn() {
                         {/* Right side stats on accordion header */}
                         <div className="flex items-center gap-4 shrink-0">
                           <div className="hidden sm:flex items-center gap-3 text-[10px] text-slate-450 font-bold uppercase">
-                            {dayData.videoUrl && <span>Lesson</span>}
+                            {dayData.videoUrl && <span>Recorded</span>}
+                            {dayData.liveClassId && <span>Live</span>}
                             {dayData.notesUrl && <span>Notes</span>}
-                            {dayData.quizId && <span>Quiz</span>}
+                            {dayData.quizId && <span>Practice</span>}
                           </div>
                           <div className="flex items-center gap-3">
                             <span className={`chip text-[10px] font-bold ${
                               isCompleted ? 'bg-emerald-50 text-emerald-600 border border-emerald-150' : 'bg-slate-100 text-slate-500'
                             }`}>
-                              {isCompleted ? '100%' : '0%'}
+                              {isCompleted ? '100%' : !isCalendarAvailable ? 'Date Locked' : '0%'}
                             </span>
                             {isUnlocked ? (
                               isExpanded ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />
@@ -361,14 +470,14 @@ export default function PowerCourseLearn() {
                             
                             {/* Inner Col 1: Video Player */}
                             <div className="lg:col-span-1 space-y-2">
-                              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Lecture Lecture</span>
+                              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Recorded Class</span>
                               {dayData.videoUrl ? (
                                 <div className="rounded-xl overflow-hidden aspect-video bg-slate-900 border border-slate-800 shadow-inner">
                                   <SecureYTPlayer url={dayData.videoUrl} title={dayData.videoTitle} />
                                 </div>
                               ) : (
                                 <div className="aspect-video bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 italic text-xs border border-slate-200 border-dashed">
-                                  No video lecture configured
+                                  No recorded class configured
                                 </div>
                               )}
                             </div>
@@ -392,13 +501,13 @@ export default function PowerCourseLearn() {
 
                             {/* Inner Col 3: Task grid checklist */}
                             <div className="lg:col-span-1 space-y-3 bg-white rounded-xl p-4 border border-slate-150/80 shadow-xs">
-                              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block border-b pb-1">Day Tasks Status</span>
+                              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block border-b pb-1">Day Class & Material Status</span>
                               
                               <div className="space-y-3">
                                 {/* Task 1: Video */}
                                 {dayData.videoUrl && (
                                   <div className="flex items-center justify-between gap-2 text-xs">
-                                    <span className="font-semibold text-slate-700 flex items-center gap-1.5"><Play size={11} className="text-slate-400" /> Watch Video</span>
+                                    <span className="font-semibold text-slate-700 flex items-center gap-1.5"><Play size={11} className="text-slate-400" /> Watch Recorded Class</span>
                                     {isTaskCompleted(dayNum, 'video') ? (
                                       <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Complete</span>
                                     ) : (
@@ -416,7 +525,7 @@ export default function PowerCourseLearn() {
                                 {dayData.notesUrl && (
                                   <div className="flex items-center justify-between gap-2 text-xs">
                                     <a href={dayData.notesUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-650 hover:underline flex items-center gap-1.5">
-                                      <FileText size={11} className="text-brand-500" /> Get Notes PDF
+                                      <FileText size={11} className="text-brand-500" /> {dayData.notesTitle || 'Notes PDF'}
                                     </a>
                                     {isTaskCompleted(dayNum, 'notes') ? (
                                       <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Read</span>
@@ -435,7 +544,7 @@ export default function PowerCourseLearn() {
                                 {dayData.quizId && (
                                   <div className="flex items-center justify-between gap-2 text-xs">
                                     <Link to={`/student/practice`} className="font-semibold text-brand-650 hover:underline flex items-center gap-1.5">
-                                      <ClipboardList size={11} className="text-brand-500" /> Take Test Quiz
+                                      <ClipboardList size={11} className="text-brand-500" /> Practice Checkpoint
                                     </Link>
                                     {isTaskCompleted(dayNum, 'quiz') ? (
                                       <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Scored</span>
@@ -450,11 +559,38 @@ export default function PowerCourseLearn() {
                                   </div>
                                 )}
 
-                                {/* Task 4: Assignment */}
+                                {/* Task 4: Live Class */}
+                                {dayData.liveClassId && (
+                                  <div className="flex items-center justify-between gap-2 text-xs">
+                                    <div className="min-w-0">
+                                      <LiveJoinButton
+                                        day={dayData}
+                                        lc={assignedLiveClass}
+                                        className="inline-flex !py-0 !px-0 !bg-transparent !shadow-none !text-brand-650 hover:!bg-transparent hover:underline font-semibold gap-1.5"
+                                      />
+                                      <p className="text-[10px] text-slate-400 truncate">
+                                        {dayData.liveClassTitle || assignedLiveClass?.title || 'Live Class'}
+                                        {assignedLiveClass?.platform ? ` · ${getLivePlatformLabel(assignedLiveClass.platform)}` : ''}
+                                      </p>
+                                    </div>
+                                    {isTaskCompleted(dayNum, 'live') ? (
+                                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Attended</span>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleCompleteTask(dayNum, 'live')}
+                                        className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full"
+                                      >
+                                        Mark Done
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Task 5: Assignment */}
                                 {dayData.assignmentUrl && (
                                   <div className="flex items-center justify-between gap-2 text-xs">
                                     <a href={dayData.assignmentUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-650 hover:underline flex items-center gap-1.5">
-                                      <Download size={11} className="text-brand-500" /> Homework sheet
+                                      <Download size={11} className="text-brand-500" /> {dayData.assignmentTitle || 'Assignment PDF'}
                                     </a>
                                     {isTaskCompleted(dayNum, 'assignment') ? (
                                       <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">✓ Submitted</span>
@@ -483,7 +619,7 @@ export default function PowerCourseLearn() {
           {/* Tab 2: Content Index list */}
           {activeTab === 'content' && (
             <div className="card p-6 bg-white border border-slate-150 rounded-2xl shadow-sm space-y-4">
-              <h3 className="font-extrabold text-slate-800 text-sm">Full Lectures Playlist</h3>
+              <h3 className="font-extrabold text-slate-800 text-sm">Recorded Classes Playlist</h3>
               <div className="space-y-3">
                 {(course.dailyPlan || []).filter(d => d.videoUrl).map((day) => (
                   <div key={day.dayNumber} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:bg-slate-50 transition">
@@ -492,7 +628,7 @@ export default function PowerCourseLearn() {
                         {day.dayNumber}
                       </div>
                       <div>
-                        <h4 className="font-bold text-slate-800 text-xs">{day.videoTitle || `Lecture video Day ${day.dayNumber}`}</h4>
+                        <h4 className="font-bold text-slate-800 text-xs">{day.videoTitle || `Recorded class Day ${day.dayNumber}`}</h4>
                         <p className="text-[10px] text-slate-450 mt-0.5">Duration target: {day.durationText || '60 min'}</p>
                       </div>
                     </div>
@@ -501,7 +637,7 @@ export default function PowerCourseLearn() {
                         onClick={() => setActiveVideo({ url: day.videoUrl, title: day.videoTitle })}
                         className="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1"
                       >
-                        <Play size={12} fill="currentColor" /> Play Lesson
+                        <Play size={12} fill="currentColor" /> Play Class
                       </button>
                     )}
                   </div>
@@ -510,19 +646,80 @@ export default function PowerCourseLearn() {
             </div>
           )}
 
-          {/* Tab 3: Quizzes */}
+          {/* Tab 3: Live Classes */}
+          {activeTab === 'live' && (
+            <div className="card p-6 bg-white border border-slate-150 rounded-2xl shadow-sm space-y-4">
+              <h3 className="font-extrabold text-slate-800 text-sm">Power Batch Live Classes</h3>
+              {(course.dailyPlan || []).filter(d => d.liveClassId).length === 0 ? (
+                <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
+                  No live classes are assigned to this Power Batch yet.
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {(course.dailyPlan || []).filter(d => d.liveClassId).map((day) => {
+                    const lc = getAssignedLiveClass(day);
+                    const start = lc?.scheduledAt ? new Date(lc.scheduledAt) : null;
+                    return (
+                      <div key={day.dayNumber} className="p-4 border border-slate-150 rounded-xl bg-slate-50/50 flex flex-col justify-between space-y-3">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-black uppercase text-rose-600">Day {day.dayNumber} Live</span>
+                            <span className="text-[9px] font-black rounded-full bg-white border border-slate-150 px-2 py-0.5 text-slate-500 uppercase">
+                              {getLivePlatformLabel(lc?.platform)}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-slate-800 text-xs mt-0.5 truncate">{day.liveClassTitle || lc?.title || 'Live Class'}</h4>
+                          {start && (
+                            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold">
+                              <Calendar size={11} />
+                              {start.toLocaleString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                              {lc?.durationMins ? ` · ${lc.durationMins} min` : ''}
+                            </div>
+                          )}
+                          {lc?.description && (
+                            <p className="text-[10px] text-slate-400 line-clamp-2">{lc.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <LiveJoinButton day={day} lc={lc} className="text-xs font-bold py-1.5 flex-1" />
+                          {isTaskCompleted(day.dayNumber, 'live') ? (
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">Done</span>
+                          ) : (
+                            <button
+                              onClick={() => handleCompleteTask(day.dayNumber, 'live')}
+                              className="btn-outline justify-center text-xs font-bold py-1.5"
+                            >
+                              Mark Done
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 4: Quizzes */}
           {activeTab === 'quizzes' && (
             <div className="card p-6 bg-white border border-slate-150 rounded-2xl shadow-sm space-y-4">
-              <h3 className="font-extrabold text-slate-800 text-sm font-display">Daily Quizzes Checkpoints</h3>
+              <h3 className="font-extrabold text-slate-800 text-sm font-display">Daily Practice Checkpoints</h3>
               <div className="grid sm:grid-cols-2 gap-4">
                 {(course.dailyPlan || []).filter(d => d.quizId).map((day) => (
                   <div key={day.dayNumber} className="p-4 border border-slate-155 rounded-xl bg-slate-50/50 flex flex-col justify-between space-y-3">
                     <div>
                       <span className="text-[10px] font-black uppercase text-brand-600">Day {day.dayNumber} Target</span>
-                      <h4 className="font-bold text-slate-800 text-sm mt-0.5 truncate">{day.quizTitle || 'Practice test quiz'}</h4>
+                      <h4 className="font-bold text-slate-800 text-sm mt-0.5 truncate">{day.quizTitle || 'Practice checkpoint'}</h4>
                     </div>
                     <Link to={`/student/practice`} className="btn-outline justify-center text-xs font-bold py-1.5">
-                      <ClipboardList size={12} /> Start Quiz Portal
+                      <ClipboardList size={12} /> Start Practice
                     </Link>
                   </div>
                 ))}
@@ -533,16 +730,16 @@ export default function PowerCourseLearn() {
           {/* Tab 4: Assignments */}
           {activeTab === 'assignments' && (
             <div className="card p-6 bg-white border border-slate-150 rounded-2xl shadow-sm space-y-4">
-              <h3 className="font-extrabold text-slate-800 text-sm">Target Assignments & Homework</h3>
+              <h3 className="font-extrabold text-slate-800 text-sm">Assignments</h3>
               <div className="grid sm:grid-cols-2 gap-4">
                 {(course.dailyPlan || []).filter(d => d.assignmentUrl).map((day) => (
                   <div key={day.dayNumber} className="p-4 border border-slate-150 rounded-xl bg-slate-50/50 flex flex-col justify-between space-y-3">
                     <div>
-                      <span className="text-[10px] font-black uppercase text-slate-400">Day {day.dayNumber} Homework</span>
-                      <h4 className="font-bold text-slate-800 text-xs mt-0.5 truncate">{day.assignmentTitle || 'Daily Assignment Sheet'}</h4>
+                      <span className="text-[10px] font-black uppercase text-slate-400">Day {day.dayNumber} Assignment</span>
+                      <h4 className="font-bold text-slate-800 text-xs mt-0.5 truncate">{day.assignmentTitle || 'Assignment PDF'}</h4>
                     </div>
                     <a href={day.assignmentUrl} target="_blank" rel="noopener noreferrer" className="btn-outline justify-center text-xs font-bold py-1.5 text-center">
-                      <Download size={12} /> Get Homework PDF
+                      <Download size={12} /> View Assignment
                     </a>
                   </div>
                 ))}
@@ -553,16 +750,16 @@ export default function PowerCourseLearn() {
           {/* Tab 5: Notes */}
           {activeTab === 'notes' && (
             <div className="card p-6 bg-white border border-slate-150 rounded-2xl shadow-sm space-y-4">
-              <h3 className="font-extrabold text-slate-800 text-sm">Study Notes & Revision Materials</h3>
+              <h3 className="font-extrabold text-slate-800 text-sm">Notes</h3>
               <div className="grid sm:grid-cols-2 gap-4">
                 {(course.dailyPlan || []).filter(d => d.notesUrl).map((day) => (
                   <div key={day.dayNumber} className="p-4 border border-slate-150 rounded-xl bg-slate-50/50 flex flex-col justify-between space-y-3">
                     <div>
                       <span className="text-[10px] font-black uppercase text-slate-400">Day {day.dayNumber} Notes</span>
-                      <h4 className="font-bold text-slate-800 text-xs mt-0.5 truncate">{day.notesTitle || 'Class Summary Notes'}</h4>
+                      <h4 className="font-bold text-slate-800 text-xs mt-0.5 truncate">{day.notesTitle || 'Notes PDF'}</h4>
                     </div>
                     <a href={day.notesUrl} target="_blank" rel="noopener noreferrer" className="btn-outline justify-center text-xs font-bold py-1.5 text-center">
-                      <FileText size={12} /> View Notes PDF
+                      <FileText size={12} /> View Notes
                     </a>
                   </div>
                 ))}
@@ -600,11 +797,11 @@ export default function PowerCourseLearn() {
                 <span className="text-slate-850">{completedDays.size} / {duration}</span>
               </div>
               <div className="flex justify-between font-bold text-slate-650">
-                <span>Lessons Completed</span>
+                <span>Recorded Classes</span>
                 <span className="text-slate-850">{completedLessons} / {totalLessons}</span>
               </div>
               <div className="flex justify-between font-bold text-slate-650">
-                <span>Quizzes Taken</span>
+                <span>Practice Done</span>
                 <span className="text-slate-850">{completedQuizzes} / {totalQuizzes}</span>
               </div>
             </div>
@@ -633,26 +830,14 @@ export default function PowerCourseLearn() {
           <div className="card p-5 bg-white border border-slate-150 rounded-2xl shadow-sm space-y-4">
             <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">Course Includes</h3>
             <div className="space-y-3.5 text-xs text-slate-650 font-semibold">
-              <div className="flex items-center gap-2"><Play size={13} className="text-brand-500" /> {totalLessons} Video Lessons</div>
-              <div className="flex items-center gap-2"><ClipboardList size={13} className="text-brand-500" /> {totalQuizzes} Daily Quizzes</div>
+              <div className="flex items-center gap-2"><Play size={13} className="text-brand-500" /> {totalLessons} Recorded Classes</div>
+              <div className="flex items-center gap-2"><Users size={13} className="text-brand-500" /> {totalLiveClasses} Live Classes</div>
+              <div className="flex items-center gap-2"><ClipboardList size={13} className="text-brand-500" /> {totalQuizzes} Practice Checkpoints</div>
               <div className="flex items-center gap-2"><Download size={13} className="text-brand-500" /> {totalAssignments} Assignments</div>
-              <div className="flex items-center gap-2"><FileText size={13} className="text-brand-500" /> {totalNotes} Detailed Notes PDFs</div>
+              <div className="flex items-center gap-2"><FileText size={13} className="text-brand-500" /> {totalNotes} Notes</div>
             </div>
           </div>
 
-          {/* Discussion Help Panel */}
-          <div className="card p-5 bg-white border border-slate-150 rounded-2xl shadow-sm text-center space-y-3">
-            <div className="w-10 h-10 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mx-auto">
-              <MessageSquare size={18} />
-            </div>
-            <div>
-              <h4 className="font-extrabold text-slate-800 text-xs">Stuck Somewhere?</h4>
-              <p className="text-[10px] text-slate-400 font-bold mt-0.5">Ask your doubts in discussion dashboard.</p>
-            </div>
-            <button className="w-full btn-outline justify-center text-xs py-2 font-bold">
-              Ask Doubt
-            </button>
-          </div>
         </div>
       </div>
 

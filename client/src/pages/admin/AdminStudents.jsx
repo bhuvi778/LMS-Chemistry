@@ -593,7 +593,7 @@ function StudentModal({ id, onClose, onChanged }) {
     setEnrollPowerBusy(courseId);
     try {
       await api.post(`/admin/students/${id}/enroll`, { courseId, planType: 'batch' });
-      toast.success('Power Challenge allotted!');
+      toast.success('Power Batch allotted!');
       load();
       onChanged?.();
     } catch (e) {
@@ -604,7 +604,7 @@ function StudentModal({ id, onClose, onChanged }) {
   };
 
   const removePowerEnrollment = async (courseId) => {
-    if (!confirm('Remove this Power Challenge enrollment?')) return;
+    if (!confirm('Remove this Power Batch enrollment?')) return;
     setEnrollPowerBusy(courseId);
     try {
       await api.delete(`/admin/students/${id}/enroll/${courseId}`);
@@ -1152,17 +1152,17 @@ function StudentModal({ id, onClose, onChanged }) {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-bold text-sm flex items-center gap-2"><Flame size={14} className="text-orange-500 animate-pulse" /> Enrolled Power Challenges ({powerEnrollments.length})</h4>
+                <h4 className="font-bold text-sm flex items-center gap-2"><Flame size={14} className="text-orange-500 animate-pulse" /> Enrolled Power Batch ({powerEnrollments.length})</h4>
                 <button onClick={openEnrollPower} className="btn-primary text-xs flex items-center gap-1">
-                  <PlusCircle size={13} /> Allot Power Challenge
+                  <PlusCircle size={13} /> Allot Power Batch
                 </button>
               </div>
 
-              {/* Power Course picker */}
+              {/* Power Batch picker */}
               {showEnrollPower && (
                 <div className="mb-3 rounded-xl border-2 border-orange-200 bg-orange-50/50 p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-orange-700">Select a Power Challenge to allot</span>
+                    <span className="text-xs font-semibold text-orange-700">Select a Power Batch to allot</span>
                     <button onClick={() => { setShowEnrollPower(false); setPowerSearch(''); }} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
                   </div>
                   <div className="relative">
@@ -1170,7 +1170,7 @@ function StudentModal({ id, onClose, onChanged }) {
                     <input
                       value={powerSearch}
                       onChange={(e) => setPowerSearch(e.target.value)}
-                      placeholder="Search Power Challenges…"
+                      placeholder="Search Power Batch…"
                       className="input w-full !pl-8 !py-1.5 text-xs"
                     />
                   </div>
@@ -1234,7 +1234,7 @@ function StudentModal({ id, onClose, onChanged }) {
                   ))}
                 </div>
               ) : (
-                <div className="text-sm text-slate-400 italic">No Power Challenges allotted yet.</div>
+                <div className="text-sm text-slate-400 italic">No Power Batch allotted yet.</div>
               )}
             </div>
 

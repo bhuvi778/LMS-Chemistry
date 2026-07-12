@@ -26,7 +26,7 @@ const send = async (to, subject, html, attachments = []) => {
   try {
     await t.sendMail({ from: FROM(), to, subject, html, attachments });
   } catch (err) {
-    console.error('[EMAIL] send error:', err.message);
+    console.error('[EMAIL] send error:', { to, subject, message: err.message });
   }
 };
 
@@ -247,10 +247,10 @@ export const sendEnquiryReceiptToUser = (email, name, enquiry) =>
 export const sendMentorshipRequestAdminEmail = (adminEmail, studentName, details) =>
   send(
     adminEmail,
-    `New 1:1 Mentorship Request: ${details.subject} 🎓`,
+    `New 1:1 Session Request: ${details.subject} 🎓`,
     base(`
-      <h2 style="color:#1f2937;margin-top:0">New Mentorship Request Received 🎓</h2>
-      <p style="color:#4b5563">A student has requested a 1:1 mentorship session:</p>
+      <h2 style="color:#1f2937;margin-top:0">New 1:1 Session Request Received 🎓</h2>
+      <p style="color:#4b5563">A student has requested a 1:1 session:</p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0">
         <tr style="background:#f9fafb">
           <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Student Name</b></td>
@@ -283,11 +283,11 @@ export const sendMentorshipRequestAdminEmail = (adminEmail, studentName, details
 export const sendMentorshipRequestStudentEmail = (studentEmail, studentName, details) =>
   send(
     studentEmail,
-    `Mentorship Request Submitted: ${details.subject} 🚀`,
+    `1:1 Session Request Submitted: ${details.subject} 🚀`,
     base(`
-      <h2 style="color:#1f2937;margin-top:0">Mentorship Request Submitted! 🚀</h2>
+      <h2 style="color:#1f2937;margin-top:0">1:1 Session Request Submitted! 🚀</h2>
       <p style="color:#4b5563">Hi <b>${studentName}</b>,</p>
-      <p style="color:#4b5563">Your request for a 1:1 mentorship session has been submitted successfully. Our team will review it and schedule a call shortly.</p>
+      <p style="color:#4b5563">Your request for a 1:1 session has been submitted successfully. Our team will review it and schedule a call shortly.</p>
       <h3 style="color:#1f2937;margin-bottom:8px">Request Summary:</h3>
       <table style="width:100%;border-collapse:collapse;margin:16px 0">
         <tr style="background:#f9fafb">
@@ -304,5 +304,83 @@ export const sendMentorshipRequestStudentEmail = (studentEmail, studentName, det
         </tr>
       </table>
       <p style="color:#6b7280;font-size:12px">You will receive an email and a dashboard notification once a mentor is assigned and a meeting link is generated.</p>
+    `)
+  );
+
+const formatMentorshipDate = (value) =>
+  value
+    ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'To be confirmed';
+
+const mentorshipMeetingText = (meetingLink) =>
+  meetingLink
+    ? `<a href="${meetingLink.startsWith('http') ? meetingLink : `${process.env.CLIENT_URL || 'https://ace2examz.com'}${meetingLink}`}" style="color:#4f46e5;font-weight:700">Join session</a>`
+    : 'Meeting link will be shared soon';
+
+export const sendMentorshipScheduledStudentEmail = (studentEmail, studentName, details) =>
+  send(
+    studentEmail,
+    `1:1 Session Scheduled: ${details.subject}`,
+    base(`
+      <h2 style="color:#1f2937;margin-top:0">Your 1:1 Session is Scheduled</h2>
+      <p style="color:#4b5563">Hi <b>${studentName}</b>, your session has been confirmed.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0">
+        <tr style="background:#f9fafb">
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Topic</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${details.subject}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Mentor</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${details.mentorName || 'Ace2Examz Mentor'}</td>
+        </tr>
+        <tr style="background:#f9fafb">
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Date</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${formatMentorshipDate(details.preferredDate)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Time</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${details.preferredTimeSlot || 'To be confirmed'}</td>
+        </tr>
+        <tr style="background:#f9fafb">
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Meeting</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${mentorshipMeetingText(details.meetingLink || '')}</td>
+        </tr>
+      </table>
+      <a href="${process.env.CLIENT_URL || 'https://ace2examz.com'}/student/mentorship"
+         style="display:inline-block;background:#7c3aed;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:8px">
+        View Session
+      </a>
+    `)
+  );
+
+export const sendMentorshipScheduledAdminEmail = (adminEmail, studentName, details) =>
+  send(
+    adminEmail,
+    `1:1 Session Scheduled for ${studentName}: ${details.subject}`,
+    base(`
+      <h2 style="color:#1f2937;margin-top:0">1:1 Session Scheduled</h2>
+      <p style="color:#4b5563">A booking has been scheduled by the admin panel.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0">
+        <tr style="background:#f9fafb">
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Student</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${studentName}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Topic</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${details.subject}</td>
+        </tr>
+        <tr style="background:#f9fafb">
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Confirmed Slot</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${formatMentorshipDate(details.preferredDate)} · ${details.preferredTimeSlot || 'To be confirmed'}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px"><b>Meeting</b></td>
+          <td style="padding:10px;border:1px solid #e5e7eb;color:#374151;font-size:14px">${mentorshipMeetingText(details.meetingLink || '')}</td>
+        </tr>
+      </table>
+      <a href="${process.env.CLIENT_URL || 'https://ace2examz.com'}/admin/mentorship"
+         style="display:inline-block;background:#7c3aed;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:8px">
+        Open Mentorship Manager
+      </a>
     `)
   );

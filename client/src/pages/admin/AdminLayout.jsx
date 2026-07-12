@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import NotificationBell from '../../components/NotificationBell.jsx';
+import ThemeToggle from '../../components/ThemeToggle.jsx';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { playNotificationSound } from '../../utils/audio.js';
@@ -47,6 +48,7 @@ const groups = [
     items: [
       { to: '/admin/categories', label: 'Categories', icon: Layers },
       { to: '/admin/courses', label: 'Courses', icon: BookOpen },
+      { to: '/admin/power-batch', label: 'Power Batch', icon: Flame },
       { to: '/admin/live-classes', label: 'Live Classes', icon: Video },
       { to: '/admin/ebooks', label: 'Library', icon: Library },
       { to: '/admin/doubts', label: 'Doubts', icon: HelpCircle },
@@ -59,7 +61,7 @@ const groups = [
     items: [
       { to: '/admin/syllabus-tracker', label: 'Syllabus Tracker', icon: ClipboardList },
       { to: '/admin/exam-counter', label: 'Exam Counter', icon: Clock },
-      { to: '/admin/mentorship', label: '1:1 Mentorship', icon: Users },
+      { to: '/admin/mentorship', label: '1:1 Session', icon: Users },
     ],
   },
   {
@@ -127,6 +129,7 @@ export default function AdminLayout() {
   const n = useNavigate();
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState({});
+  const mainRef = useRef(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -177,6 +180,22 @@ export default function AdminLayout() {
     setOpenGroups(initialOpen);
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
+
   const toggleGroup = (title) => setOpenGroups((prev) => {
     const wasOpen = !!prev[title];
     return {
@@ -220,19 +239,6 @@ export default function AdminLayout() {
           }
         >
           <LayoutDashboard size={17} /> Dashboard
-        </NavLink>
-
-        <NavLink
-          to="/admin/power-courses"
-          onClick={() => setSidebarOpen(false)}
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all mb-1 ${isActive
-              ? 'bg-gradient-to-r from-brand-500 to-violet-600 text-white shadow-md'
-              : 'text-slate-400 hover:text-white hover:bg-white/8'
-            }`
-          }
-        >
-          <Flame size={17} /> Power Courses
         </NavLink>
 
         {groups.map((group) => {
@@ -300,7 +306,7 @@ export default function AdminLayout() {
   );
 
   return (
-    <div className="min-h-screen lg:h-screen bg-slate-50 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+    <div className="admin-lms-shell h-screen bg-slate-50 flex flex-col lg:flex-row overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -315,7 +321,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main area */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
 
         {/* ── Top Navbar ── */}
         <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
@@ -341,7 +347,7 @@ export default function AdminLayout() {
 
 
 
-
+              <ThemeToggle />
 
               <NotificationBell />
 
@@ -363,7 +369,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 lg:overflow-auto">
+        <main ref={mainRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

@@ -252,7 +252,7 @@ export default function AdminEnrollments() {
                       {e.type === 'test_series' ? (
                         <span className="chip bg-amber-100 text-amber-800 text-[10px] font-bold">Test Series</span>
                       ) : e.course?.isPowerCourse ? (
-                        <span className="chip bg-brand-500 text-white text-[10px] font-bold uppercase tracking-wider">Power Challenge</span>
+                        <span className="chip bg-brand-500 text-white text-[10px] font-bold uppercase tracking-wider">Power Batch</span>
                       ) : (
                         <>
                           <span className="chip bg-violet2-100 text-violet2-850 text-[10px] font-bold">Course</span>
@@ -300,7 +300,7 @@ export default function AdminEnrollments() {
               <div>Student: <span className="font-semibold text-slate-850">{extendingEnroll.student?.name}</span></div>
               <div>{extendingEnroll.type === 'test_series' ? 'Test Series' : 'Course'}: <span className="font-semibold text-slate-850">{extendingEnroll.course?.title}</span></div>
               {extendingEnroll.type !== 'test_series' && (
-                <div>Current Plan: <span className="chip bg-brand-50 text-brand-700 font-bold uppercase py-0.5 px-1.5 text-[10px]">{extendingEnroll.course?.isPowerCourse ? 'Power Challenge' : (extendingEnroll.course?.plans?.[extendingEnroll.planType || 'batch']?.name || extendingEnroll.planType || 'batch')}</span></div>
+                <div>Current Plan: <span className="chip bg-brand-50 text-brand-700 font-bold uppercase py-0.5 px-1.5 text-[10px]">{extendingEnroll.course?.isPowerCourse ? 'Power Batch' : (extendingEnroll.course?.plans?.[extendingEnroll.planType || 'batch']?.name || extendingEnroll.planType || 'batch')}</span></div>
               )}
               <div>Current Expiry: <span className="font-semibold text-slate-850">{extendingEnroll.validUntil ? new Date(extendingEnroll.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Lifetime'}</span></div>
             </div>
@@ -376,7 +376,7 @@ function EnrollCard({ e, onExtend }) {
             <div className="text-white font-bold text-sm leading-tight line-clamp-1 drop-shadow">{c.title}</div>
             <div className="flex gap-1 mt-1.5 flex-wrap">
               {c.isPowerCourse ? (
-                <span className="chip bg-brand-650 text-white text-[9px] uppercase font-black px-1.5 py-0.5">Power Challenge</span>
+                <span className="chip bg-brand-650 text-white text-[9px] uppercase font-black px-1.5 py-0.5">Power Batch</span>
               ) : (
                 <>
                   <span className="chip bg-violet-600 text-white text-[9px] uppercase font-black px-1.5 py-0.5">Course</span>

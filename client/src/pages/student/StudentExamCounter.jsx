@@ -86,7 +86,7 @@ export default function StudentExamCounter() {
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-emerald-500 font-extrabold text-sm leading-none">✓</span>
-                <span>Personalized 1:1 Expert Mentorship Sessions</span>
+                <span>Personalized 1:1 Expert 1:1 Sessions</span>
               </li>
             </ul>
           </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client.js';
@@ -20,6 +20,7 @@ import {
   Shield,
   LogOut,
   Lock,
+  Gift,
   Menu,
   X,
   Bell,
@@ -41,6 +42,7 @@ import {
   Layers,
   SquareStack,
 } from 'lucide-react';
+import ThemeToggle from './ThemeToggle.jsx';
 
 const WhatsAppIcon = ({ size = 16, className = 'text-slate-400' }) => (
   <svg
@@ -70,7 +72,7 @@ const navSections = [
     icon: Library,
     items: [
       { to: '/student/courses', label: 'Courses', icon: BookOpen },
-      { to: '/student/power-courses', label: 'Power Challenges', icon: Calendar },
+      { to: '/student/power-batch', label: 'Power Batch', icon: Calendar },
       { to: '/student/test-series', label: 'My Test Series', icon: Layers },
       { to: '/student/live-classes', label: 'Live Classes', icon: Video },
       { to: '/student/library', label: 'Library', icon: Library },
@@ -96,7 +98,7 @@ const navSections = [
       { to: '/student/syllabus-tracker', label: 'Syllabus Tracker', icon: ClipboardList },
       { to: '/student/planner', label: 'My Planner', icon: Calendar },
       { to: '/student/exam-counter', label: 'Exam Counter', icon: Clock },
-      { to: '/student/mentorship', label: '1:1 Mentorship', icon: Users },
+      { to: '/student/mentorship', label: '1:1 Session', icon: Users },
     ]
   },
   {
@@ -141,8 +143,16 @@ export default function StudentLayout() {
   const { user, logout, setUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const mainRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
+  const [showReferCard, setShowReferCard] = useState(() => {
+    try {
+      return localStorage.getItem('student_sidebar_refer_card_hidden') !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const [highestPlan, setHighestPlan] = useState('');
   const [verifyPhone, setVerifyPhone] = useState('');
   const [verifyCode, setVerifyCode] = useState('');
@@ -205,6 +215,22 @@ export default function StudentLayout() {
       }
     }
   }, [user]);
+
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
@@ -523,6 +549,15 @@ export default function StudentLayout() {
     navigate('/');
   };
 
+  const dismissReferCard = () => {
+    setShowReferCard(false);
+    try {
+      localStorage.setItem('student_sidebar_refer_card_hidden', 'true');
+    } catch {
+      // Ignore storage issues; the card can still be dismissed for this session.
+    }
+  };
+
   const userInitials = (user?.name || '?')
     .split(' ')
     .map(n => n[0])
@@ -680,6 +715,46 @@ export default function StudentLayout() {
         })}
       </nav>
 
+      {showReferCard && (
+        <div className="px-4 pb-4 shrink-0">
+          <div className="relative overflow-hidden rounded-2xl border border-violet-400/20 bg-gradient-to-br from-indigo-950 via-violet-900 to-slate-950 p-4 shadow-lg shadow-violet-950/30">
+            <div className="absolute -right-7 -bottom-7 h-24 w-24 rounded-full bg-amber-400/20 blur-xl" />
+            <div className="absolute right-3 bottom-3 flex items-end gap-1 opacity-90">
+              <div className="h-5 w-5 rounded-full bg-amber-300 border-2 border-amber-500 shadow-sm" />
+              <div className="h-7 w-7 rounded-full bg-yellow-300 border-2 border-amber-500 shadow-sm" />
+              <Sparkles size={13} className="mb-5 text-yellow-200" />
+            </div>
+
+            <button
+              type="button"
+              onClick={dismissReferCard}
+              className="absolute right-2.5 top-2.5 rounded-lg p-1 text-white/55 transition hover:bg-white/10 hover:text-white"
+              aria-label="Hide refer and earn card"
+            >
+              <X size={14} />
+            </button>
+
+            <div className="relative z-10 max-w-[8.5rem]">
+              <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white/12 text-amber-200 ring-1 ring-white/10">
+                <Gift size={17} />
+              </div>
+              <h3 className="font-display text-sm font-black text-white">Refer & Earn</h3>
+              <p className="mt-1.5 text-[10px] font-semibold leading-relaxed text-violet-100/80">
+                Invite your friends and earn exciting coins
+              </p>
+              <Link
+                to="/student/refer"
+                onClick={() => setMobileOpen(false)}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[10px] font-black text-violet-800 shadow-sm transition hover:bg-violet-50"
+              >
+                Refer Now
+                <ArrowRight size={12} />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* WhatsApp Channel pinned at bottom of upper nav section */}
       <div className="p-4 border-t border-slate-800/40 bg-slate-900/50">
         <a
@@ -729,7 +804,7 @@ export default function StudentLayout() {
   );
 
   return (
-    <div className="min-h-screen md:h-screen bg-slate-50/60 flex flex-col md:flex-row font-sans overflow-y-auto md:overflow-hidden">
+    <div className="student-lms-shell h-screen bg-slate-50/60 flex flex-col md:flex-row font-sans overflow-hidden">
       {/* Mobile Top Bar */}
       <header className="md:hidden h-16 bg-white border-b border-slate-100 px-4 flex items-center justify-between sticky top-0 z-30 shadow-xs">
         <Link to="/" className="flex items-center">
@@ -748,6 +823,10 @@ export default function StudentLayout() {
           <Link to="/student/wallet" className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-lg text-xs font-bold border border-yellow-100/50">
             🪙 {user?.coins || 0}
           </Link>
+          <ThemeToggle compact className="sm:hidden" />
+          <div className="hidden sm:block">
+            <ThemeToggle />
+          </div>
           <NotificationBell />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -776,7 +855,7 @@ export default function StudentLayout() {
       )}
 
       {/* Content Area & Global Header */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Global Content Header (Desktop Only) */}
         <header className="hidden md:flex h-16 bg-white border-b border-slate-100 px-8 items-center justify-between sticky top-0 z-30">
           <div>
@@ -806,6 +885,7 @@ export default function StudentLayout() {
               </span>
             )}
 
+            <ThemeToggle />
 
             {/* Quick stats indicators */}
             <Link
@@ -857,7 +937,7 @@ export default function StudentLayout() {
           </div>
         </header>
 
-        <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 md:overflow-y-auto flex flex-col justify-between">
+        <main ref={mainRef} className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain p-4 sm:p-6 md:p-8 flex flex-col justify-between">
           <div className="max-w-5xl mx-auto w-full flex-1">
             <Outlet />
           </div>

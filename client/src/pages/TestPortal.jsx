@@ -38,7 +38,11 @@ function TestCard({ test, myAttempts = [] }) {
   const { user } = useAuth();
   const [showSyllabus, setShowSyllabus] = useState(false);
   const dc = DIFFICULTY_COLORS[test.difficulty] || DIFFICULTY_COLORS.intermediate;
-  const attempt = myAttempts.find((a) => a.test?._id === test._id || a.test === test._id);
+  const testAttempts = myAttempts.filter((a) => a.test?._id === test._id || a.test === test._id);
+  const attempt = testAttempts[0];
+  const attemptsAllowed = test.attemptsAllowed ?? 0;
+  const remainingAttempts = attemptsAllowed > 0 ? Math.max(0, attemptsAllowed - testAttempts.length) : null;
+  const canReattemptByLimit = attemptsAllowed === 0 || remainingAttempts > 0;
   const canAccess = test.isFree || !!user;
 
   const now = new Date();
@@ -46,6 +50,7 @@ function TestCard({ test, myAttempts = [] }) {
   const end = test.liveEndDate ? new Date(test.liveEndDate) : null;
   const isUpcoming = test.testType === 'live_test' && start && now < start;
   const isEnded = test.testType === 'live_test' && end && now > end;
+  const canReattempt = canReattemptByLimit && !isUpcoming && !isEnded;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all overflow-hidden group flex flex-col relative">
@@ -116,19 +121,43 @@ function TestCard({ test, myAttempts = [] }) {
 
         <div className="mt-4 pt-3 border-t border-slate-100">
           {attempt ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CheckCircle size={14} className="text-emerald-500" />
-                <span className="text-xs text-slate-500">
-                  Score: <strong className="text-slate-700">{attempt.percentage}%</strong>
-                </span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle size={14} className="text-emerald-500" />
+                  <span className="text-xs text-slate-500">
+                    Score: <strong className="text-slate-700">{attempt.percentage}%</strong>
+                  </span>
+                </div>
+                {attemptsAllowed > 0 && (
+                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {remainingAttempts} left
+                  </span>
+                )}
               </div>
-              <Link
-                to={`/test-result/${attempt._id}`}
-                className="text-xs text-brand-600 hover:underline flex items-center gap-1 font-semibold"
-              >
-                View Result <ChevronRight size={12} />
-              </Link>
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  to={`/test-result/${attempt._id}`}
+                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  View Result <ChevronRight size={12} />
+                </Link>
+                {canReattempt ? (
+                  <Link
+                    to={canAccess ? `/take-test/${test._id}` : '/login'}
+                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700"
+                  >
+                    <Repeat size={13} /> Re-attempt
+                  </Link>
+                ) : (
+                  <button
+                    disabled
+                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-semibold cursor-not-allowed"
+                  >
+                    <Lock size={13} /> Limit Over
+                  </button>
+                )}
+              </div>
             </div>
           ) : isUpcoming ? (
             <button

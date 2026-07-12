@@ -69,6 +69,7 @@ const courseSchema = new mongoose.Schema(
         seatsLimit: { type: Number, default: 10 },
         seatsReserved: { type: Number, default: 0 },
         courses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+        powerCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
         testSeries: [{ type: mongoose.Schema.Types.ObjectId, ref: 'TestSeries' }],
       },
     },
@@ -104,6 +105,7 @@ const courseSchema = new mongoose.Schema(
         dayNumber: { type: Number, required: true },
         title: { type: String, required: true },
         description: { type: String, default: '' },
+        unlockDate: { type: Date, default: null },
         durationText: { type: String, default: '60 min' },
         topicsCovered: [{ type: String }],
         videoUrl: { type: String, default: '' },
@@ -112,6 +114,8 @@ const courseSchema = new mongoose.Schema(
         notesTitle: { type: String, default: '' },
         quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Test', default: null },
         quizTitle: { type: String, default: '' },
+        liveClassId: { type: mongoose.Schema.Types.ObjectId, ref: 'LiveClass', default: null },
+        liveClassTitle: { type: String, default: '' },
         assignmentUrl: { type: String, default: '' },
         assignmentTitle: { type: String, default: '' },
       }
@@ -171,7 +175,7 @@ const courseSchema = new mongoose.Schema(
       title: { type: String, default: '' },
       courseId: { type: String, default: '' },
       testSeriesId: { type: String, default: '' },
-      targetType: { type: String, enum: ['course', 'test_series'], default: 'course' },
+      targetType: { type: String, enum: ['course', 'power_course', 'test_series'], default: 'course' },
     },
     // SEO
     seo: {
@@ -242,13 +246,13 @@ courseSchema.pre('save', function (next) {
       this.plans = {
         batch: { enabled: true, price: basePrice, mrp: baseMrp },
         pro: { enabled: false, price: 0, mrp: 0 },
-        infinity: { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0 }
+        infinity: { enabled: false, price: 0, mrp: 0, seatsLimit: 0, seatsReserved: 0, courses: [], powerCourses: [], testSeries: [] }
       };
     } else {
       this.plans = {
         batch: { enabled: true, price: basePrice, mrp: baseMrp },
         pro: { enabled: true, price: Math.round(basePrice * 1.25), mrp: Math.round(baseMrp * 1.25) },
-        infinity: { enabled: true, price: Math.round(basePrice * 1.5), mrp: Math.round(baseMrp * 1.5), seatsLimit: 15, seatsReserved: 0 }
+        infinity: { enabled: true, price: Math.round(basePrice * 1.5), mrp: Math.round(baseMrp * 1.5), seatsLimit: 15, seatsReserved: 0, courses: [], powerCourses: [], testSeries: [] }
       };
     }
   }

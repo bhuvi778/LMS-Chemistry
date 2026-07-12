@@ -363,7 +363,7 @@ export default function StudentCourses() {
                         Extend Validity
                       </button>
                     )}
-                    {e.paymentId && e.paymentId !== 'FREE' && !e.paymentId?.startsWith('FREE_') && (
+                    {e.paymentId && (
                       <button
                         onClick={() => downloadInvoice(e.paymentId, e.invoiceNumber)}
                         className="flex items-center justify-center gap-1 text-[11px] text-slate-500 hover:text-brand-700 transition py-2 border border-slate-200 rounded-xl hover:bg-slate-50 px-2 text-center"

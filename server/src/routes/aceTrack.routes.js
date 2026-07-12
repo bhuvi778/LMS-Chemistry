@@ -56,12 +56,12 @@ router.delete('/planner/:id', deletePlannerGoal);
 // Mentorship Routes
 router.post('/mentorship', requestMentorship);
 router.get('/mentorship', getMentorshipBookings);
-router.put('/mentorship/:id', adminOnly, updateMentorshipBooking);
-router.delete('/mentorship/:id', adminOnly, deleteMentorshipBooking);
-router.put('/mentorship/:id/feedback', submitMentorshipFeedback);
 router.get('/mentorship/settings', getMentorshipSettings);
 router.get('/mentorship/settings/all', adminOnly, getAllMentorshipSettings);
 router.put('/mentorship/settings', adminOnly, updateMentorshipSettings);
 router.delete('/mentorship/settings/:id', adminOnly, deleteMentorshipSettings);
+router.put('/mentorship/:id', adminOnly, updateMentorshipBooking);
+router.delete('/mentorship/:id', adminOnly, deleteMentorshipBooking);
+router.put('/mentorship/:id/feedback', submitMentorshipFeedback);
 
 export default router;

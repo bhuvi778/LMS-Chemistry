@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { protect, adminOnly } from '../middleware/auth.js';
+import { protect, adminOnly, softAuth } from '../middleware/auth.js';
 import {
   createOrder,
   verifyPayment,
@@ -12,10 +12,10 @@ import {
 
 const router = Router();
 
-// Student routes (require auth)
+// Student/payment routes
 router.post('/create-order', protect, createOrder);
 router.post('/verify', protect, verifyPayment);
-router.post('/validate-coupon', protect, validateCoupon);
+router.post('/validate-coupon', softAuth, validateCoupon);
 router.get('/check-series/:testSeriesId', protect, checkSeriesEnrollment);
 router.get('/my-series', protect, mySeriesEnrollments);
 router.get('/invoice/:paymentId', protect, downloadInvoice);

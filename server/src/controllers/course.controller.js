@@ -68,9 +68,10 @@ export const getCourse = asyncHandler(async (req, res) => {
     ? Course.findById(param)
     : Course.findOne({ slug: param });
   const course = await query
-    .populate('comboCourses', 'title slug thumbnail price mrp plans isFree courseType')
+    .populate('comboCourses', 'title slug thumbnail price mrp plans isFree courseType isPowerCourse powerCourseType powerCourseDuration startDate endDate')
     .populate('comboTestSeries', 'title slug thumbnail price mrp isFree')
     .populate('plans.infinity.courses', 'title slug thumbnail price mrp plans isFree courseType')
+    .populate('plans.infinity.powerCourses', 'title slug thumbnail price mrp plans isFree courseType isPowerCourse powerCourseType powerCourseDuration startDate endDate')
     .populate('plans.infinity.testSeries', 'title slug thumbnail price mrp isFree');
   if (!course) {
     res.status(404);

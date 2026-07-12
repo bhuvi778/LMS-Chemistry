@@ -163,6 +163,17 @@ export const publicGetTest = asyncHandler(async (req, res) => {
     res.status(401); throw new Error('Login required to access this test');
   }
 
+  if (user && user.role !== 'admin' && test.attemptsAllowed > 0) {
+    const previousAttemptCount = await TestAttempt.countDocuments({
+      user: user._id,
+      test: test._id,
+    });
+    if (previousAttemptCount >= test.attemptsAllowed) {
+      res.status(400);
+      throw new Error('You have used all allowed attempts for this test.');
+    }
+  }
+
   res.json(test);
 });
 
@@ -209,6 +220,17 @@ export const submitAttempt = asyncHandler(async (req, res) => {
   }
 
   if (!test) { res.status(404); throw new Error('Test not found'); }
+
+  if (!isCourseTest && test.attemptsAllowed > 0) {
+    const previousAttemptCount = await TestAttempt.countDocuments({
+      user: req.user._id,
+      test: testId,
+    });
+    if (previousAttemptCount >= test.attemptsAllowed && req.user?.role !== 'admin') {
+      res.status(400);
+      throw new Error('You have used all allowed attempts for this test.');
+    }
+  }
 
   // Prevent submissions of upcoming live tests
   if (test.testType === 'live_test' && test.liveStartDate) {
@@ -431,10 +453,10 @@ export const getCourseTests = asyncHandler(async (req, res) => {
       path: 'testSeries',
       populate: {
         path: 'tests.test',
-        select: 'title durationMins totalMarks difficulty isFree pdfUrl solutionPdfUrl videoSolutionUrl questions',
+        select: 'title durationMins totalMarks difficulty isFree pdfUrl solutionPdfUrl videoSolutionUrl attemptsAllowed questions',
       },
     })
-    .populate('standaloneTests', 'title durationMins totalMarks difficulty isFree pdfUrl solutionPdfUrl videoSolutionUrl');
+    .populate('standaloneTests', 'title durationMins totalMarks difficulty isFree pdfUrl solutionPdfUrl videoSolutionUrl attemptsAllowed');
 
   if (!course) { res.status(404); throw new Error('Course not found'); }
 
@@ -657,4 +679,3 @@ export const removeFromRevisionQueue = asyncHandler(async (req, res) => {
   await RevisionQuestion.findOneAndDelete({ user: req.user._id, questionId: req.params.questionId });
   res.json({ ok: true });
 });
-

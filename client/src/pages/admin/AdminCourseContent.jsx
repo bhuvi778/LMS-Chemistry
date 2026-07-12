@@ -780,9 +780,14 @@ function LiveClassesTab({ courseId }) {
 
   useEffect(() => {
     load();
-    api.get('/courses?includeUnpublished=true').then((r) => setCourses(r.data)).catch(() =>
-      api.get('/courses').then((r) => setCourses(r.data)).catch(() => {})
-    );
+    Promise.all([
+      api.get('/courses?includeUnpublished=true').then((r) => r.data || []).catch(() => []),
+      api.get('/courses?includeUnpublished=true&isPowerCourse=true').then((r) => r.data || []).catch(() => []),
+    ]).then(([normalCourses, powerCourses]) => {
+      const merged = [...normalCourses, ...powerCourses];
+      const unique = Array.from(new Map(merged.map((c) => [c._id, c])).values());
+      setCourses(unique);
+    });
   }, [courseId]);
 
   const blank = {
@@ -2074,6 +2079,7 @@ function DailyPlanTab({ course }) {
   const duration = course.powerCourseDuration || 7;
   const [dailyPlan, setDailyPlan] = useState([]);
   const [tests, setTests] = useState([]);
+  const [liveClasses, setLiveClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expandedDay, setExpandedDay] = useState(1);
@@ -2092,6 +2098,7 @@ function DailyPlanTab({ course }) {
               dayNumber: i,
               title: `Day ${i} Target`,
               description: '',
+              unlockDate: '',
               durationText: '60 min',
               topicsCovered: [],
               videoUrl: '',
@@ -2100,6 +2107,8 @@ function DailyPlanTab({ course }) {
               notesTitle: 'Read Class Notes',
               quizId: '',
               quizTitle: 'Attempt Quiz',
+              liveClassId: '',
+              liveClassTitle: 'Attend Live Class',
               assignmentUrl: '',
               assignmentTitle: 'Daily Assignment'
             }
@@ -2114,6 +2123,17 @@ function DailyPlanTab({ course }) {
     api.get('/tests/admin/tests')
       .then((res) => setTests(res.data || []))
       .catch(() => {});
+
+    api.get(`/admin/live-classes?course=${courseId}`)
+      .then((res) => {
+        const list = res.data.liveClasses || res.data || [];
+        setLiveClasses(list.filter((cls) => {
+          const matchedCourse = cls.course === courseId || cls.course?._id === courseId;
+          const matchedCourses = cls.courses?.some((cid) => cid === courseId || cid?._id === courseId);
+          return matchedCourse || matchedCourses;
+        }));
+      })
+      .catch(() => setLiveClasses([]));
   }, [courseId, duration]);
 
   const updateDay = (dayNum, fields) => {
@@ -2141,7 +2161,13 @@ function DailyPlanTab({ course }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.put(`/course-content/admin/daily-plan/${courseId}`, dailyPlan);
+      const sanitizedPlan = dailyPlan.map((day) => ({
+        ...day,
+        unlockDate: day.unlockDate || null,
+        quizId: day.quizId || null,
+        liveClassId: day.liveClassId || null,
+      }));
+      await api.put(`/course-content/admin/daily-plan/${courseId}`, sanitizedPlan);
       toast.success('Daily plan saved successfully!');
     } catch (err) {
       toast.error('Failed to save daily plan');
@@ -2157,7 +2183,7 @@ function DailyPlanTab({ course }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Calendar Daily Targets</h2>
-          <p className="text-xs text-slate-500">Configure content, videos, tests, and assignments for each day of the {duration}-day power course.</p>
+          <p className="text-xs text-slate-500">Configure content, videos, tests, and assignments for each day of the {duration}-day power batch.</p>
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary">
           {saving ? 'Saving...' : 'Save Daily Plan'}
@@ -2194,7 +2220,7 @@ function DailyPlanTab({ course }) {
               {/* Day Editor Form */}
               {isExpanded && (
                 <div className="p-5 space-y-4 bg-white">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="label text-xs">Day Title</label>
                       <input
@@ -2203,6 +2229,16 @@ function DailyPlanTab({ course }) {
                         onChange={(e) => updateDay(day.dayNumber, { title: e.target.value })}
                         placeholder="e.g. Introduction to Aldehydes"
                       />
+                    </div>
+                    <div>
+                      <label className="label text-xs">Unlock Date (Optional)</label>
+                      <input
+                        type="date"
+                        className="input text-sm"
+                        value={day.unlockDate ? String(day.unlockDate).split('T')[0] : ''}
+                        onChange={(e) => updateDay(day.dayNumber, { unlockDate: e.target.value })}
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">If set, this day opens on this date.</p>
                     </div>
                     <div>
                       <label className="label text-xs">Duration Text</label>
@@ -2230,7 +2266,7 @@ function DailyPlanTab({ course }) {
                     />
                   </div>
 
-                  {/* 4 tasks grid */}
+                  {/* Daily target tasks */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
                     {/* Task 1: Video */}
                     <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 space-y-3">
@@ -2317,7 +2353,45 @@ function DailyPlanTab({ course }) {
                       </div>
                     </div>
 
-                    {/* Task 4: Assignment */}
+                    {/* Task 4: Live Class */}
+                    <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 space-y-3">
+                      <h4 className="font-bold text-xs text-brand-700 uppercase tracking-wider">🔴 Live Class</h4>
+                      <div>
+                        <label className="label text-[10px]">Live Class Task Title</label>
+                        <input
+                          className="input text-xs"
+                          value={day.liveClassTitle || ''}
+                          onChange={(e) => updateDay(day.dayNumber, { liveClassTitle: e.target.value })}
+                          placeholder="Attend Live Class"
+                        />
+                      </div>
+                      <div>
+                        <label className="label text-[10px]">Select Scheduled Live Class</label>
+                        <select
+                          className="input text-xs bg-white"
+                          value={day.liveClassId || ''}
+                          onChange={(e) => {
+                            const selected = liveClasses.find((cls) => cls._id === e.target.value);
+                            updateDay(day.dayNumber, {
+                              liveClassId: e.target.value,
+                              liveClassTitle: selected?.title || day.liveClassTitle || 'Attend Live Class',
+                            });
+                          }}
+                        >
+                          <option value="">-- No Live Class assigned --</option>
+                          {liveClasses.map((cls) => (
+                            <option key={cls._id} value={cls._id}>
+                              {cls.title} {cls.scheduledAt ? `(${new Date(cls.scheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Create classes from the Live Classes tab, then assign them to a target day here.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Task 5: Assignment */}
                     <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 space-y-3">
                       <h4 className="font-bold text-xs text-brand-700 uppercase tracking-wider">📝 Daily Assignment</h4>
                       <div>
@@ -2382,6 +2456,7 @@ export default function AdminCourseContent() {
   const tabs = course?.isPowerCourse
     ? [
         { k: 'daily-plan', l: 'Daily Plan', icon: Calendar },
+        { k: 'live', l: 'Live Classes', icon: Video },
         { k: 'announcements', l: 'Announcements', icon: Bell },
       ]
     : [
@@ -2396,8 +2471,8 @@ export default function AdminCourseContent() {
   return (
     <div>
       <div className="mb-6">
-        <Link to={course?.isPowerCourse ? "/admin/power-courses" : "/admin/courses"} className="text-sm text-brand-700 font-semibold flex items-center gap-1">
-          <ArrowLeft size={14} /> Back to {course?.isPowerCourse ? 'Power Courses' : 'Courses'}
+        <Link to={course?.isPowerCourse ? "/admin/power-batch" : "/admin/courses"} className="text-sm text-brand-700 font-semibold flex items-center gap-1">
+          <ArrowLeft size={14} /> Back to {course?.isPowerCourse ? 'Power Batch' : 'Courses'}
         </Link>
         <h1 className="font-display text-3xl font-extrabold mt-2">Course Content</h1>
         {courseName && (

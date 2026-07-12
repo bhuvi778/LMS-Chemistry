@@ -54,7 +54,7 @@ const PLATFORM_FEATURES = [
   { icon: FileText, title: 'Study Notes & DPPs', desc: 'Downloadable PDF notes and Daily Practice Problems designed by IIT toppers.', color: 'from-purple-500 to-violet-600' },
   { icon: BarChart3, title: 'AI Progress Tracker', desc: 'Personalised analytics, weak-chapter detection & smart revision scheduling.', color: 'from-cyan-500 to-sky-600' },
   { icon: ListChecks, title: 'Structured Learning Path', desc: 'Scientifically sequenced curriculum: Concept → Solved Examples → DPP → Test → Revision.', color: 'from-brand-500 to-violet2-500' },
-  { icon: Headphones, title: 'Live Mentorship', desc: 'Weekly live mentorship sessions to personalise your preparation strategy.', color: 'from-fuchsia-500 to-purple-600' },
+  { icon: Headphones, title: 'Live Session', desc: 'Weekly live 1:1 sessions to personalise your preparation strategy.', color: 'from-fuchsia-500 to-purple-600' },
 ];
 
 const HOW_IT_WORKS = [

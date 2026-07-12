@@ -23,6 +23,16 @@ const fmt = (d) =>
     hour: '2-digit', minute: '2-digit',
   });
 
+const getItemMeta = (payment) => {
+  if (payment.itemType === 'test_series') {
+    return { label: 'Test Series', badge: 'bg-violet-50 text-violet-700 border-violet-100' };
+  }
+  if (payment.course?.isPowerCourse) {
+    return { label: 'Power Batch', badge: 'bg-cyan-50 text-cyan-700 border-cyan-100' };
+  }
+  return { label: 'Course', badge: 'bg-brand-50 text-brand-700 border-brand-100' };
+};
+
 export default function AdminPayments() {
   const [list, setList] = useState([]);
   const [q, setQ] = useState('');
@@ -153,9 +163,7 @@ export default function AdminPayments() {
               {paged.map((p) => {
                 const Icon = STATUS_ICONS[p.status] || Clock;
                 const itemTitle = p.course?.title || p.testSeries?.title || '—';
-                const itemBadge = p.itemType === 'course'
-                  ? 'bg-brand-50 text-brand-700'
-                  : 'bg-violet-50 text-violet-700';
+                const itemMeta = getItemMeta(p);
                 return (
                   <tr key={p._id} className="hover:bg-slate-50 transition">
                     <td className="px-4 py-3">
@@ -165,23 +173,33 @@ export default function AdminPayments() {
                         <div className="text-xs text-brand-600 font-mono">{p.student.studentId}</div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-700 leading-tight line-clamp-1 max-w-[180px]">{itemTitle}</div>
-                      <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${itemBadge}`}>
-                        {p.itemType === 'test_series' ? 'Test Series' : 'Course'}
-                      </span>
-                    </td>
+	                    <td className="px-4 py-3">
+	                      <div className="font-medium text-slate-700 leading-tight line-clamp-1 max-w-[180px]">{itemTitle}</div>
+	                      <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${itemMeta.badge}`}>
+	                        {itemMeta.label}
+	                      </span>
+	                      {p.isExtension && (
+	                        <span className="ml-1 inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-100">
+	                          Validity Extension
+	                        </span>
+	                      )}
+	                    </td>
                     <td className="px-4 py-3">
                       <div className="font-mono text-xs text-slate-600 truncate max-w-[160px]">{p.razorpayOrderId || '—'}</div>
                       {p.razorpayPaymentId && (
                         <div className="font-mono text-xs text-emerald-600 truncate max-w-[160px]">{p.razorpayPaymentId}</div>
                       )}
-                      {p.couponCode && (
-                        <span className="inline-block text-xs font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded mt-0.5">
-                          🏷 {p.couponCode} -₹{p.discountAmount}
-                        </span>
-                      )}
-                    </td>
+	                      {p.couponCode && (
+	                        <span className="inline-block text-xs font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded mt-0.5">
+	                          Coupon {p.couponCode} -₹{p.discountAmount}
+	                        </span>
+	                      )}
+	                      {p.coinsRedeemed > 0 && (
+	                        <span className="block w-fit text-xs font-semibold text-yellow-700 bg-yellow-50 px-1.5 py-0.5 rounded mt-0.5">
+	                          Coins {p.coinsRedeemed} -₹{p.coinDiscount || p.coinsRedeemed}
+	                        </span>
+	                      )}
+	                    </td>
                     <td className="px-4 py-3 text-right font-bold text-slate-800">
                       ₹{p.amount?.toLocaleString()}
                       {p.discountAmount > 0 && (

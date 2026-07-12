@@ -9,6 +9,7 @@ import {
   Search,
   BookOpen,
   Layers,
+  Flame,
   Loader2,
   CheckCircle,
   XCircle,
@@ -268,6 +269,7 @@ export default function AdminCoupons() {
   const [tab, setTab] = useState('courses');
   const [search, setSearch] = useState('');
   const [courses, setCourses] = useState([]);
+  const [powerCourses, setPowerCourses] = useState([]);
   const [series, setSeries] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -275,17 +277,20 @@ export default function AdminCoupons() {
     setLoading(true);
     Promise.all([
       api.get('/courses?includeUnpublished=true'),
+      api.get('/courses?includeUnpublished=true&isPowerCourse=true'),
       api.get('/tests/admin/series'),
     ])
-      .then(([c, s]) => {
+      .then(([c, p, s]) => {
         setCourses(c.data || []);
+        setPowerCourses(p.data || []);
         setSeries(s.data || []);
       })
       .catch(() => toast.error('Failed to load data'))
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = (tab === 'courses' ? courses : series).filter((item) =>
+  const currentItems = tab === 'courses' ? courses : tab === 'power' ? powerCourses : series;
+  const filtered = currentItems.filter((item) =>
     item.title?.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -298,7 +303,7 @@ export default function AdminCoupons() {
             <Tag size={22} className="text-amber-500" /> Coupon Management
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Add and manage discount coupons for courses and test series.
+            Add and manage discount coupons for courses, Power Batch, and test series.
           </p>
         </div>
       </div>
@@ -318,6 +323,21 @@ export default function AdminCoupons() {
             {courses.length > 0 && (
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${tab === 'courses' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
                 {courses.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setTab('power')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition border-l border-slate-200 ${
+              tab === 'power'
+                ? 'bg-brand-600 text-white'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Flame size={15} /> Power Batch
+            {powerCourses.length > 0 && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${tab === 'power' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                {powerCourses.length}
               </span>
             )}
           </button>
@@ -342,7 +362,7 @@ export default function AdminCoupons() {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 shadow-sm"
-            placeholder={`Search ${tab === 'courses' ? 'courses' : 'test series'}…`}
+            placeholder={`Search ${tab === 'courses' ? 'courses' : tab === 'power' ? 'Power Batch' : 'test series'}…`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -357,7 +377,7 @@ export default function AdminCoupons() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-20 text-slate-400">
           <Tag size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="font-semibold">No {tab === 'courses' ? 'courses' : 'test series'} found</p>
+          <p className="font-semibold">No {tab === 'courses' ? 'courses' : tab === 'power' ? 'Power Batch' : 'test series'} found</p>
           {search && (
             <p className="text-sm mt-1">
               Try clearing the search filter.
@@ -370,7 +390,7 @@ export default function AdminCoupons() {
             <ItemCouponCard
               key={item._id}
               item={item}
-              type={tab === 'courses' ? 'course' : 'series'}
+              type={tab === 'series' ? 'series' : 'course'}
             />
           ))}
         </div>

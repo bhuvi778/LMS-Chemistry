@@ -276,7 +276,7 @@ export default function AskPrepiify() {
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="text-emerald-500 w-4 h-4 shrink-0" />
-                <span>Live Interactive Classes & Mentorship</span>
+                <span>Live Interactive Classes & Session</span>
               </li>
             </ul>
           </div>

@@ -21,6 +21,13 @@ export const generateInvoicePDF = (data) => {
       razorpayPaymentId,
       couponCode,
     } = data;
+    const typeLabel = itemType === 'test_series'
+      ? 'Test Series'
+      : itemType === 'coin_purchase'
+        ? 'Ace Coins'
+        : itemType === 'power_course'
+          ? 'Power Batch'
+          : 'Course';
 
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
     const chunks = [];
@@ -69,7 +76,7 @@ export const generateInvoicePDF = (data) => {
     doc.rect(50, 363, 512, 32).fill('#ffffff').stroke('#e5e7eb');
     doc.fillColor('#1f2937').font('Helvetica').fontSize(10);
     doc.text(itemName, 60, 374, { width: 280 });
-    doc.text(itemType === 'test_series' ? 'Test Series' : 'Course', 360, 374);
+    doc.text(typeLabel, 360, 374);
     doc.text(`₹${originalAmount}`, 480, 374, { width: 80, align: 'right' });
 
     // Subtotal area

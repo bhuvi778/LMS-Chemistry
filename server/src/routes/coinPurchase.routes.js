@@ -7,6 +7,9 @@ import {
   adminListCoinPurchases,
   adminApproveCoinPurchase,
   adminRejectCoinPurchase,
+  createCoinRazorpayOrder,
+  verifyCoinRazorpayPayment,
+  downloadCoinPurchaseInvoice,
 } from '../controllers/coinPurchase.controller.js';
 
 const router = Router();
@@ -15,6 +18,11 @@ const router = Router();
 router.post('/', protect, submitCoinPurchase);
 router.put('/:id', protect, updateCoinPurchase);
 router.get('/me', protect, myCoinPurchases);
+router.get('/invoice/:id', protect, downloadCoinPurchaseInvoice);
+
+// Razorpay routes for direct coin purchase
+router.post('/razorpay/create-order', protect, createCoinRazorpayOrder);
+router.post('/razorpay/verify', protect, verifyCoinRazorpayPayment);
 
 // Admin-only routes
 router.get('/admin', protect, adminOnly, adminListCoinPurchases);

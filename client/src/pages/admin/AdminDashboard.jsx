@@ -31,6 +31,7 @@ export default function AdminDashboard() {
   const [recent, setRecent] = useState([]);
   const [liveClasses, setLiveClasses] = useState([]);
   const [loginLogs, setLoginLogs] = useState([]);
+  const [mentorshipRequests, setMentorshipRequests] = useState([]);
 
   useEffect(() => {
     api.get('/admin/stats').then((r) => setStats(r.data)).catch(() => {});
@@ -38,6 +39,7 @@ export default function AdminDashboard() {
     api.get('/admin/enrollments').then((r) => setRecent(r.data.slice(0, 6))).catch(() => {});
     api.get('/admin/live-classes').then((r) => setLiveClasses(r.data)).catch(() => {});
     api.get('/admin/login-analytics').then((r) => setLoginLogs(r.data.loginLogs || [])).catch(() => {});
+    api.get('/ace-track/mentorship').then((r) => setMentorshipRequests((r.data || []).filter((item) => item.status === 'Pending'))).catch(() => {});
   }, []);
 
   const kpis = [
@@ -57,6 +59,7 @@ export default function AdminDashboard() {
     .filter((lc) => lc.isActive && new Date(lc.scheduledAt) >= new Date())
     .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
     .slice(0, 3);
+  const latestMentorshipRequests = mentorshipRequests.slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -85,6 +88,35 @@ export default function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      {mentorshipRequests.length > 0 && (
+        <div className="card p-5 border-indigo-100 bg-indigo-50/40">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-indigo-600 text-white shadow-soft">
+                <Users size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900">Pending 1:1 Session Requests</h3>
+                <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                  {mentorshipRequests.length} student request{mentorshipRequests.length > 1 ? 's' : ''} waiting to be scheduled.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              {latestMentorshipRequests.map((request) => (
+                <div key={request._id} className="rounded-xl border border-indigo-100 bg-white px-3 py-2 text-xs shadow-sm">
+                  <div className="font-bold text-slate-800">{request.student?.name || 'Student'}</div>
+                  <div className="mt-0.5 max-w-[180px] truncate font-semibold text-slate-400">{request.subject}</div>
+                </div>
+              ))}
+              <Link to="/admin/mentorship" className="inline-flex items-center justify-center gap-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-indigo-500">
+                Review Requests <ArrowRight size={12} />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 card p-6">

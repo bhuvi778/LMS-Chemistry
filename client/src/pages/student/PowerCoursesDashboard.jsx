@@ -38,15 +38,19 @@ export default function PowerCoursesDashboard() {
   const getTypeBadge = (type) => {
     switch (type) {
       case 'micro':
-        return <span className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Micro Challenge</span>;
+        return <span className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Micro Batch</span>;
       case 'mini':
-        return <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Mini Challenge</span>;
+        return <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Mini Batch</span>;
       case 'crash':
         return <span className="bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Crash Course</span>;
       default:
-        return <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Target Challenge</span>;
+        return <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Target Batch</span>;
     }
   };
+
+  const formatDate = (value) => value
+    ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    : '';
 
   if (loading) {
     return (
@@ -75,10 +79,10 @@ export default function PowerCoursesDashboard() {
               <Zap size={12} className="animate-pulse" /> Calendar Progression Mode
             </div>
             <h1 className="text-3xl font-black font-display tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-              My Power Challenges
+              My Power Batch
             </h1>
             <p className="text-slate-400 text-sm max-w-lg">
-              Unlock daily syllabus targets step-by-step. Consistently finish videos, notes, quizzes, and tasks to conquer the challenges.
+              Track flexible or calendar-based Power Batch targets. No extra course clutter, just daily chemistry execution.
             </p>
           </div>
 
@@ -120,6 +124,7 @@ export default function PowerCoursesDashboard() {
               const progressPercent = Math.round(enroll.progress || 0);
               const completedCount = enroll.completedDays?.length || 0;
               const duration = course.powerCourseDuration || 7;
+              const hasCalendar = !!course.startDate || !!course.endDate;
               
               return (
                 <div key={enroll._id} className="group relative bg-white border border-slate-150 rounded-2xl p-5 shadow-sm hover:shadow-md transition duration-300 flex flex-col justify-between overflow-hidden">
@@ -140,6 +145,12 @@ export default function PowerCoursesDashboard() {
                       <p className="text-slate-400 text-xs line-clamp-2 mt-1">
                         {course.subtitle || 'Learn structured syllabus targets daily.'}
                       </p>
+                      <div className={`inline-flex items-center gap-1.5 mt-2 rounded-lg px-2 py-1 text-[10px] font-black ${
+                        hasCalendar ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                      }`}>
+                        <Calendar size={11} />
+                        {hasCalendar ? `${course.startDate ? formatDate(course.startDate) : 'Open'} - ${course.endDate ? formatDate(course.endDate) : 'Complete'}` : 'Flexible start'}
+                      </div>
                     </div>
 
                     {/* Progress slider */}
@@ -159,7 +170,7 @@ export default function PowerCoursesDashboard() {
 
                   <div className="flex gap-3 mt-6 border-t border-slate-100 pt-4">
                     <Link
-                      to={`/student/power-courses/${course._id}/learn`}
+                      to={`/student/power-batch/${course._id}/learn`}
                       className="flex-1 btn-primary py-2.5 justify-center text-xs font-extrabold"
                     >
                       <PlayCircle size={14} /> Resume Target
@@ -172,10 +183,10 @@ export default function PowerCoursesDashboard() {
         )}
       </div>
 
-      {/* Available Power Challenges */}
+      {/* Available Power Batch */}
       <div className="space-y-4">
         <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-          <Compass className="text-brand-500" size={20} /> Explore Power Challenges
+          <Compass className="text-brand-500" size={20} /> Explore Power Batch
         </h2>
 
         {available.length === 0 ? (
@@ -209,25 +220,27 @@ export default function PowerCoursesDashboard() {
                       {course.title}
                     </h3>
                     <p className="text-slate-400 text-xs line-clamp-2 leading-relaxed">
-                      {course.subtitle || 'Unleash calendar-based progression mapping.'}
+                      {course.subtitle || 'Day-wise target plan with lectures, notes, quizzes, and assignments.'}
                     </p>
                   </div>
 
                   <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-base font-black text-slate-850">₹{course.price || 0}</span>
+                      <span className="text-base font-black text-slate-850">₹{course.price || 29}</span>
                       {course.mrp && course.mrp > course.price ? (
                         <span className="text-xs text-slate-400 font-bold line-through">₹{course.mrp}</span>
                       ) : null}
                     </div>
 
-                    <span className="flex items-center gap-1 text-[11px] text-slate-500 font-bold bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
-                      <Clock size={11} /> {course.powerCourseDuration || 7} Days
+                    <span className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded border ${
+                      course.startDate || course.endDate ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-slate-500 bg-slate-50 border-slate-100'
+                    }`}>
+                      <Clock size={11} /> {course.startDate || course.endDate ? 'Calendar' : `${course.powerCourseDuration || 7} Days`}
                     </span>
                   </div>
 
                   <button
-                    onClick={() => navigate(`/student/power-courses/${course._id}`)}
+                    onClick={() => navigate(`/student/power-batch/${course._id}`)}
                     className="w-full btn-outline justify-center text-xs py-2 font-bold"
                   >
                     View details <ChevronRight size={14} />

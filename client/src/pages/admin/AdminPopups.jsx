@@ -164,7 +164,7 @@ export default function AdminPopups() {
                     type="text"
                     value={form.title}
                     onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                    placeholder="e.g. 50% Off organic Chemistry Crash Course"
+                    placeholder="e.g. 50% Off Organic Chemistry Crash Course"
                     className="input"
                   />
                 </div>

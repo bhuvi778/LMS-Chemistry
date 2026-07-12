@@ -105,6 +105,7 @@ export const completeStudentTask = asyncHandler(async (req, res) => {
   if (dayConfig.videoUrl) requiredTasks.push('video');
   if (dayConfig.notesUrl) requiredTasks.push('notes');
   if (dayConfig.quizId) requiredTasks.push('quiz');
+  if (dayConfig.liveClassId) requiredTasks.push('live');
   if (dayConfig.assignmentUrl) requiredTasks.push('assignment');
 
   // Check if day is complete

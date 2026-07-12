@@ -1166,100 +1166,16 @@ export const verifyPhoneVerification = asyncHandler(async (req, res) => {
   res.json(safeUser(updatedUser));
 });
 
-/** POST /api/auth/request-email-change — Send Email OTP to new email address */
-export const requestEmailChange = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-    res.status(400);
-    throw new Error('A valid email address is required');
-  }
-
-  const targetEmail = email.trim().toLowerCase();
-
-  // Validate email is not already taken by another user
-  const existingUser = await User.findOne({ email: targetEmail, _id: { $ne: req.user._id } });
-  if (existingUser) {
-    res.status(400);
-    throw new Error('This email address is already registered to another account');
-  }
-
-  // Generate a 6-digit OTP
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  const codeHash = await bcrypt.hash(code, 10);
-
-  // Store in OTP collection with purpose 'email_change'
-  await OTP.deleteMany({ userId: req.user._id, purpose: 'email_change' });
-  await OTP.create({
-    userId: req.user._id,
-    email: targetEmail,
-    codeHash,
-    expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-    purpose: 'email_change',
-  });
-
-  // Send email OTP
-  const fromEmail = process.env.SMTP_USER || process.env.FROM_EMAIL;
-  if (!process.env.SMTP_USER) {
-    console.log(`[EMAIL CHANGE OTP DEV] ${targetEmail} → ${code}`);
-  } else {
-    const transporter = getTransporter();
-    await transporter.sendMail({
-      from: `"Ace2Examz Security" <${fromEmail}>`,
-      to: targetEmail,
-      subject: 'Verify Your Email Change — Ace2Examz',
-      html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-        <h2 style="color:#6d28d9">Ace2Examz — Email Change Verification</h2>
-        <p>Hi ${req.user.name || 'there'},</p>
-        <p>You requested to change your email to this address. Your verification OTP code is:</p>
-        <div style="font-size:36px;font-weight:900;letter-spacing:8px;color:#6d28d9;margin:20px 0">${code}</div>
-        <p style="color:#888">Expires in <b>10 minutes</b>. Do not share it.</p>
-      </div>`,
-    });
-  }
-
-  res.json({ success: true, message: 'Verification OTP sent to your new email' });
+/** POST /api/auth/request-email-change — email changes are disabled */
+export const requestEmailChange = asyncHandler(async (_req, res) => {
+  res.status(403);
+  throw new Error('Email address cannot be changed. Please contact support if your registered email is incorrect.');
 });
 
-/** POST /api/auth/verify-email-change — Verify OTP and update email */
-export const verifyEmailChange = asyncHandler(async (req, res) => {
-  const { code, email } = req.body;
-  if (!code || !email) {
-    res.status(400);
-    throw new Error('Code and email address are required');
-  }
-
-  const targetEmail = email.trim().toLowerCase();
-  const userId = req.user._id;
-
-  const record = await OTP.findOne({ userId, purpose: 'email_change', used: false });
-  if (!record) {
-    res.status(400);
-    throw new Error('No pending email verification found. Please try again.');
-  }
-  if (record.email !== targetEmail) {
-    res.status(400);
-    throw new Error('Email address mismatch.');
-  }
-  if (record.expiresAt < new Date()) {
-    await OTP.findByIdAndDelete(record._id);
-    res.status(400);
-    throw new Error('Verification code has expired. Please try again.');
-  }
-  if (!(await bcrypt.compare(String(code), record.codeHash))) {
-    res.status(400);
-    throw new Error('Invalid verification code');
-  }
-
-  await OTP.findByIdAndUpdate(record._id, { used: true });
-
-  // Update email on user
-  const updatedUser = await User.findByIdAndUpdate(
-    userId,
-    { email: targetEmail, isEmailVerified: true },
-    { new: true }
-  );
-
-  res.json(safeUser(updatedUser));
+/** POST /api/auth/verify-email-change — email changes are disabled */
+export const verifyEmailChange = asyncHandler(async (_req, res) => {
+  res.status(403);
+  throw new Error('Email address cannot be changed. Please contact support if your registered email is incorrect.');
 });
 
 

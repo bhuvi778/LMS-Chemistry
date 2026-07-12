@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 import {
-  Coins, Search, X, Loader2, Plus, Minus, TrendingUp, Users, PlusCircle, Eye, Check, Ban, CheckCircle
+  Coins, Search, X, Loader2, Plus, Minus, TrendingUp, Users, PlusCircle, Eye
 } from 'lucide-react';
 
 const initialsOf = (name = '') =>
@@ -17,14 +17,9 @@ export default function AdminStatsWallet() {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Purchase requests state
-  const [activeTab, setActiveTab] = useState('balances'); // 'balances' or 'requests'
+  // Purchase details state
+  const [activeTab, setActiveTab] = useState('balances');
   const [requests, setRequests] = useState([]);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [processingRequest, setProcessingRequest] = useState(null);
-  const [actionType, setActionType] = useState(''); // 'approve' or 'reject'
-  const [adminNote, setAdminNote] = useState('');
-  const [actionBusy, setActionBusy] = useState(false);
   const [previewScreenshot, setPreviewScreenshot] = useState('');
 
   const loadRequests = async () => {
@@ -32,7 +27,7 @@ export default function AdminStatsWallet() {
       const { data: reqs } = await api.get('/coin-purchase/admin');
       setRequests(reqs || []);
     } catch {
-      toast.error('Failed to load coin purchase requests');
+      toast.error('Failed to load coin purchase details');
     }
   };
 
@@ -63,9 +58,6 @@ export default function AdminStatsWallet() {
 
   const filteredRequests = useMemo(() => {
     let list = requests;
-    if (statusFilter !== 'all') {
-      list = list.filter(r => r.status === statusFilter);
-    }
     if (q) {
       const s = q.toLowerCase();
       list = list.filter(r =>
@@ -74,11 +66,13 @@ export default function AdminStatsWallet() {
         r.student?.name?.toLowerCase().includes(s) ||
         r.student?.email?.toLowerCase().includes(s) ||
         r.student?.studentId?.toLowerCase().includes(s) ||
-        r.referenceNumber?.toLowerCase().includes(s)
+        r.referenceNumber?.toLowerCase().includes(s) ||
+        r.razorpayOrderId?.toLowerCase().includes(s) ||
+        r.razorpayPaymentId?.toLowerCase().includes(s)
       );
     }
     return list;
-  }, [requests, statusFilter, q]);
+  }, [requests, q]);
 
   const handleAddCoins = async (sign) => {
     if (!amount || amount <= 0) return toast.error('Enter a valid amount');
@@ -95,24 +89,13 @@ export default function AdminStatsWallet() {
     finally { setBusy(false); }
   };
 
-  const handleProcessRequest = async () => {
-    setActionBusy(true);
-    try {
-      const endpoint = `/coin-purchase/admin/${processingRequest._id}/${actionType}`;
-      await api.post(endpoint, { adminNote });
-      toast.success(`Request ${actionType === 'approve' ? 'approved' : 'rejected'} successfully`);
-      setProcessingRequest(null);
-      setActionType('');
-      setAdminNote('');
-      load();
-    } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to process request');
-    } finally {
-      setActionBusy(false);
-    }
-  };
-
   const inr = (coins) => coins.toFixed(2);
+  const shortRef = (value) => value ? `${value.slice(0, 10)}…` : '';
+  const statusClass = (status) => ({
+    approved: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+    pending: 'border-amber-100 bg-amber-50 text-amber-700',
+    rejected: 'border-red-100 bg-red-50 text-red-700',
+  }[status] || 'border-slate-100 bg-slate-50 text-slate-600');
 
   return (
     <div className="space-y-6">
@@ -177,41 +160,21 @@ export default function AdminStatsWallet() {
               : 'border-transparent text-slate-400 hover:text-slate-650'
           }`}
         >
-          Purchase Requests
-          {requests.filter(r => r.status === 'pending').length > 0 && (
-            <span className="bg-amber-500 text-white font-black text-[10px] w-4.5 h-4.5 rounded-full flex items-center justify-center animate-pulse">
-              {requests.filter(r => r.status === 'pending').length}
-            </span>
-          )}
+          Purchase Details
+          <span className="bg-slate-100 text-slate-500 font-black text-[10px] px-2 py-0.5 rounded-full">
+            {requests.length}
+          </span>
         </button>
       </div>
 
-      {/* Student Table / Requests Table */}
+      {/* Student Table / Purchase Details Table */}
       <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4">
-        {activeTab === 'requests' && (
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            {['all', 'pending', 'approved', 'rejected'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition capitalize ${
-                  statusFilter === status
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                    : 'bg-slate-50 hover:bg-slate-100 text-slate-650 border-slate-200/50'
-                }`}
-              >
-                {status} ({status === 'all' ? requests.length : requests.filter(r => r.status === status).length})
-              </button>
-            ))}
-          </div>
-        )}
-
         <div className="flex items-center justify-between gap-3">
           <div className="relative max-w-md flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder={activeTab === 'balances' ? "Search students..." : "Search requests..."}
+              placeholder={activeTab === 'balances' ? "Search students..." : "Search purchases..."}
               value={q}
               onChange={e => setQ(e.target.value)}
               className="input w-full !pl-10 !py-2 text-sm"
@@ -291,12 +254,11 @@ export default function AdminStatsWallet() {
                 <tr className="border-b border-slate-100">
                   <th className="text-left py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Student</th>
                   <th className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Coins</th>
-                  <th className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Amount</th>
-                  <th className="text-left py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Ref No & Date</th>
-                  <th className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                  <th className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Proof</th>
-                  <th className="text-right py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
-                </tr>
+	                  <th className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Amount</th>
+	                  <th className="text-left py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Payment Details</th>
+	                  <th className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+	                  <th className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Source</th>
+	                </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredRequests.map((r) => (
@@ -317,57 +279,49 @@ export default function AdminStatsWallet() {
                       <span className="flex items-center justify-center gap-1 font-bold text-yellow-600">
                         <Coins size={14} /> +{r.coinsRequested || 0}
                       </span>
+                      {r.bonusCoins > 0 && (
+                        <div className="text-[10px] font-bold text-emerald-600">+{r.bonusCoins} bonus</div>
+                      )}
                     </td>
                     <td className="py-3 px-3 text-center text-slate-700 font-bold text-xs">
                       ₹{r.amountPaid?.toFixed(2)}
                     </td>
                     <td className="py-3 px-3 text-left">
-                      <div className="font-mono text-xs font-semibold text-slate-700">{r.referenceNumber || 'Pending Proof'}</div>
-                      <div className="text-[10px] text-slate-400 font-medium">{new Date(r.createdAt).toLocaleString('en-IN')}</div>
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
-                        r.status === 'approved'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100/50'
-                          : r.status === 'rejected'
-                            ? 'bg-rose-50 text-rose-700 border-rose-100/50'
-                            : 'bg-yellow-50 text-yellow-700 border-yellow-100/50'
-                      }`}>
-                        {r.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      {r.screenshotUrl ? (
-                        <button
-                          onClick={() => setPreviewScreenshot(r.screenshotUrl)}
-                          className="flex items-center gap-1 mx-auto text-xs font-bold text-indigo-655 hover:text-indigo-850 hover:underline cursor-pointer"
-                        >
-                          <Eye size={12} /> View
-                        </button>
-                      ) : (
-                        <span className="text-slate-400 text-xs font-semibold">No Proof</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-3">
-                      {r.status === 'pending' ? (
-                        <div className="flex gap-1.5 justify-end">
-                          <button
-                            onClick={() => { setProcessingRequest(r); setActionType('approve'); setAdminNote(''); }}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-750 border border-emerald-200 rounded-xl text-xs font-bold hover:bg-emerald-100 transition cursor-pointer"
-                          >
-                            <Check size={12} /> Approve
-                          </button>
-                          <button
-                            onClick={() => { setProcessingRequest(r); setActionType('reject'); setAdminNote(''); }}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 text-rose-750 border border-rose-200 rounded-xl text-xs font-bold hover:bg-rose-100 transition cursor-pointer"
-                          >
-                            <Ban size={12} /> Reject
-                          </button>
+                      <div className="space-y-1">
+                        {r.razorpayOrderId && (
+                          <div className="font-mono text-[10px] font-semibold text-slate-600">
+                            Order: {shortRef(r.razorpayOrderId)}
+                          </div>
+                        )}
+                        <div className="font-mono text-xs font-semibold text-slate-700">
+                          Pay: {r.razorpayPaymentId || r.referenceNumber || 'Awaiting payment'}
                         </div>
+                      </div>
+	                      <div className="text-[10px] text-slate-400 font-medium">{new Date(r.createdAt).toLocaleString('en-IN')}</div>
+	                    </td>
+	                    <td className="py-3 px-3 text-center">
+	                      <span className={`inline-flex items-center justify-center rounded-full border px-2 py-1 text-[10px] font-black capitalize ${statusClass(r.status)}`}>
+	                        {r.status || 'pending'}
+	                      </span>
+	                    </td>
+	                    <td className="py-3 px-3 text-center">
+                      {r.paymentMethod === 'razorpay' ? (
+                        <span className="inline-flex items-center justify-center rounded-full border border-indigo-100 bg-indigo-50 px-2 py-1 text-[10px] font-black text-indigo-700">
+                          Razorpay
+                        </span>
                       ) : (
-                        <div className="text-[10px] text-slate-500 font-medium text-right">
-                          <div>Processed {new Date(r.processedAt).toLocaleDateString()}</div>
-                          {r.adminNote && <div className="text-slate-400 italic">Note: "{r.adminNote}"</div>}
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="inline-flex items-center justify-center rounded-full border border-slate-100 bg-slate-50 px-2 py-1 text-[10px] font-black text-slate-600">
+                            Manual
+                          </span>
+                          {r.screenshotUrl && (
+                            <button
+                              onClick={() => setPreviewScreenshot(r.screenshotUrl)}
+                              className="flex items-center gap-1 text-xs font-bold text-indigo-655 hover:text-indigo-850 hover:underline cursor-pointer"
+                            >
+                              <Eye size={12} /> Proof
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -376,7 +330,7 @@ export default function AdminStatsWallet() {
               </tbody>
             </table>
             {filteredRequests.length === 0 && (
-              <div className="py-12 text-center text-slate-400">No requests found.</div>
+              <div className="py-12 text-center text-slate-400">No purchases found.</div>
             )}
           </div>
         )}
@@ -438,51 +392,6 @@ export default function AdminStatsWallet() {
                   {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Approve/Reject Confirmation Modal */}
-      {processingRequest && (
-        <div className="modal-backdrop">
-          <div className="modal-container max-w-sm">
-            <div className="modal-header border-b pb-3">
-              <h3 className="font-display font-extrabold text-slate-800 text-lg flex items-center gap-2 capitalize">
-                {actionType === 'approve' ? <CheckCircle size={18} className="text-emerald-500" /> : <Ban size={18} className="text-rose-500" />}
-                {actionType} Request
-              </h3>
-              <button onClick={() => { setProcessingRequest(null); setActionType(''); }} className="text-slate-400 hover:text-slate-650"><X size={20} /></button>
-            </div>
-            <div className="modal-body py-4 space-y-4 font-semibold text-xs text-slate-700">
-              <div className="bg-slate-50 rounded-2xl p-4 space-y-2 border border-slate-100">
-                <div><span className="text-slate-400 block font-bold uppercase tracking-wider text-[9px] mb-0.5">Student</span> {processingRequest.studentName || processingRequest.student?.name}</div>
-                <div><span className="text-slate-400 block font-bold uppercase tracking-wider text-[9px] mb-0.5">Requested Coins</span> {processingRequest.coinsRequested} Ace Coins</div>
-                <div><span className="text-slate-400 block font-bold uppercase tracking-wider text-[9px] mb-0.5">Transaction Ref</span> {processingRequest.referenceNumber || 'N/A'}</div>
-                <div><span className="text-slate-400 block font-bold uppercase tracking-wider text-[9px] mb-0.5">Amount Paid</span> ₹{processingRequest.amountPaid}</div>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Admin Note / Reason</label>
-                <input
-                  type="text"
-                  value={adminNote}
-                  onChange={e => setAdminNote(e.target.value)}
-                  className="input w-full font-normal"
-                  placeholder="E.g., Proof verified, coins credited"
-                />
-              </div>
-            </div>
-            <div className="modal-footer border-t pt-3 flex justify-end gap-2">
-              <button onClick={() => { setProcessingRequest(null); setActionType(''); }} className="btn-secondary text-sm" disabled={actionBusy}>Cancel</button>
-              <button
-                onClick={handleProcessRequest}
-                className={`px-4 py-2 text-white text-sm font-bold rounded-xl transition cursor-pointer ${
-                  actionType === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
-                }`}
-                disabled={actionBusy}
-              >
-                {actionBusy ? <Loader2 size={14} className="animate-spin" /> : 'Confirm'}
-              </button>
             </div>
           </div>
         </div>

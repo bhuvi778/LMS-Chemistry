@@ -11,10 +11,20 @@ import {
   CheckCircle2, 
   Star,
   FileText,
-  AlertCircle
+  AlertCircle,
+  MessageCircle
 } from 'lucide-react';
 
-export default function Mentorship() {
+const DEFAULT_MENTORSHIP_SETTINGS = {
+  enabled: true,
+  availableDates: [],
+  availableSlots: [],
+  mentorshipMonthlyLimit: 2,
+  doubtMonthlyLimit: 4,
+  doubtWeeklyLimit: 1,
+};
+
+export default function Session() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,9 +43,10 @@ export default function Mentorship() {
   const [description, setDescription] = useState('');
   const [preferredDate, setPreferredDate] = useState('');
   const [preferredTimeSlot, setPreferredTimeSlot] = useState('10:00 AM - 11:00 AM');
-  const [mentorshipSettings, setMentorshipSettings] = useState({ enabled: true, availableDates: [], availableSlots: [] });
+  const [sessionType, setSessionType] = useState('mentorship');
+  const [mentorshipSettings, setSessionSettings] = useState(DEFAULT_MENTORSHIP_SETTINGS);
 
-  const loadMentorshipSettings = async (enrollsList) => {
+  const loadSessionSettings = async (enrollsList) => {
     try {
       const activeEnrolls = enrollsList || enrollments;
       const infinityEnroll = activeEnrolls.find(e => e.paymentStatus === 'paid' && e.planType === 'infinity');
@@ -48,7 +59,7 @@ export default function Mentorship() {
         }
       }
       const res = await api.get('/ace-track/mentorship/settings', { params });
-      setMentorshipSettings(res.data);
+      setSessionSettings({ ...DEFAULT_MENTORSHIP_SETTINGS, ...res.data });
       
       if (res.data.availableSlots && res.data.availableSlots.length > 0) {
         setPreferredTimeSlot(res.data.availableSlots[0]);
@@ -62,7 +73,7 @@ export default function Mentorship() {
         setPreferredDate('');
       }
     } catch (err) {
-      console.error('Failed to load mentorship settings:', err);
+      console.error('Failed to load 1:1 session settings:', err);
     }
   };
 
@@ -89,10 +100,10 @@ export default function Mentorship() {
         setLoading(true);
         const bookingRes = await api.get('/ace-track/mentorship');
         setBookings(bookingRes.data);
-        await loadMentorshipSettings(enrolls);
+        await loadSessionSettings(enrolls);
       }
     } catch (error) {
-      toast.error('Failed to load mentorship data');
+      toast.error('Failed to load 1:1 session data');
       console.error(error);
     } finally {
       setLoadingAccess(false);
@@ -108,6 +119,10 @@ export default function Mentorship() {
       toast.error('Please fill all fields');
       return;
     }
+    if (selectedLimitReached) {
+      toast.error('Booking limit reached for the selected session type');
+      return;
+    }
 
     try {
       const infinityEnroll = enrollments.find(e => e.paymentStatus === 'paid' && e.planType === 'infinity');
@@ -115,6 +130,7 @@ export default function Mentorship() {
       const category = infinityEnroll && infinityEnroll.course ? (infinityEnroll.course.category || (infinityEnroll.course.categories && infinityEnroll.course.categories[0])) : undefined;
 
       await api.post('/ace-track/mentorship', {
+        sessionType,
         subject,
         description,
         preferredDate,
@@ -123,7 +139,7 @@ export default function Mentorship() {
         category
       });
 
-      toast.success('Mentorship request submitted! 🚀');
+      toast.success(`${sessionType === 'doubt' ? '1:1 Doubt' : 'Session'} request submitted!`);
       setShowRequestModal(false);
       setSubject('');
       setDescription('');
@@ -165,6 +181,43 @@ export default function Mentorship() {
     );
   };
 
+  const getRangeCounts = (type, dateValue = new Date()) => {
+    const base = new Date(dateValue || new Date());
+    const monthStart = new Date(base);
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const monthEnd = new Date(monthStart);
+    monthEnd.setMonth(monthEnd.getMonth() + 1);
+
+    const weekStart = new Date(base);
+    weekStart.setHours(0, 0, 0, 0);
+    const day = weekStart.getDay();
+    weekStart.setDate(weekStart.getDate() + (day === 0 ? -6 : 1 - day));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    const active = bookings.filter((booking) => booking.sessionType === type && booking.status !== 'Cancelled');
+    return {
+      month: active.filter((booking) => {
+        const date = new Date(booking.preferredDate);
+        return date >= monthStart && date < monthEnd;
+      }).length,
+      week: active.filter((booking) => {
+        const date = new Date(booking.preferredDate);
+        return date >= weekStart && date < weekEnd;
+      }).length,
+    };
+  };
+
+  const selectedCounts = getRangeCounts(sessionType, preferredDate || new Date());
+  const selectedMonthlyLimit = sessionType === 'doubt'
+    ? mentorshipSettings.doubtMonthlyLimit
+    : mentorshipSettings.mentorshipMonthlyLimit;
+  const selectedWeeklyLimit = sessionType === 'doubt' ? mentorshipSettings.doubtWeeklyLimit : null;
+  const monthlyLimitReached = selectedMonthlyLimit > 0 && selectedCounts.month >= selectedMonthlyLimit;
+  const weeklyLimitReached = selectedWeeklyLimit > 0 && selectedCounts.week >= selectedWeeklyLimit;
+  const selectedLimitReached = monthlyLimitReached || weeklyLimitReached;
+
   if (loadingAccess) {
     return (
       <div className="bg-white rounded-3xl border border-slate-100 p-12 flex items-center justify-center min-h-[400px]">
@@ -189,9 +242,9 @@ export default function Mentorship() {
               <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
                 Premium Feature
               </span>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Unlock 1:1 Mentorship</h1>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Unlock 1:1 Session</h1>
               <p className="text-slate-300 text-sm max-w-lg mx-auto leading-relaxed">
-                Accelerate your learning path with personalized guidance. **1:1 Mentorship** sessions with top Chemistry faculty are exclusively available for **Infinity** plan subscribers.
+                Accelerate your learning path with personalized guidance. 1:1 sessions with top Chemistry faculty are exclusively available for Infinity plan subscribers.
               </p>
             </div>
 
@@ -232,25 +285,25 @@ export default function Mentorship() {
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
           <div className="space-y-2">
             <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
-              Premium Mentorship
+              Premium Session
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">1:1 Mentorship Sessions</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">1:1 Sessions</h1>
             <p className="text-slate-300 text-sm max-w-xl">
-              Get personalized academic guidelines, clear doubts instantly, and design an effective preparation study plan with our expert Chemistry mentors.
+              Book monthly 1:1 sessions and weekly 1:1 doubt calls with expert Chemistry mentors.
             </p>
           </div>
           <button
             onClick={() => setShowRequestModal(true)}
             className="sm:shrink-0 px-6 py-4 bg-white text-indigo-600 font-extrabold text-sm rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 self-start sm:self-auto cursor-pointer"
           >
-            Request 1:1 Session
+            Book 1:1 Session
           </button>
         </div>
       </div>
 
       {/* Bookings Lists */}
       <div className="space-y-4">
-        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Your Mentorship Sessions</h2>
+        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Your 1:1 Sessions</h2>
         
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -265,6 +318,7 @@ export default function Mentorship() {
         ) : (
           <div className="grid gap-6">
             {bookings.map(booking => {
+              const sessionLabel = booking.sessionType === 'doubt' ? '1:1 Doubt' : '1:1 Session';
               const dateStr = new Date(booking.preferredDate).toLocaleDateString('en-IN', {
                 weekday: 'long',
                 year: 'numeric',
@@ -277,7 +331,11 @@ export default function Mentorship() {
                   {/* Title & Status */}
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                     <div className="space-y-0.5">
-                      <div className="text-[9px] font-black text-indigo-600 uppercase tracking-wider">Subject Discussion</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-indigo-600 uppercase tracking-wider">{sessionLabel}</span>
+                        <span className="text-[9px] text-slate-300 font-black">/</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Subject Discussion</span>
+                      </div>
                       <h3 className="text-sm font-extrabold text-slate-800">{booking.subject}</h3>
                     </div>
                     {getStatusBadge(booking.status)}
@@ -427,17 +485,17 @@ export default function Mentorship() {
                 <Users size={20} />
               </div>
               <div>
-                <h3 className="text-sm font-black text-slate-800">Request Mentorship Session</h3>
-                <p className="text-[11px] text-slate-400">Book a personal 1:1 guidance call with a mentor</p>
+                <h3 className="text-sm font-black text-slate-800">Request 1:1 Session</h3>
+                <p className="text-[11px] text-slate-400">Choose session or doubt support and book a slot</p>
               </div>
             </div>
 
             {!mentorshipSettings.enabled ? (
               <div className="flex-1 flex flex-col items-center justify-center py-10 px-6 text-center space-y-3">
                 <AlertCircle size={40} className="text-amber-500 animate-bounce" />
-                <h4 className="font-bold text-slate-850 text-sm">Mentorship Bookings Closed</h4>
+                <h4 className="font-bold text-slate-850 text-sm">Session Bookings Closed</h4>
                 <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
-                  1:1 Mentorship requests are currently closed. Our slots will open soon. Please check back later!
+                  1:1 Session requests are currently closed. Our slots will open soon. Please check back later!
                 </p>
                 <button
                   type="button"
@@ -450,6 +508,47 @@ export default function Mentorship() {
             ) : (
               <>
                 <form onSubmit={handleRequestSession} className="flex-1 overflow-y-auto py-4 space-y-4 no-scrollbar">
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSessionType('mentorship')}
+                      className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
+                        sessionType === 'mentorship'
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-900 shadow-sm'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Users size={16} className={sessionType === 'mentorship' ? 'text-indigo-600' : 'text-slate-400'} />
+                      <div className="mt-2 text-xs font-black">1:1 Session</div>
+                      <div className="text-[10px] font-semibold opacity-75">
+                        {getRangeCounts('mentorship', preferredDate || new Date()).month}/{mentorshipSettings.mentorshipMonthlyLimit} this month
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSessionType('doubt')}
+                      className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
+                        sessionType === 'doubt'
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-900 shadow-sm'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <MessageCircle size={16} className={sessionType === 'doubt' ? 'text-indigo-600' : 'text-slate-400'} />
+                      <div className="mt-2 text-xs font-black">1:1 Doubt</div>
+                      <div className="text-[10px] font-semibold opacity-75">
+                        {getRangeCounts('doubt', preferredDate || new Date()).month}/{mentorshipSettings.doubtMonthlyLimit} month, {getRangeCounts('doubt', preferredDate || new Date()).week}/{mentorshipSettings.doubtWeeklyLimit} week
+                      </div>
+                    </button>
+                  </div>
+
+                  {selectedLimitReached && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-700">
+                      {monthlyLimitReached
+                        ? `Monthly limit reached for ${sessionType === 'doubt' ? '1:1 Doubt' : '1:1 Session'}.`
+                        : 'Weekly 1:1 Doubt limit reached for the selected date.'}
+                    </div>
+                  )}
+
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Subject / Focus Topic</label>
                     <input
@@ -539,7 +638,8 @@ export default function Mentorship() {
                   <button
                     type="button"
                     onClick={handleRequestSession}
-                    className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-md shadow-indigo-600/10 cursor-pointer"
+                    disabled={selectedLimitReached}
+                    className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-xs font-bold text-white shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
                     Submit Request
                   </button>

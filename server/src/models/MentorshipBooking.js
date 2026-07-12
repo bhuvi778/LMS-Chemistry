@@ -2,6 +2,14 @@ import mongoose from 'mongoose';
 
 const mentorshipBookingSchema = new mongoose.Schema({
   student: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  sessionType: {
+    type: String,
+    enum: ['mentorship', 'doubt'],
+    default: 'mentorship',
+    index: true
+  },
+  course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', default: null },
+  category: { type: String, default: '' },
   subject: { type: String, required: true },
   description: { type: String, required: true },
   preferredDate: { type: Date, required: true },
@@ -13,6 +21,7 @@ const mentorshipBookingSchema = new mongoose.Schema({
   },
   mentorName: { type: String, default: '' },
   meetingLink: { type: String, default: '' },
+  liveClass: { type: mongoose.Schema.Types.ObjectId, ref: 'LiveClass', default: null },
   sessionNotes: { type: String, default: '' }, // Feedback or notes from mentor
   studyPlan: { type: String, default: '' }, // study plan doc link or notes text
   rating: { type: Number, min: 1, max: 5 },

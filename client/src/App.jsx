@@ -9,6 +9,21 @@ function LearnRedirect() {
   return <Navigate to={`/student/learn/${courseId}`} replace />;
 }
 
+function PowerBatchAdminRedirect({ suffix }) {
+  const { id } = useParams();
+  return <Navigate to={`/admin/power-batch/${id}/${suffix}`} replace />;
+}
+
+function PowerBatchStudentRedirect({ learn = false }) {
+  const { courseId } = useParams();
+  return <Navigate to={`/student/power-batch/${courseId}${learn ? '/learn' : ''}`} replace />;
+}
+
+function PowerBatchPublicRedirect() {
+  const { courseId } = useParams();
+  return <Navigate to={`/power-batch/${courseId}`} replace />;
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
@@ -175,10 +190,18 @@ export default function App() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="courses" element={<AdminCourses />} />
-          <Route path="power-courses" element={<AdminPowerCourses />} />
+          <Route path="power-batch" element={<AdminPowerCourses />} />
+          <Route path="power-courses" element={<Navigate to="/admin/power-batch" replace />} />
           <Route path="courses/new" element={<AdminCourseForm />} />
           <Route path="courses/:id/edit" element={<AdminCourseForm />} />
           <Route path="courses/:id/content" element={<AdminCourseContent />} />
+          {/* Dedicated power-batch routes for clean URLs */}
+          <Route path="power-batch/new" element={<AdminCourseForm />} />
+          <Route path="power-batch/:id/edit" element={<AdminCourseForm />} />
+          <Route path="power-batch/:id/content" element={<AdminCourseContent />} />
+          <Route path="power-courses/new" element={<Navigate to="/admin/power-batch/new" replace />} />
+          <Route path="power-courses/:id/edit" element={<PowerBatchAdminRedirect suffix="edit" />} />
+          <Route path="power-courses/:id/content" element={<PowerBatchAdminRedirect suffix="content" />} />
           <Route path="categories" element={<AdminCategories />} />
           <Route path="students" element={<AdminStudents />} />
           <Route path="gamification" element={<AdminGamification />} />
@@ -227,9 +250,12 @@ export default function App() {
           <Route path="ask-prepiify" element={<AskPrepiify />} />
           <Route path="toppers-pass" element={<ToppersPass />} />
           <Route path="courses" element={<StudentCourses />} />
-          <Route path="power-courses" element={<PowerCoursesDashboard />} />
-          <Route path="power-courses/:courseId" element={<PowerCourseDetail />} />
-          <Route path="power-courses/:courseId/learn" element={<PowerCourseLearn />} />
+          <Route path="power-batch" element={<PowerCoursesDashboard />} />
+          <Route path="power-batch/:courseId" element={<PowerCourseDetail />} />
+          <Route path="power-batch/:courseId/learn" element={<PowerCourseLearn />} />
+          <Route path="power-courses" element={<Navigate to="/student/power-batch" replace />} />
+          <Route path="power-courses/:courseId" element={<PowerBatchStudentRedirect />} />
+          <Route path="power-courses/:courseId/learn" element={<PowerBatchStudentRedirect learn />} />
           <Route path="test-series" element={<MyTestSeries />} />
           <Route path="practice" element={<TestPortal />} />
           <Route path="library" element={<Ebooks />} />
@@ -289,8 +315,10 @@ export default function App() {
                   <Route path="/" element={<Home />} />
                   <Route path="/courses" element={<Courses />} />
                   <Route path="/courses/:id" element={<CourseDetail />} />
-                  <Route path="/power-courses" element={<PowerCoursesCatalog />} />
-                  <Route path="/power-courses/:courseId" element={<PowerCourseDetail />} />
+                  <Route path="/power-batch" element={<PowerCoursesCatalog />} />
+                  <Route path="/power-batch/:courseId" element={<PowerCourseDetail />} />
+                  <Route path="/power-courses" element={<Navigate to="/power-batch" replace />} />
+                  <Route path="/power-courses/:courseId" element={<PowerBatchPublicRedirect />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />

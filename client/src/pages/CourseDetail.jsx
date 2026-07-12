@@ -513,6 +513,7 @@ export default function CourseDetail() {
   const [selectedPlan, setSelectedPlan] = useState('batch');
   const planOrder = { batch: 1, pro: 2, infinity: 3 };
   const isSelectedDowngradeOrSame = enrolled && enrollment && planOrder[selectedPlan] <= planOrder[enrollment.planType];
+  const isUpgradePurchase = enrolled && enrollment && planOrder[selectedPlan] > planOrder[enrollment.planType];
 
   const getPlanPriceAndMrp = () => {
     if (!course) return { price: 0, mrp: 0 };
@@ -582,7 +583,7 @@ export default function CourseDetail() {
           api.get(`/tests/series/${fetched.upsell.testSeriesId}`)
             .then((u) => setUpsellCourse(u.data))
             .catch(() => {});
-        } else if (targetType === 'course' && fetched.upsell.courseId) {
+        } else if ((targetType === 'course' || targetType === 'power_course') && fetched.upsell.courseId) {
           api.get(`/courses/${fetched.upsell.courseId}`)
             .then((u) => setUpsellCourse(u.data))
             .catch(() => {});
@@ -619,6 +620,10 @@ export default function CourseDetail() {
   // ─── Apply coupon ─────────────────────────────────────────────────────────
   const applyCoupon = async () => {
     if (!couponInput.trim()) return;
+    if (isUpgradePurchase) {
+      toast.error('Coupon codes cannot be used for course upgrades.');
+      return;
+    }
     setCouponBusy(true);
     try {
       const { data } = await api.post('/payment/validate-coupon', {
@@ -640,6 +645,13 @@ export default function CourseDetail() {
     setCouponApplied(null);
     setCouponInput('');
   };
+
+  useEffect(() => {
+    if (isUpgradePurchase && couponApplied) {
+      setCouponApplied(null);
+      setCouponInput('');
+    }
+  }, [isUpgradePurchase, couponApplied]);
 
   // ─── Submit rating ────────────────────────────────────────────────────────
   const submitRating = async () => {
@@ -998,7 +1010,7 @@ export default function CourseDetail() {
                     { text: '🎥 Interactive Live Classes', included: false },
                     { text: '🎯 Ace Track', included: false },
                     { text: '🚀 Upcoming Course & Test Series', included: false },
-                    { text: '👑 1-on-1 Personal Mentorship', included: false },
+                    { text: '👑 1-on-1 Personal Session', included: false },
                     { text: '🤖 Ask Prepiify AI Access', included: false },
                   ],
                   pro: [
@@ -1009,7 +1021,7 @@ export default function CourseDetail() {
                     { text: '🎥 Interactive Live Classes', included: true },
                     { text: '🎯 Ace Track', included: true },
                     { text: '🚀 Upcoming Course & Test Series', included: false },
-                    { text: '👑 1-on-1 Personal Mentorship', included: false },
+                    { text: '👑 1-on-1 Personal Session', included: false },
                     { text: '🤖 Ask Prepiify AI Access', included: true },
                   ],
                   infinity: [
@@ -1020,7 +1032,7 @@ export default function CourseDetail() {
                     { text: '🎥 Interactive Live Classes', included: true },
                     { text: '🎯 Ace Track', included: true },
                     { text: '🚀 Upcoming Course & Test Series', included: true },
-                    { text: '👑 1-on-1 Personal Mentorship', included: true },
+                    { text: '👑 1-on-1 Personal Session', included: true },
                     { text: '🤖 Ask Prepiify AI Access', included: true },
                   ]
                 };
@@ -1149,7 +1161,7 @@ export default function CourseDetail() {
                         } else {
                           return (
                             <div className="mt-3 text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-100 p-2.5 rounded-xl text-center flex items-center justify-center gap-1.5">
-                              🎓 Hurry: Only {remainingSeats} seats left for mentorship!
+                              🎓 Hurry: Only {remainingSeats} seats left for 1:1 session support!
                             </div>
                           );
                         }
@@ -1174,7 +1186,7 @@ export default function CourseDetail() {
                       </button>
                     )}
                     {/* Coupon code input — only for students */}
-                    {user && user.role !== 'admin' && (
+                    {user && user.role !== 'admin' && !isUpgradePurchase && (
                       <div className="mt-4">
                         {couponApplied ? (
                           <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 text-sm font-semibold">
@@ -1227,6 +1239,11 @@ export default function CourseDetail() {
                             )}
                           </>
                         )}
+                      </div>
+                    )}
+                    {user && user.role !== 'admin' && isUpgradePurchase && (
+                      <div className="mt-4 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500">
+                        Coupon codes are not available on course upgrades.
                       </div>
                     )}
 
@@ -1448,7 +1465,7 @@ export default function CourseDetail() {
                         {course.comboCourses.map((cc) => (
                           <Link
                             key={cc._id}
-                            to={`/courses/${cc.slug || cc._id}`}
+                            to={cc.isPowerCourse ? `/power-batch/${cc._id}` : `/courses/${cc.slug || cc._id}`}
                             className="bg-white rounded-2xl border border-slate-200 p-4 flex gap-4 hover:shadow-md transition-all group"
                           >
                             <img
@@ -1460,8 +1477,13 @@ export default function CourseDetail() {
                               <h4 className="font-bold text-slate-800 text-sm leading-snug group-hover:text-brand-600 transition-colors line-clamp-2">
                                 {cc.title}
                               </h4>
+                              {cc.isPowerCourse && (
+                                <span className="mt-2 inline-flex w-fit rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">
+                                  Power Batch
+                                </span>
+                              )}
                               <span className="text-[10px] font-bold text-brand-600 hover:underline inline-flex items-center gap-0.5 mt-2">
-                                View Course Details →
+                                {cc.isPowerCourse ? 'View Power Batch' : 'View Course Details'} →
                               </span>
                             </div>
                           </Link>
@@ -1502,13 +1524,13 @@ export default function CourseDetail() {
               )}
 
               {/* Infinity Plan Bundled Content */}
-              {selectedPlan === 'infinity' && course.plans?.infinity && ((course.plans.infinity.courses && course.plans.infinity.courses.length > 0) || (course.plans.infinity.testSeries && course.plans.infinity.testSeries.length > 0)) && (
+              {selectedPlan === 'infinity' && course.plans?.infinity && ((course.plans.infinity.courses && course.plans.infinity.courses.length > 0) || (course.plans.infinity.powerCourses && course.plans.infinity.powerCourses.length > 0) || (course.plans.infinity.testSeries && course.plans.infinity.testSeries.length > 0)) && (
                 <div className="mb-10 bg-amber-50/50 border border-amber-200 rounded-2xl p-6 sm:p-8 shadow-sm animate-fade-in">
                   <h3 className="font-display text-lg font-extrabold text-amber-950 flex items-center gap-2 mb-2">
                     <span>🎁</span> Included with Ace Infinity Plan
                   </h3>
                   <p className="text-xs text-amber-800/80 mb-6 font-bold">
-                    Upgrading to the Ace Infinity Plan grants you complimentary, full access to the following premium courses and test series:
+                    Upgrading to the Ace Infinity Plan grants you complimentary, full access to the following premium courses, power batches, and test series:
                   </p>
 
                   {course.plans.infinity.courses && course.plans.infinity.courses.length > 0 && (
@@ -1538,6 +1560,46 @@ export default function CourseDetail() {
                               </h4>
                               <span className="text-[10px] font-bold text-brand-650 hover:underline inline-flex items-center gap-0.5 mt-2">
                                 View Course Details →
+                              </span>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {course.plans.infinity.powerCourses && course.plans.infinity.powerCourses.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="font-bold text-amber-900 text-sm mb-3">⚡ Included Power Batch ({course.plans.infinity.powerCourses.length})</h4>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {course.plans.infinity.powerCourses.map((pc) => (
+                          <Link
+                            key={pc._id}
+                            to={`/power-batch/${pc._id}`}
+                            className="bg-white rounded-2xl border border-amber-200/60 p-4 flex gap-4 hover:shadow-md transition-all group"
+                          >
+                            {pc.thumbnail ? (
+                              <img
+                                src={pc.thumbnail}
+                                alt={pc.title}
+                                className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100"
+                              />
+                            ) : (
+                              <div className="w-16 h-16 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm shrink-0">
+                                Power
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                              <div>
+                                <h4 className="font-bold text-slate-850 text-sm leading-snug group-hover:text-brand-650 transition-colors line-clamp-2">
+                                  {pc.title}
+                                </h4>
+                                <p className="text-[10px] text-amber-800/70 font-bold mt-1">
+                                  {pc.startDate || pc.endDate ? 'Calendar mode' : `${pc.powerCourseDuration || 7} day-wise batch`}
+                                </p>
+                              </div>
+                              <span className="text-[10px] font-bold text-brand-650 hover:underline inline-flex items-center gap-0.5 mt-2">
+                                View Power Batch →
                               </span>
                             </div>
                           </Link>
@@ -1672,7 +1734,7 @@ export default function CourseDetail() {
                         <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
                       </tr>
                       <tr>
-                        <td className="p-3 text-xs font-semibold text-slate-800">1:1 Personal Mentorship</td>
+                        <td className="p-3 text-xs font-semibold text-slate-800">1:1 Personal Session</td>
                         <td className="p-3 text-center text-rose-500 font-bold">✗</td>
                         <td className="p-3 text-center text-rose-500 font-bold">✗</td>
                         <td className="p-3 text-center text-emerald-600 font-bold">✓</td>
@@ -2114,6 +2176,12 @@ export default function CourseDetail() {
                           <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Detailed Explanations</span>
                           <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Performance Analytics</span>
                         </>
+                      ) : course.upsell?.targetType === 'power_course' ? (
+                        <>
+                          <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Day-wise Targets</span>
+                          <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Focused Revision</span>
+                          <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Calendar Progress</span>
+                        </>
                       ) : (
                         <>
                           <span className="flex items-center gap-1.5 text-xs text-white/60"><CheckCircle size={12} className="text-emerald-400" /> Full HD Videos</span>
@@ -2148,10 +2216,10 @@ export default function CourseDetail() {
                   )}
 
                   <Link
-                    to={course.upsell?.targetType === 'test_series' ? `/test-series/${upsellCourse._id}` : `/courses/${upsellCourse._id}`}
+                    to={course.upsell?.targetType === 'test_series' ? `/test-series/${upsellCourse._id}` : course.upsell?.targetType === 'power_course' ? `/power-batch/${upsellCourse._id}` : `/courses/${upsellCourse._id}`}
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-brand-500 to-violet-600 text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-lg shadow-brand-900/40 whitespace-nowrap"
                   >
-                    {course.upsell?.targetType === 'test_series' ? 'View Test Series' : 'View Course'} <ArrowRight size={15} />
+                    {course.upsell?.targetType === 'test_series' ? 'View Test Series' : course.upsell?.targetType === 'power_course' ? 'View Power Batch' : 'View Course'} <ArrowRight size={15} />
                   </Link>
 
                   <p className="text-xs text-white/30 text-center">Trusted by 1000+ students</p>
@@ -2286,4 +2354,3 @@ function PdfModal({ pdf, onClose }) {
     document.body
   );
 }
-

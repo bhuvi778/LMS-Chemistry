@@ -44,6 +44,16 @@ const getRazorpay = () => {
   return new Razorpay({ key_id: keyId, key_secret: keySecret });
 };
 
+const getCoinRedemptionMinimum = (item, isCourse) => {
+  if (!isCourse) return 50;
+  return item?.isPowerCourse ? 30 : 250;
+};
+
+const getCoinRedemptionLabel = (item, isCourse) => {
+  if (!isCourse) return 'test series';
+  return item?.isPowerCourse ? 'Power Batch' : 'course';
+};
+
 // ─── Coupon validation helper ─────────────────────────────────────────────────
 // Supports new discountCoupons array; falls back to legacy discountCoupon object.
 // Checks global maxUses and per-user maxUsesPerUser limits.
@@ -83,7 +93,7 @@ const findAndValidateCoupon = async (item, couponCode, basePrice, userId) => {
     }
   }
 
-  if (coupon.maxUsesPerUser > 0) {
+  if (coupon.maxUsesPerUser > 0 && userId) {
     const userUses = await Payment.countDocuments({
       student: userId,
       status: 'paid',
@@ -106,6 +116,17 @@ const findAndValidateCoupon = async (item, couponCode, basePrice, userId) => {
   }
   discountAmount = Math.min(discountAmount, priceToUse);
   return { valid: true, discountAmount };
+};
+
+const hasUsedCourseCoupon = async (courseId, userId) => {
+  const used = await Payment.exists({
+    student: userId,
+    course: courseId,
+    status: 'paid',
+    discountAmount: { $gt: 0 },
+    couponCode: { $exists: true, $nin: ['', null] },
+  });
+  return !!used;
 };
 
 /** Helper to calculate prorated upgrade credit & new amount */
@@ -263,6 +284,17 @@ export const createOrder = asyncHandler(async (req, res) => {
   let appliedCoupon = '';
 
   if (couponCode) {
+    if (isCourse) {
+      const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
+      if (existing || req.body.isExtension) {
+        res.status(400);
+        throw new Error('Coupon codes cannot be used for course upgrades or validity extensions.');
+      }
+      if (await hasUsedCourseCoupon(courseId, req.user._id)) {
+        res.status(400);
+        throw new Error('You have already used a coupon for this course.');
+      }
+    }
     const result = await findAndValidateCoupon(item, couponCode, originalAmount, req.user._id);
     if (!result.valid) { res.status(400); throw new Error(result.error || 'Invalid or inactive coupon code'); }
     discountAmount = result.discountAmount;
@@ -275,9 +307,10 @@ export const createOrder = asyncHandler(async (req, res) => {
   let coinDiscount = 0;
   if (redeemCoins) {
     const studentUser = await User.findById(req.user._id);
-    if ((studentUser.coins || 0) < 250) {
+    const minimumCoins = getCoinRedemptionMinimum(item, isCourse);
+    if ((studentUser.coins || 0) < minimumCoins) {
       res.status(400);
-      throw new Error('Minimum 250 Ace Coins are required for redemption');
+      throw new Error(`Minimum ${minimumCoins} Ace Coins are required for redemption on ${getCoinRedemptionLabel(item, isCourse)}`);
     }
     const maxCoinsNeeded = Math.floor(finalAmount);
     coinsRedeemed = Math.min(studentUser.coins || 0, maxCoinsNeeded);
@@ -356,6 +389,30 @@ export const createOrder = asyncHandler(async (req, res) => {
         coinsSpent: coinsRedeemed,
         discountAmount: coinDiscount,
       });
+    }
+
+    if (appliedCoupon || coinsRedeemed > 0) {
+      const itemId = isCourse ? courseId : resolvedSeriesId;
+      const invoiceNumber = await makeInvoiceNumber();
+      const payment = await Payment.create({
+        student: req.user._id,
+        itemType,
+        course: isCourse ? courseId : null,
+        planType: isCourse ? planType : 'batch',
+        testSeries: isCourse ? null : resolvedSeriesId,
+        razorpayOrderId: `FREE_${Date.now()}_${itemId}`.substring(0, 80),
+        amount: 0,
+        originalAmount,
+        couponCode: appliedCoupon,
+        discountAmount,
+        coinsRedeemed,
+        coinDiscount,
+        status: 'paid',
+        isExtension: !!req.body.isExtension,
+      });
+      payment.invoiceNumber = invoiceNumber;
+      payment.invoiceGeneratedAt = new Date();
+      await payment.save();
     }
 
     // Notify user of free enrollment
@@ -602,6 +659,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
 // ─── POST /api/payment/validate-coupon ───────────────────────────────────────
 export const validateCoupon = asyncHandler(async (req, res) => {
   const { courseId, testSeriesId, couponCode, planType } = req.body;
+  const userId = req.user?._id;
   if ((!courseId && !testSeriesId) || !couponCode) {
     res.status(400); throw new Error('courseId or testSeriesId, and couponCode are required');
   }
@@ -624,7 +682,9 @@ export const validateCoupon = asyncHandler(async (req, res) => {
   let originalAmount = 0;
   if (courseId) {
     const pType = planType || 'batch';
-    if (item.plans && item.plans[pType] && item.plans[pType].price > 0) {
+    if (item.isPowerCourse) {
+      originalAmount = item.price || 0;
+    } else if (item.plans && item.plans[pType] && item.plans[pType].price > 0) {
       originalAmount = item.plans[pType].price;
     } else {
       originalAmount = item.price || 0;
@@ -632,16 +692,24 @@ export const validateCoupon = asyncHandler(async (req, res) => {
       else if (pType === 'infinity') originalAmount = Math.round(originalAmount * 1.5);
     }
 
-    const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
-    if (existing) {
-      const details = calculateUpgradeDetails(originalAmount, existing, item);
-      originalAmount = details.upgradeFee;
+    if (userId) {
+      const existing = await Enrollment.findOne({ student: userId, course: courseId });
+      if (existing) {
+        res.status(400);
+        throw new Error('Coupon codes cannot be used for course upgrades.');
+      }
+
+      if (await hasUsedCourseCoupon(courseId, userId)) {
+        res.status(400);
+        throw new Error('You have already used a coupon for this course.');
+      }
     }
+
   } else {
     originalAmount = item.price || 0;
   }
 
-  const result = await findAndValidateCoupon(item, couponCode, originalAmount, req.user._id);
+  const result = await findAndValidateCoupon(item, couponCode, originalAmount, userId);
   if (!result.valid) { res.status(400); throw new Error(result.error || 'Invalid or inactive coupon code'); }
 
   res.json({
@@ -697,7 +765,7 @@ export const mySeriesEnrollments = asyncHandler(async (req, res) => {
 export const adminListPayments = asyncHandler(async (_req, res) => {
   const payments = await Payment.find()
     .populate('student', 'name email studentId')
-    .populate('course', 'title price')
+    .populate('course', 'title price isPowerCourse powerCourseType')
     .populate('testSeries', 'title price')
     .sort({ createdAt: -1 })
     .limit(500);
@@ -710,6 +778,8 @@ export const downloadInvoice = asyncHandler(async (req, res) => {
 
   let payment = null;
   let bankRequest = null;
+  let enrollment = null;
+  let seriesEnrollment = null;
 
   // 1. Try to find in Payment using _id or razorpayPaymentId
   if (mongoose.isValidObjectId(paymentIdParam)) {
@@ -724,7 +794,27 @@ export const downloadInvoice = asyncHandler(async (req, res) => {
       .populate('testSeries', 'title');
   }
 
-  // 2. If not found in Payment, check if it's a Bank Transfer Request
+  // 2. If not found in Payment, check enrollments created by admin/free/combo/manual flows.
+  if (!payment) {
+    const enrollmentOr = [{ paymentId: paymentIdParam }];
+    if (mongoose.isValidObjectId(paymentIdParam)) enrollmentOr.push({ _id: paymentIdParam });
+
+    enrollment = await Enrollment.findOne({
+      student: req.user._id,
+      paymentStatus: 'paid',
+      $or: enrollmentOr,
+    }).populate('course', 'title price plans isPowerCourse');
+
+    if (!enrollment) {
+      seriesEnrollment = await TestSeriesEnrollment.findOne({
+        student: req.user._id,
+        paymentStatus: 'paid',
+        $or: enrollmentOr,
+      }).populate('testSeries', 'title price');
+    }
+  }
+
+  // 3. If not found in Payment/Enrollment, check if it's a Bank Transfer Request
   if (!payment) {
     let searchId = paymentIdParam;
     if (paymentIdParam.startsWith('BANK_')) {
@@ -737,7 +827,7 @@ export const downloadInvoice = asyncHandler(async (req, res) => {
     }
   }
 
-  if (!payment && !bankRequest) {
+  if (!payment && !enrollment && !seriesEnrollment && !bankRequest) {
     res.status(404);
     throw new Error('Invoice not found');
   }
@@ -761,6 +851,54 @@ export const downloadInvoice = asyncHandler(async (req, res) => {
       razorpayPaymentId: payment.razorpayPaymentId || 'N/A',
       couponCode: payment.couponCode,
     });
+  } else if (enrollment) {
+    const course = enrollment.course;
+    const finalAmount = enrollment.pricePaid || 0;
+    let originalAmount = finalAmount;
+    const planPrice = course?.plans?.[enrollment.planType]?.price;
+    if (Number(planPrice) > 0) {
+      originalAmount = planPrice;
+    } else if (Number(course?.price) > 0) {
+      originalAmount = course.price;
+      if (enrollment.planType === 'pro') originalAmount = Math.round(originalAmount * 1.25);
+      else if (enrollment.planType === 'infinity') originalAmount = Math.round(originalAmount * 1.5);
+    }
+    const discountAmount = Math.max(0, originalAmount - finalAmount);
+
+    pdfBuffer = await generateInvoicePDF({
+      invoiceNumber: `ACE-ENR-${enrollment._id.toString().slice(-8).toUpperCase()}`,
+      invoiceDate: enrollment.createdAt || enrollment.updatedAt,
+      studentName: student.name,
+      studentEmail: student.email,
+      studentId: student.studentId || '',
+      itemName: course?.title || 'Course',
+      itemType: course?.isPowerCourse ? 'power_course' : 'course',
+      originalAmount,
+      discountAmount,
+      finalAmount,
+      razorpayPaymentId: enrollment.paymentId || 'FREE',
+      couponCode: '',
+    });
+  } else if (seriesEnrollment) {
+    const testSeries = seriesEnrollment.testSeries;
+    const finalAmount = seriesEnrollment.pricePaid || 0;
+    const originalAmount = Number(testSeries?.price) > 0 ? testSeries.price : finalAmount;
+    const discountAmount = Math.max(0, originalAmount - finalAmount);
+
+    pdfBuffer = await generateInvoicePDF({
+      invoiceNumber: `ACE-TS-${seriesEnrollment._id.toString().slice(-8).toUpperCase()}`,
+      invoiceDate: seriesEnrollment.createdAt || seriesEnrollment.updatedAt,
+      studentName: student.name,
+      studentEmail: student.email,
+      studentId: student.studentId || '',
+      itemName: testSeries?.title || 'Test Series',
+      itemType: 'test_series',
+      originalAmount,
+      discountAmount,
+      finalAmount,
+      razorpayPaymentId: seriesEnrollment.paymentId || 'FREE',
+      couponCode: '',
+    });
   } else {
     const itemDoc = bankRequest.course || bankRequest.testSeries;
     pdfBuffer = await generateInvoicePDF({
@@ -780,6 +918,6 @@ export const downloadInvoice = asyncHandler(async (req, res) => {
   }
 
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="invoice-${payment?.invoiceNumber || bankRequest?._id || paymentIdParam}.pdf"`);
+  res.setHeader('Content-Disposition', `attachment; filename="invoice-${payment?.invoiceNumber || enrollment?._id || seriesEnrollment?._id || bankRequest?._id || paymentIdParam}.pdf"`);
   res.send(pdfBuffer);
 });

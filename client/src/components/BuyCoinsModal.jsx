@@ -1,167 +1,126 @@
-import { useState, useRef } from 'react';
-import { X, Upload, CheckCircle, Loader2, Building2, Copy, Check, ArrowLeft, Coins, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { X, CheckCircle, Loader2, Coins, AlertCircle } from 'lucide-react';
 import api from '../api/client';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
-const BANK_DETAILS = {
-  beneficiary: 'KEYSTONE ACADEMY CONNECT (OPC) PRIVATE LIMITED',
-  bankName: 'The Currency Cloud Limited',
-  accountNumber: 'GB93TCCL04140414984233',
-  bicCode: 'TCCLGB3L',
-  accountType: 'Business',
-  bankAddress: '12 Steward Street, The Steward Building, London, E1 6FQ, GB',
-};
-
 const COIN_PACKAGES = [
-  { id: 'starter', coins: 100, price: 100, name: 'Starter Pack', theme: 'border-amber-200 bg-amber-50/20 text-amber-700 hover:border-amber-400' },
-  { id: 'standard', coins: 250, price: 250, name: 'Standard Pack', theme: 'border-slate-200 bg-slate-50/30 text-slate-700 hover:border-slate-400' },
-  { id: 'pro', coins: 500, price: 500, name: 'Pro Pack', popular: true, theme: 'border-yellow-300 bg-yellow-50/30 text-yellow-800 hover:border-yellow-500 ring-2 ring-yellow-400/30 shadow-md shadow-yellow-100' },
-  { id: 'elite', coins: 1000, price: 1000, name: 'Elite Pack', theme: 'border-indigo-200 bg-indigo-50/20 text-indigo-700 hover:border-indigo-400' },
+  { id: 'starter', coins: 100, price: 100, bonus: 0, name: 'Starter Pack', theme: 'border-amber-200 bg-amber-50/20 text-amber-700 hover:border-amber-400' },
+  { id: 'standard', coins: 250, price: 250, bonus: 0, name: 'Standard Pack', theme: 'border-slate-200 bg-slate-50/30 text-slate-700 hover:border-slate-400' },
+  { id: 'pro', coins: 500, price: 500, bonus: 50, name: 'Pro Pack', popular: true, theme: 'border-yellow-300 bg-yellow-50/30 text-yellow-800 hover:border-yellow-500 ring-2 ring-yellow-400/30 shadow-md shadow-yellow-100' },
+  { id: 'elite', coins: 1000, price: 1000, bonus: 80, name: 'Elite Pack', theme: 'border-indigo-200 bg-indigo-50/20 text-indigo-700 hover:border-indigo-400' },
 ];
 
-export default function BuyCoinsModal({ isOpen, onClose, onRequestSubmitted, initialRequest }) {
-  const { user } = useAuth();
-  const [step, setStep] = useState(initialRequest ? 3 : 1);
-  const [selectedPack, setSelectedPack] = useState(COIN_PACKAGES[2]); // Default to Pro Pack (500)
+const getBonusCoins = (coins) => {
+  if (coins === 500) return 50;
+  if (coins === 1000) return 80;
+  return 0;
+};
+
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
+export default function BuyCoinsModal({ isOpen, onClose, onRequestSubmitted }) {
+  const { user, setUser } = useAuth();
+  const [selectedPack, setSelectedPack] = useState(COIN_PACKAGES[2]);
   const [customCoins, setCustomCoins] = useState('');
   const [isCustomSelected, setIsCustomSelected] = useState(false);
-
-  // Request Submission
-  const [submittedRequest, setSubmittedRequest] = useState(initialRequest || null);
-  const [studentName, setStudentName] = useState(user?.name || '');
-  const rawPhone = (user?.phone || '').replace(/^\+?91\s?/, '');
-  const [studentPhone, setStudentPhone] = useState(rawPhone);
-  const [studentEmail, setStudentEmail] = useState(user?.email || '');
-  const [notes, setNotes] = useState(initialRequest?.notes || '');
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState('');
-
-  // Proof Submission
-  const [refNumber, setRefNumber] = useState(initialRequest?.referenceNumber || '');
-  const [screenshotPreview, setScreenshotPreview] = useState(initialRequest?.screenshotUrl || '');
-  const [screenshotUrl, setScreenshotUrl] = useState(initialRequest?.screenshotUrl || '');
-  const [uploadingImg, setUploadingImg] = useState(false);
-  const [proofBusy, setProofBusy] = useState(false);
-  const fileRef = useRef();
+  const [success, setSuccess] = useState(false);
+  const [coinsAdded, setCoinsAdded] = useState(0);
 
   if (!isOpen) return null;
 
   const getCoinsCount = () => {
-    if (isCustomSelected) {
-      return parseInt(customCoins) || 0;
-    }
+    const baseCoins = getBaseCoinsCount();
+    return baseCoins + getBonusCoins(baseCoins);
+  };
+
+  const getBaseCoinsCount = () => {
+    if (isCustomSelected) return parseInt(customCoins) || 0;
     return selectedPack?.coins || 0;
   };
 
-  const getPrice = () => {
-    const coins = getCoinsCount();
-    // 1 Coin = 1 INR
-    return coins;
-  };
+  const getPrice = () => getBaseCoinsCount(); // 1 paid coin = ₹1
 
-  const copyToClipboard = (text, key) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(key);
-      setTimeout(() => setCopied(''), 2000);
-    });
-  };
-
-  const handleNextStep = () => {
+  const handlePayWithRazorpay = async () => {
+    const paidCoins = getBaseCoinsCount();
     const coins = getCoinsCount();
-    if (coins < 50) {
+    if (paidCoins < 50) {
       toast.error('Minimum request size is 50 Ace Coins');
       return;
     }
-    setStep(2);
-  };
 
-  const handleSubmitRequest = async () => {
-    const coins = getCoinsCount();
-    const price = getPrice();
-
-    if (!studentName.trim()) { toast.error('Please enter your name'); return; }
-    if (!studentPhone.trim()) { toast.error('Please enter your phone number'); return; }
-    if (!studentEmail.trim()) { toast.error('Please enter your email address'); return; }
-
-    const fullPhone = studentPhone.trim().startsWith('+') ? studentPhone.trim() : '+91' + studentPhone.trim();
     setBusy(true);
-
     try {
-      const payload = {
-        coinsRequested: coins,
-        amountPaid: price,
-        studentName: studentName.trim(),
-        studentPhone: fullPhone,
-        studentEmail: studentEmail.trim(),
-        notes: notes.trim(),
+      // Load Razorpay script
+      const loaded = await loadRazorpayScript();
+      if (!loaded) {
+        toast.error('Failed to load payment gateway. Please check your internet connection.');
+        setBusy(false);
+        return;
+      }
+
+      // Create order on backend
+      const { data: orderData } = await api.post('/coin-purchase/razorpay/create-order', { coins: paidCoins });
+
+      // Open Razorpay checkout
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'Ace2Examz',
+        description: `${orderData.coins || coins} Ace Coins`,
+        order_id: orderData.orderId,
+        prefill: orderData.prefill,
+        theme: { color: '#f59e0b' },
+        modal: {
+          ondismiss: () => {
+            toast('Payment cancelled', { icon: '⚠️' });
+            setBusy(false);
+          },
+        },
+        handler: async (response) => {
+          try {
+            const { data: verifyData } = await api.post('/coin-purchase/razorpay/verify', {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            setCoinsAdded(verifyData.coinsAdded);
+            setSuccess(true);
+            toast.success(verifyData.message || `${verifyData.coinsAdded || coins} Ace Coins added!`);
+            // Update user coins in auth context if possible
+            if (setUser) {
+              setUser((prev) => prev ? { ...prev, coins: verifyData.totalCoins } : prev);
+            }
+            if (onRequestSubmitted) onRequestSubmitted();
+          } catch (e) {
+            toast.error(e.response?.data?.message || e.message || 'Payment verification failed. Contact support.');
+          } finally {
+            setBusy(false);
+          }
+        },
       };
 
-      const { data } = await api.post('/coin-purchase', payload);
-      setSubmittedRequest(data);
-      setStep(3);
-      toast.success('Request submitted! Please upload your payment details.');
-      if (onRequestSubmitted) onRequestSubmitted();
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (response) => {
+        toast.error(`Payment failed: ${response.error?.description || 'Unknown error'}`);
+        setBusy(false);
+      });
+      rzp.open();
     } catch (e) {
-      toast.error(e.response?.data?.message || e.message || 'Submission failed');
-    } finally {
+      toast.error(e.response?.data?.message || e.message || 'Could not initiate payment. Please try again.');
       setBusy(false);
     }
-  };
-
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setScreenshotPreview(URL.createObjectURL(file));
-    setUploadingImg(true);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      const { data } = await api.post('/upload/screenshot', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setScreenshotUrl(data.url);
-      toast.success('Payment screenshot uploaded!');
-    } catch (e) {
-      toast.error('Upload failed: ' + (e.response?.data?.message || e.message));
-      setScreenshotPreview('');
-      setScreenshotUrl('');
-    } finally {
-      setUploadingImg(false);
-    }
-  };
-
-  const handleSubmitProof = async () => {
-    if (!refNumber.trim()) {
-      toast.error('Please enter the UPI/Bank Reference Number');
-      return;
-    }
-    if (!screenshotUrl) {
-      toast.error('Please upload the payment proof screenshot');
-      return;
-    }
-
-    setProofBusy(true);
-    try {
-      await api.put(`/coin-purchase/${submittedRequest._id}`, {
-        referenceNumber: refNumber.trim(),
-        screenshotUrl,
-      });
-      toast.success('Proof uploaded successfully! Admin will verify and credit your coins.');
-      if (onRequestSubmitted) onRequestSubmitted();
-      onClose();
-    } catch (e) {
-      toast.error(e.response?.data?.message || e.message || 'Failed to submit proof');
-    } finally {
-      setProofBusy(false);
-    }
-  };
-
-  const handleClose = () => {
-    if (step === 3) {
-      toast('You can add payment proof from your wallet page later.', { icon: 'ℹ️' });
-    }
-    onClose();
   };
 
   return (
@@ -178,37 +137,29 @@ export default function BuyCoinsModal({ isOpen, onClose, onRequestSubmitted, ini
               <p className="text-xs text-slate-500 font-medium">Use coins to redeem premium learning resources</p>
             </div>
           </div>
-          <button onClick={handleClose} className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400">
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400">
             <X size={18} />
           </button>
         </div>
 
-        {/* Step Indicators */}
-        <div className="flex gap-2 px-6 pt-4">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center gap-1.5 flex-1 last:flex-none">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
-                step === s
-                  ? 'bg-yellow-500 text-white shadow-md shadow-yellow-100'
-                  : step > s
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-100 text-slate-400'
-              }`}>
-                {step > s ? <Check size={11} /> : s}
-              </div>
-              <span className={`text-[11px] font-bold tracking-tight whitespace-nowrap ${
-                step === s ? 'text-yellow-600' : step > s ? 'text-emerald-600' : 'text-slate-400'
-              }`}>
-                {s === 1 ? 'Choose Pack' : s === 2 ? 'Submit Request' : 'Upload Proof'}
-              </span>
-              {s < 3 && <div className={`h-0.5 flex-1 min-w-[20px] rounded-full ${step > s ? 'bg-emerald-400' : 'bg-slate-150'}`} />}
-            </div>
-          ))}
-        </div>
-
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-          {/* STEP 1: SELECT COIN PACKS */}
-          {step === 1 && (
+          {success ? (
+            /* ── Success State ── */
+            <div className="text-center space-y-4 py-4">
+              <CheckCircle className="text-emerald-500 mx-auto animate-bounce" size={48} />
+              <h3 className="text-xl font-extrabold text-slate-800">Coins Added! 🎉</h3>
+              <p className="text-slate-500 text-sm">
+                <span className="font-black text-amber-600 text-2xl">{coinsAdded}</span> Ace Coins have been credited to your account instantly.
+              </p>
+              <button
+                onClick={onClose}
+                className="w-full py-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-extrabold rounded-2xl transition cursor-pointer text-sm shadow-md hover:from-yellow-600 hover:to-amber-600"
+              >
+                Awesome! Close
+              </button>
+            </div>
+          ) : (
+            /* ── Select Pack ── */
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 {COIN_PACKAGES.map((pkg) => (
@@ -232,8 +183,11 @@ export default function BuyCoinsModal({ isOpen, onClose, onRequestSubmitted, ini
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{pkg.name}</p>
                       <h4 className="text-xl font-extrabold text-slate-800 mt-1 flex items-center gap-1 font-display">
-                        <Coins size={16} className="text-amber-500 group-hover:animate-bounce" /> {pkg.coins}
+                        <Coins size={16} className="text-amber-500 group-hover:animate-bounce" /> {pkg.coins + pkg.bonus}
                       </h4>
+                      {pkg.bonus > 0 && (
+                        <p className="text-[10px] font-black text-emerald-600 mt-0.5">+{pkg.bonus} bonus coins</p>
+                      )}
                     </div>
                     <span className="text-sm font-bold text-slate-600 mt-auto">₹{pkg.price}</span>
                   </button>
@@ -272,204 +226,33 @@ export default function BuyCoinsModal({ isOpen, onClose, onRequestSubmitted, ini
                     </div>
                   </div>
                 )}
+                {isCustomSelected && getBonusCoins(getBaseCoinsCount()) > 0 && (
+                  <p className="text-[10px] font-bold text-emerald-600 mt-2">
+                    Bonus applied: +{getBonusCoins(getBaseCoinsCount())} extra coins
+                  </p>
+                )}
               </div>
 
-              {/* conversion helper info */}
+              {/* Info */}
               <div className="flex gap-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-500 text-xs">
                 <AlertCircle size={15} className="shrink-0 text-slate-400 mt-0.5" />
                 <p className="leading-normal font-medium">
-                  Standard conversion is <b>1 Coin = ₹1 INR</b>. You can request any number of coins (min 50) and make the equivalent payment.
+                  Payment is taken directly through Razorpay. Coins are credited <b>instantly</b> to your profile after successful payment.
                 </p>
               </div>
 
-              {/* Proceed Button */}
+              {/* Pay Button */}
               <button
-                onClick={handleNextStep}
-                disabled={getCoinsCount() < 50}
-                className="w-full py-3 bg-slate-900 hover:bg-yellow-500 hover:text-slate-950 text-white font-extrabold rounded-2xl transition cursor-pointer text-sm shadow-md"
+                onClick={handlePayWithRazorpay}
+                disabled={busy || getBaseCoinsCount() < 50}
+                className="w-full py-3 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white font-extrabold rounded-2xl transition cursor-pointer text-sm shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Proceed to Pay &bull; ₹{getPrice()}
+                {busy ? (
+                  <><Loader2 size={16} className="animate-spin" /> Processing…</>
+                ) : (
+                  <><Coins size={16} /> Pay ₹{getPrice()} &bull; Get {getCoinsCount()} Coins</>
+                )}
               </button>
-            </div>
-          )}
-
-          {/* STEP 2: BANK TRANSFER DETAILS & CONTACT INFO */}
-          {step === 2 && (
-            <div className="space-y-4">
-              {/* Back & Amount Summary */}
-              <div className="flex items-center justify-between">
-                <button onClick={() => setStep(1)} className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-700">
-                  <ArrowLeft size={13} /> Back
-                </button>
-                <div className="text-right">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Purchase Amount</span>
-                  <div className="text-sm font-black text-slate-800">
-                    {getCoinsCount()} Coins = <span className="text-yellow-600 font-extrabold">₹{getPrice()}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bank Details */}
-              <div className="border border-yellow-100 rounded-2xl p-4 space-y-2.5 bg-yellow-50/30">
-                <div className="flex items-center gap-2 mb-1">
-                  <Building2 size={15} className="text-yellow-600" />
-                  <h3 className="text-xs font-black text-yellow-800 uppercase tracking-wide">Pay To Our Account</h3>
-                </div>
-                {Object.entries(BANK_DETAILS).map(([key, val]) => {
-                  const labels = { beneficiary: 'Beneficiary', bankName: 'Bank Name', accountNumber: 'Account Number', bicCode: 'BIC Code', accountType: 'Account Type', bankAddress: 'Bank Address' };
-                  return (
-                    <div key={key} className="flex items-start justify-between gap-3 text-xs border-b border-slate-100/50 pb-1.5 last:border-0 last:pb-0">
-                      <div className="min-w-0">
-                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{labels[key]}</p>
-                        <p className="font-semibold text-slate-700 break-all font-mono leading-tight">{val}</p>
-                      </div>
-                      <button onClick={() => copyToClipboard(val, key)} className="p-1 rounded-lg hover:bg-yellow-100 text-slate-400 shrink-0">
-                        {copied === key ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* User Fields */}
-              <div className="space-y-3 pt-1">
-                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Your Billing Contact Details</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] text-slate-500 font-semibold block mb-1">Name *</label>
-                    <input
-                      type="text"
-                      value={studentName}
-                      onChange={(e) => setStudentName(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-yellow-400 font-medium"
-                      placeholder="Billing Name"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-500 font-semibold block mb-1">Phone / WhatsApp *</label>
-                    <input
-                      type="tel"
-                      value={studentPhone}
-                      onChange={(e) => setStudentPhone(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-yellow-400 font-medium"
-                      placeholder="10-digit Phone"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-500 font-semibold block mb-1">Email *</label>
-                  <input
-                    type="email"
-                    value={studentEmail}
-                    onChange={(e) => setStudentEmail(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-yellow-400 font-medium"
-                    placeholder="Email Address"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-500 font-semibold block mb-1">Notes (Optional)</label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows="2"
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-yellow-400 font-medium resize-none"
-                    placeholder="E.g., Sent via GPay"
-                  />
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                onClick={handleSubmitRequest}
-                disabled={busy}
-                className="w-full py-3 bg-slate-900 hover:bg-yellow-500 hover:text-slate-950 text-white font-extrabold rounded-2xl transition cursor-pointer text-sm shadow-md flex items-center justify-center gap-1.5"
-              >
-                {busy ? <Loader2 size={16} className="animate-spin" /> : 'Submit & Add Proof'}
-              </button>
-            </div>
-          )}
-
-          {/* STEP 3: UPLOAD TRANSACTION PROOF */}
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center">
-                <CheckCircle className="text-emerald-500 mx-auto mb-2 animate-bounce" size={32} />
-                <h3 className="text-sm font-bold text-slate-800">Request Submitted Successfully!</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">Please provide your transfer proof to finalize the request.</p>
-              </div>
-
-              {/* Request ID Tag */}
-              <div className="flex justify-between text-xs font-medium">
-                <span className="text-slate-500">Request ID</span>
-                <span className="font-mono font-bold text-slate-700">{submittedRequest?._id}</span>
-              </div>
-
-              {/* Reference ID input */}
-              <div>
-                <label className="text-[10px] text-slate-500 font-bold block mb-1">UPI / BANK TRANSACTION REFERENCE NUMBER *</label>
-                <input
-                  type="text"
-                  value={refNumber}
-                  onChange={(e) => setRefNumber(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-yellow-400 font-semibold"
-                  placeholder="E.g., UPI Ref 123456789012"
-                />
-              </div>
-
-              {/* File Upload Box */}
-              <div>
-                <label className="text-[10px] text-slate-500 font-bold block mb-1.5">UPLOAD PAYMENT RECEIPT SCREENSHOT *</label>
-                <div
-                  onClick={() => fileRef.current?.click()}
-                  className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center cursor-pointer hover:border-yellow-400 transition bg-slate-50/50 hover:bg-yellow-50/10 flex flex-col items-center justify-center min-h-[140px] relative overflow-hidden group"
-                >
-                  {screenshotPreview ? (
-                    <>
-                      <img src={screenshotPreview} alt="Receipt preview" className="max-h-[120px] max-w-full rounded-lg object-contain shadow-sm" />
-                      {uploadingImg && (
-                        <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                          <Loader2 className="animate-spin text-yellow-600" size={24} />
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2 bg-slate-900/60 p-1 rounded-full text-white hover:bg-slate-900 transition opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); setScreenshotPreview(''); setScreenshotUrl(''); }}>
-                        <X size={12} />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center mb-2 group-hover:bg-yellow-100 group-hover:text-yellow-600 transition">
-                        <Upload size={18} />
-                      </div>
-                      <p className="text-xs font-bold text-slate-700">Click to upload screenshot</p>
-                      <p className="text-[10px] text-slate-400 mt-1 font-medium">JPEG, PNG up to 5MB</p>
-                    </>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  ref={fileRef}
-                  onChange={handleFileChange}
-                  accept="image/*"
-                  className="hidden"
-                />
-              </div>
-
-              {/* Buttons */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={handleClose}
-                  className="py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition cursor-pointer text-center"
-                >
-                  Skip & Pay Later
-                </button>
-                <button
-                  onClick={handleSubmitProof}
-                  disabled={proofBusy || uploadingImg || !screenshotUrl}
-                  className="py-2.5 bg-slate-900 hover:bg-yellow-500 hover:text-slate-950 text-white font-extrabold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:border-0"
-                >
-                  {proofBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Submit Proof
-                </button>
-              </div>
             </div>
           )}
         </div>

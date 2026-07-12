@@ -24,6 +24,21 @@ const mentorshipSettingSchema = new mongoose.Schema(
       type: [String],
       default: [],
     }, // Array of slot strings: ['10:00 AM - 11:00 AM', '02:00 PM - 03:00 PM']
+    mentorshipMonthlyLimit: {
+      type: Number,
+      default: 2,
+      min: 0,
+    },
+    doubtMonthlyLimit: {
+      type: Number,
+      default: 4,
+      min: 0,
+    },
+    doubtWeeklyLimit: {
+      type: Number,
+      default: 1,
+      min: 0,
+    },
   },
   { timestamps: true }
 );

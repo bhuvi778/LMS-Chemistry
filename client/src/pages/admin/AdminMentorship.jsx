@@ -21,7 +21,52 @@ import {
   Check
 } from 'lucide-react';
 
-export default function AdminMentorship() {
+const DEFAULT_LIMITS = {
+  mentorshipMonthlyLimit: 2,
+  doubtMonthlyLimit: 4,
+  doubtWeeklyLimit: 1,
+};
+
+const formatTimeForSlot = (value) => {
+  if (!value) return '';
+  const [hourRaw, minute = '00'] = value.split(':');
+  let hour = Number(hourRaw);
+  if (!Number.isFinite(hour)) return '';
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12 || 12;
+  return `${hour}:${minute.padStart(2, '0')} ${period}`;
+};
+
+const timeToMinutes = (value) => {
+  if (!value) return null;
+  const [hour, minute = '0'] = value.split(':').map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return hour * 60 + minute;
+};
+
+const displayTimeToInput = (value = '') => {
+  const match = String(value).trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!match) return '';
+  let hour = Number(match[1]);
+  const minute = Number(match[2] || 0);
+  const period = match[3]?.toUpperCase();
+  if (period === 'PM' && hour < 12) hour += 12;
+  if (period === 'AM' && hour === 12) hour = 0;
+  if (!period && hour > 23) return '';
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+};
+
+const parseSlotToTimes = (slot = '') => {
+  const parts = String(slot).split(/\s*(?:-|to|To|TO)\s*/).filter(Boolean);
+  return {
+    start: displayTimeToInput(parts[0] || ''),
+    end: displayTimeToInput(parts[1] || ''),
+  };
+};
+
+const buildTimeSlot = (start, end) => `${formatTimeForSlot(start)} - ${formatTimeForSlot(end)}`;
+
+export default function AdminSession() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Pending'); // 'Pending', 'Scheduled', 'Completed', 'Cancelled', 'Settings'
@@ -38,8 +83,12 @@ export default function AdminMentorship() {
   const [enabled, setEnabled] = useState(true);
   const [availableDates, setAvailableDates] = useState([]);
   const [availableSlots, setAvailableSlots] = useState([]);
+  const [mentorshipMonthlyLimit, setSessionMonthlyLimit] = useState(DEFAULT_LIMITS.mentorshipMonthlyLimit);
+  const [doubtMonthlyLimit, setDoubtMonthlyLimit] = useState(DEFAULT_LIMITS.doubtMonthlyLimit);
+  const [doubtWeeklyLimit, setDoubtWeeklyLimit] = useState(DEFAULT_LIMITS.doubtWeeklyLimit);
   const [dateInput, setDateInput] = useState('');
-  const [slotInput, setSlotInput] = useState('');
+  const [slotStartTime, setSlotStartTime] = useState('10:00');
+  const [slotEndTime, setSlotEndTime] = useState('11:00');
 
   // Modals state
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -49,7 +98,9 @@ export default function AdminMentorship() {
   const [mentorName, setMentorName] = useState('');
   const [meetingLink, setMeetingLink] = useState('');
   const [sessionDate, setSessionDate] = useState('');
-  const [sessionSlot, setSessionSlot] = useState('');
+  const [scheduleStartTime, setScheduleStartTime] = useState('10:00');
+  const [scheduleEndTime, setScheduleEndTime] = useState('11:00');
+  const [createLiveClass, setCreateLiveClass] = useState(false);
 
   // Complete session form states
   const [showCompleteModal, setShowCompleteModal] = useState(false);
@@ -88,8 +139,12 @@ export default function AdminMentorship() {
     setEnabled(setting.enabled);
     setAvailableDates(setting.availableDates || []);
     setAvailableSlots(setting.availableSlots || []);
+    setSessionMonthlyLimit(setting.mentorshipMonthlyLimit ?? DEFAULT_LIMITS.mentorshipMonthlyLimit);
+    setDoubtMonthlyLimit(setting.doubtMonthlyLimit ?? DEFAULT_LIMITS.doubtMonthlyLimit);
+    setDoubtWeeklyLimit(setting.doubtWeeklyLimit ?? DEFAULT_LIMITS.doubtWeeklyLimit);
     setDateInput('');
-    setSlotInput('');
+    setSlotStartTime('10:00');
+    setSlotEndTime('11:00');
     setShowSettingsModal(true);
   };
 
@@ -100,8 +155,12 @@ export default function AdminMentorship() {
     setEnabled(true);
     setAvailableDates([]);
     setAvailableSlots([]);
+    setSessionMonthlyLimit(DEFAULT_LIMITS.mentorshipMonthlyLimit);
+    setDoubtMonthlyLimit(DEFAULT_LIMITS.doubtMonthlyLimit);
+    setDoubtWeeklyLimit(DEFAULT_LIMITS.doubtWeeklyLimit);
     setDateInput('');
-    setSlotInput('');
+    setSlotStartTime('10:00');
+    setSlotEndTime('11:00');
     setShowSettingsModal(true);
   };
 
@@ -128,9 +187,12 @@ export default function AdminMentorship() {
         targetId,
         enabled,
         availableDates,
-        availableSlots
+        availableSlots,
+        mentorshipMonthlyLimit: Number(mentorshipMonthlyLimit) || 0,
+        doubtMonthlyLimit: Number(doubtMonthlyLimit) || 0,
+        doubtWeeklyLimit: Number(doubtWeeklyLimit) || 0
       });
-      toast.success('Mentorship availability settings saved successfully! 💾');
+      toast.success('Session availability settings saved successfully! 💾');
       setShowSettingsModal(false);
       fetchSettingsData();
     } catch (err) {
@@ -160,13 +222,20 @@ export default function AdminMentorship() {
   };
 
   const handleAddSlot = () => {
-    if (!slotInput.trim()) return;
-    if (availableSlots.includes(slotInput.trim())) {
+    if (!slotStartTime || !slotEndTime) {
+      toast.error('Please select both start and end time');
+      return;
+    }
+    if (timeToMinutes(slotEndTime) <= timeToMinutes(slotStartTime)) {
+      toast.error('End time must be after start time');
+      return;
+    }
+    const slot = buildTimeSlot(slotStartTime, slotEndTime);
+    if (availableSlots.includes(slot)) {
       toast.error('Time slot already added');
       return;
     }
-    setAvailableSlots(prev => [...prev, slotInput.trim()]);
-    setSlotInput('');
+    setAvailableSlots(prev => [...prev, slot]);
   };
 
   const handleRemoveDate = (date) => {
@@ -199,7 +268,7 @@ export default function AdminMentorship() {
       const res = await api.get('/ace-track/mentorship');
       setBookings(res.data);
     } catch (error) {
-      toast.error('Failed to load mentorship requests');
+      toast.error('Failed to load 1:1 session requests');
       console.error(error);
     } finally {
       setLoading(false);
@@ -209,34 +278,45 @@ export default function AdminMentorship() {
   const handleOpenSchedule = (booking) => {
     setSelectedBooking(booking);
     setMentorName(booking.mentorName || 'Admin Mentor');
-    setMeetingLink(booking.meetingLink || '');
+    const existingLink = booking.meetingLink || '';
+    const hasInternalLiveLink = existingLink.startsWith('/live/');
+    setMeetingLink(hasInternalLiveLink ? '' : existingLink);
+    setCreateLiveClass(!!booking.liveClass || hasInternalLiveLink);
     setSessionDate(new Date(booking.preferredDate).toISOString().split('T')[0]);
-    setSessionSlot(booking.preferredTimeSlot);
+    const parsedSlot = parseSlotToTimes(booking.preferredTimeSlot);
+    setScheduleStartTime(parsedSlot.start || '10:00');
+    setScheduleEndTime(parsedSlot.end || '11:00');
     setShowScheduleModal(true);
   };
 
   const handleScheduleSubmit = async (e) => {
     e.preventDefault();
-    if (!mentorName || !sessionDate || !sessionSlot) {
+    if (!mentorName || !sessionDate || !scheduleStartTime || !scheduleEndTime) {
       toast.error('Please enter mentor name, date and time slot');
       return;
     }
+    if (timeToMinutes(scheduleEndTime) <= timeToMinutes(scheduleStartTime)) {
+      toast.error('End time must be after start time');
+      return;
+    }
+    const finalSessionSlot = buildTimeSlot(scheduleStartTime, scheduleEndTime);
 
     try {
       await api.put(`/ace-track/mentorship/${selectedBooking._id}`, {
         status: 'Scheduled',
         mentorName,
         meetingLink,
+        createLiveClass,
         preferredDate: sessionDate,
-        preferredTimeSlot: sessionSlot
+        preferredTimeSlot: finalSessionSlot
       });
 
-      toast.success('Mentorship session scheduled! 📅');
+      toast.success('Session scheduled! 📅');
       setShowScheduleModal(false);
       setSelectedBooking(null);
       fetchBookings();
     } catch (error) {
-      toast.error('Failed to schedule session');
+      toast.error(error.response?.data?.message || 'Failed to schedule session');
     }
   };
 
@@ -277,10 +357,10 @@ export default function AdminMentorship() {
   };
 
   const handleDeleteBooking = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this mentorship booking session request? This action cannot be undone.')) return;
+    if (!window.confirm('Are you sure you want to delete this session booking session request? This action cannot be undone.')) return;
     try {
       await api.delete(`/ace-track/mentorship/${id}`);
-      toast.success('Mentorship booking deleted successfully');
+      toast.success('Session booking deleted successfully');
       fetchBookings();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to delete booking');
@@ -296,7 +376,7 @@ export default function AdminMentorship() {
         <div className="flex items-center gap-3">
           <Users className="text-indigo-600 w-8 h-8" />
           <div>
-            <h1 className="text-sm font-black text-slate-800">1:1 Mentorship Requests Manager</h1>
+            <h1 className="text-sm font-black text-slate-800">1:1 Session Requests Manager</h1>
             <p className="text-[11px] text-slate-400">Schedule mentor slots, write notes, and review ratings</p>
           </div>
         </div>
@@ -334,7 +414,7 @@ export default function AdminMentorship() {
         <div className="space-y-6">
           <div className="flex justify-between items-center bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
             <div>
-              <h3 className="text-xs font-black text-slate-850">Mentorship Slots Configuration</h3>
+              <h3 className="text-xs font-black text-slate-850">1:1 Session Slots Configuration</h3>
               <p className="text-[10px] text-slate-400">Set active booking dates & slots globally, or override them per course/category.</p>
             </div>
             <button
@@ -354,6 +434,7 @@ export default function AdminMentorship() {
                   <tr>
                     <th className="p-4">Target Scope</th>
                     <th className="p-4">Status</th>
+                    <th className="p-4">Session Limits</th>
                     <th className="p-4">Available Dates</th>
                     <th className="p-4">Available Slots</th>
                     <th className="p-4 text-right">Actions</th>
@@ -378,6 +459,10 @@ export default function AdminMentorship() {
                           }`}>
                             {setting.enabled ? 'Bookings Open' : 'Bookings Closed'}
                           </span>
+                        </td>
+                        <td className="p-4 text-slate-500 font-medium leading-relaxed">
+                          <div>Session: {setting.mentorshipMonthlyLimit ?? DEFAULT_LIMITS.mentorshipMonthlyLimit}/month</div>
+                          <div>Doubt: {setting.doubtMonthlyLimit ?? DEFAULT_LIMITS.doubtMonthlyLimit}/month, {setting.doubtWeeklyLimit ?? DEFAULT_LIMITS.doubtWeeklyLimit}/week</div>
                         </td>
                         <td className="p-4 text-slate-500 font-medium">
                           {setting.availableDates?.length || 0} dates configured
@@ -408,8 +493,8 @@ export default function AdminMentorship() {
                   })}
                   {settingsList.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="py-8 text-center text-slate-400">
-                        No mentorship settings configured yet.
+                      <td colSpan="6" className="py-8 text-center text-slate-400">
+                        No 1:1 session settings configured yet.
                       </td>
                     </tr>
                   )}
@@ -426,7 +511,7 @@ export default function AdminMentorship() {
             <div className="bg-white border border-slate-200 border-dashed rounded-2xl p-10 text-center flex flex-col items-center justify-center">
               <Users className="text-slate-300 w-12 h-12 mb-3" />
               <h3 className="text-xs font-bold text-slate-600">No Sessions Found</h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">There are no mentorship sessions in this tab.</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">There are no 1:1 sessions in this tab.</p>
             </div>
           ) : (
             <div className="grid gap-6">
@@ -435,6 +520,7 @@ export default function AdminMentorship() {
               const studentEmail = booking.student?.email || '';
               const studentId = booking.student?.studentId || '';
               const studentPhone = booking.student?.phone || '';
+              const sessionLabel = booking.sessionType === 'doubt' ? '1:1 Doubt' : '1:1 Session';
               const preferredDateStr = new Date(booking.preferredDate).toLocaleDateString('en-IN', {
                 weekday: 'short',
                 year: 'numeric',
@@ -466,7 +552,12 @@ export default function AdminMentorship() {
 
                   {/* Booking content: Focus Topic */}
                   <div className="space-y-2">
-                    <div className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">Subject & Doubt Details</div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] font-black uppercase tracking-wider">
+                        {sessionLabel}
+                      </span>
+                      <div className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">Subject & Details</div>
+                    </div>
                     <div className="text-xs font-bold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-150/40">
                       Topic: {booking.subject}
                     </div>
@@ -516,6 +607,9 @@ export default function AdminMentorship() {
                         <div className="grid sm:grid-cols-2 gap-2 text-[11px] text-slate-700">
                           <div><span className="font-bold">Mentor Name:</span> {booking.mentorName}</div>
                           <div><span className="font-bold">Meeting Link:</span> {booking.meetingLink ? <a href={booking.meetingLink} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-bold inline-flex items-center gap-0.5">Join Call <ExternalLink size={10} /></a> : 'None Added'}</div>
+                          {booking.liveClass && (
+                            <div className="sm:col-span-2"><span className="font-bold">Live Class:</span> Created in Live Classes panel</div>
+                          )}
                         </div>
                       </div>
 
@@ -624,7 +718,10 @@ export default function AdminMentorship() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-3xl p-6 w-full max-w-md border border-slate-200 shadow-2xl animate-fade-in space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-black text-slate-800">Schedule Mentorship Call</h3>
+              <div>
+                <h3 className="text-sm font-black text-slate-800">Schedule {selectedBooking.sessionType === 'doubt' ? '1:1 Doubt' : 'Session'} Call</h3>
+                <p className="text-[10px] text-slate-400 mt-0.5">Add a Meet/Zoom link, or optionally create an in-app live room.</p>
+              </div>
               <button 
                 onClick={() => { setShowScheduleModal(false); setSelectedBooking(null); }}
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 cursor-pointer"
@@ -653,9 +750,31 @@ export default function AdminMentorship() {
                   placeholder="https://meet.google.com/..."
                   value={meetingLink}
                   onChange={(e) => setMeetingLink(e.target.value)}
+                  disabled={createLiveClass}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700"
                 />
+                {createLiveClass && (
+                  <p className="text-[10px] font-semibold text-indigo-500">An in-app room link will be generated after saving.</p>
+                )}
               </div>
+
+              <label className="flex items-start gap-2 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-3 text-xs text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={createLiveClass}
+                  onChange={(e) => {
+                    setCreateLiveClass(e.target.checked);
+                    if (e.target.checked) setMeetingLink('');
+                  }}
+                  className="mt-0.5 rounded border-indigo-200 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>
+                  <span className="block font-black text-slate-800">Create in-app live room</span>
+                  <span className="mt-0.5 block text-[10px] font-semibold text-slate-500">
+                    Use this only when you want the session to appear in Live Classes and generate an Ace2Examz room link.
+                  </span>
+                </span>
+              </label>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -670,15 +789,33 @@ export default function AdminMentorship() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Time Slot</label>
+                  <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">From Time</label>
                   <input
-                    type="text"
+                    type="time"
                     required
-                    placeholder="e.g. 10:00 AM - 11:00 AM"
-                    value={sessionSlot}
-                    onChange={(e) => setSessionSlot(e.target.value)}
+                    value={scheduleStartTime}
+                    onChange={(e) => setScheduleStartTime(e.target.value)}
                     className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">To Time</label>
+                  <input
+                    type="time"
+                    required
+                    value={scheduleEndTime}
+                    onChange={(e) => setScheduleEndTime(e.target.value)}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Final Slot</label>
+                  <div className="w-full px-4 py-2 rounded-xl border border-indigo-100 bg-indigo-50 text-xs font-black text-indigo-700 min-h-[38px] flex items-center">
+                    {scheduleStartTime && scheduleEndTime ? buildTimeSlot(scheduleStartTime, scheduleEndTime) : 'Select time'}
+                  </div>
                 </div>
               </div>
 
@@ -766,7 +903,7 @@ export default function AdminMentorship() {
           <div className="bg-white rounded-3xl p-6 w-full max-w-lg border border-slate-200 shadow-2xl animate-fade-in space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-black text-slate-800">
-                {editingSettingId ? 'Edit Mentorship Availability' : 'Create Custom Availability Override'}
+                {editingSettingId ? 'Edit 1:1 Session Availability' : 'Create Custom Availability Override'}
               </h3>
               <button 
                 onClick={() => setShowSettingsModal(false)}
@@ -830,7 +967,7 @@ export default function AdminMentorship() {
               <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-150/50">
                 <div>
                   <span className="text-xs font-bold text-slate-800 block">Open for Bookings</span>
-                  <span className="text-[10px] text-slate-400 leading-normal">If disabled, students will see mentorship as closed/unavailable for this scope.</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">If disabled, students will see session as closed/unavailable for this scope.</span>
                 </div>
                 <button
                   type="button"
@@ -839,6 +976,39 @@ export default function AdminMentorship() {
                 >
                   <span className={`w-4 h-4 rounded-full bg-white transition-transform absolute ${enabled ? 'right-1' : 'left-1'}`} />
                 </button>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">1:1 Session / Month</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={mentorshipMonthlyLimit}
+                    onChange={(e) => setSessionMonthlyLimit(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Doubt / Month</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={doubtMonthlyLimit}
+                    onChange={(e) => setDoubtMonthlyLimit(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Doubt / Week</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={doubtWeeklyLimit}
+                    onChange={(e) => setDoubtWeeklyLimit(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700"
+                  />
+                </div>
               </div>
 
               {/* Dates Input Section */}
@@ -875,22 +1045,35 @@ export default function AdminMentorship() {
               {/* Time Slots Input Section */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Available Time Slots</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="e.g. 10:00 AM - 11:00 AM or 4:00 PM"
-                    value={slotInput}
-                    onChange={(e) => setSlotInput(e.target.value)}
-                    className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-700"
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSlot(); } }}
-                  />
+                <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_auto] gap-2">
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">From</span>
+                    <input
+                      type="time"
+                      value={slotStartTime}
+                      onChange={(e) => setSlotStartTime(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-700"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">To</span>
+                    <input
+                      type="time"
+                      value={slotEndTime}
+                      onChange={(e) => setSlotEndTime(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-700"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={handleAddSlot}
-                    className="px-4 py-2.5 bg-slate-950 hover:bg-slate-850 text-white text-xs font-bold rounded-xl shrink-0 cursor-pointer transition"
+                    className="col-span-2 sm:col-span-1 sm:self-end px-4 py-2.5 bg-slate-950 hover:bg-slate-850 text-white text-xs font-bold rounded-xl shrink-0 cursor-pointer transition"
                   >
                     + Add Slot
                   </button>
+                </div>
+                <div className="rounded-xl bg-slate-50 border border-slate-150 px-3 py-2 text-[11px] font-bold text-slate-500">
+                  Preview: <span className="text-indigo-700">{slotStartTime && slotEndTime ? buildTimeSlot(slotStartTime, slotEndTime) : 'Select from and to time'}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-2 min-h-[60px] max-h-[100px] overflow-y-auto p-2 border border-dashed border-slate-200 rounded-xl bg-slate-50/40">
                   {availableSlots.map(slot => (

@@ -149,7 +149,7 @@ export default function MyTestSeries() {
                     >
                       Explore & Take Tests
                     </Link>
-                    {e.paymentId && e.paymentId !== 'FREE' && !e.paymentId?.startsWith('FREE_') && (
+                    {e.paymentId && (
                       <button
                         onClick={() => downloadInvoice(e.paymentId)}
                         className="w-full flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-brand-700 transition py-2 border border-slate-200 rounded-2xl hover:bg-slate-50"

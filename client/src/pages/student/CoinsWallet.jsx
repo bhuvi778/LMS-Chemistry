@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Coins, ArrowUpRight, ArrowDownRight, Gift, Trophy, ShieldQuestion } from 'lucide-react';
+import { Coins, ArrowUpRight, ArrowDownRight, Gift, Trophy, ShieldQuestion, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/client.js';
@@ -14,7 +14,6 @@ export default function CoinsWallet() {
   const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showBuyModal, setShowBuyModal] = useState(false);
-  const [selectedRequestForProof, setSelectedRequestForProof] = useState(null);
 
   const fetchWalletData = () => {
     setLoadingHistory(true);
@@ -45,6 +44,20 @@ export default function CoinsWallet() {
   useEffect(() => {
     fetchWalletData();
   }, []);
+
+  const downloadCoinInvoice = async (purchaseId) => {
+    try {
+      const resp = await api.get(`/coin-purchase/invoice/${purchaseId}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ace-coins-invoice-${purchaseId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Invoice not available');
+    }
+  };
 
   // Generate dynamic transaction history based on actual user events
   const history = [];
@@ -218,7 +231,6 @@ export default function CoinsWallet() {
               <p className="text-xs opacity-75">Conversion rate: 1 Coin = ₹1 💰</p>
               <button
                 onClick={() => {
-                  setSelectedRequestForProof(null);
                   setShowBuyModal(true);
                 }}
                 className="bg-white hover:bg-slate-50 text-amber-700 font-extrabold text-xs px-4 py-2 rounded-xl transition shadow-sm hover:scale-[1.02] cursor-pointer"
@@ -282,10 +294,10 @@ export default function CoinsWallet() {
             </div>
           </div>
 
-          {/* Coin Purchase Requests Status Tracker */}
+          {/* Coin Purchase Details */}
           <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
             <h3 className="font-display font-extrabold text-slate-800 text-base border-b border-slate-50 pb-3 flex items-center justify-between">
-              <span>Coin Purchase Requests</span>
+              <span>Purchase Details</span>
               <span className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 uppercase tracking-wide">
                 {purchaseRequests.length} Total
               </span>
@@ -293,7 +305,7 @@ export default function CoinsWallet() {
             <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
               {purchaseRequests.length === 0 ? (
                 <div className="text-center py-6 text-xs text-slate-400 font-medium">
-                  No coin purchase requests submitted yet.
+                  No coin purchases yet.
                 </div>
               ) : (
                 purchaseRequests.map((req) => (
@@ -301,8 +313,13 @@ export default function CoinsWallet() {
                     <div className="flex justify-between items-start gap-2">
                       <div>
                         <span className="text-xs font-black text-slate-800">+{req.coinsRequested} Ace Coins</span>
+                        {req.bonusCoins > 0 && (
+                          <p className="text-[9px] text-emerald-600 font-black mt-0.5">
+                            Includes +{req.bonusCoins} bonus coins
+                          </p>
+                        )}
                         <p className="text-[9px] text-slate-400 font-semibold mt-0.5">
-                          Requested on {new Date(req.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          Purchased on {new Date(req.processedAt || req.updatedAt || req.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
                       <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
@@ -317,23 +334,24 @@ export default function CoinsWallet() {
                     </div>
 
                     <div className="flex justify-between items-center text-[10px] text-slate-500 font-semibold mt-1">
-                      <span>Amount: ₹{req.amountPaid}</span>
+                      <span>Paid: ₹{req.amountPaid}</span>
                       {req.referenceNumber ? (
-                        <span className="font-mono text-slate-400">Ref: {req.referenceNumber}</span>
-                      ) : (
-                        req.status === 'pending' && (
-                          <button
-                            onClick={() => {
-                              setSelectedRequestForProof(req);
-                              setShowBuyModal(true);
-                            }}
-                            className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
-                          >
-                            + Upload Proof
-                          </button>
-                        )
-                      )}
+                        <span className="font-mono text-slate-400">Pay: {req.referenceNumber}</span>
+                      ) : null}
                     </div>
+                    {req.razorpayOrderId && (
+                      <div className="text-[9px] text-slate-400 font-mono truncate">
+                        Order: {req.razorpayOrderId}
+                      </div>
+                    )}
+                    {req.status === 'approved' && (
+                      <button
+                        onClick={() => downloadCoinInvoice(req._id)}
+                        className="mt-1.5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold text-slate-600 transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700"
+                      >
+                        <Download size={12} /> Download Invoice
+                      </button>
+                    )}
                     {req.adminNote && (
                       <div className="mt-1.5 p-2 rounded-xl bg-slate-100 border border-slate-200/50 text-[10px] text-slate-600 font-medium">
                         <span className="font-bold text-slate-700">Admin Note:</span> {req.adminNote}
@@ -451,9 +469,7 @@ export default function CoinsWallet() {
         isOpen={showBuyModal}
         onClose={() => {
           setShowBuyModal(false);
-          setSelectedRequestForProof(null);
         }}
-        initialRequest={selectedRequestForProof}
         onRequestSubmitted={fetchWalletData}
       />
     </div>
