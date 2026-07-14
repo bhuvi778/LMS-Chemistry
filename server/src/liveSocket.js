@@ -4,6 +4,7 @@ import LiveClass from './models/LiveClass.js';
 import User from './models/User.js';
 import Enrollment from './models/Enrollment.js';
 import ChatMessage from './models/ChatMessage.js';
+import MentorshipBooking from './models/MentorshipBooking.js';
 
 /**
  * Mesh-style WebRTC signaling.
@@ -62,10 +63,41 @@ export function attachLiveSocket(server) {
         if (lc.roomPasscode && passcode !== lc.roomPasscode && socket.user.role !== 'admin') {
           return ack?.({ error: 'Invalid passcode' });
         }
-        // Enrollment check for non-admin viewers
-        if (socket.user.role !== 'admin' && lc.course) {
-          const enrolled = await Enrollment.exists({ student: socket.user._id, course: lc.course });
-          if (!enrolled) return ack?.({ error: 'You are not enrolled in this course' });
+        // Access check for non-admin viewers. Private 1:1 rooms require
+        // explicit student assignment; normal rooms use course enrollment.
+        if (socket.user.role !== 'admin') {
+          let allowedStudentIds = (lc.allowedStudents || []).map((studentId) => studentId.toString());
+          if (allowedStudentIds.length === 0) {
+            const mentorshipBooking = await MentorshipBooking.findOne({ liveClass: lc._id }).select('student');
+            if (mentorshipBooking?.student) {
+              allowedStudentIds = [mentorshipBooking.student.toString()];
+              lc.allowedStudents = [mentorshipBooking.student];
+              lc.sourceType = 'mentorship';
+              lc.sourceRef = mentorshipBooking._id;
+              lc.sourceModel = 'MentorshipBooking';
+              await lc.save();
+            }
+          }
+          if (allowedStudentIds.length > 0) {
+            if (!allowedStudentIds.includes(socket.user._id)) {
+              return ack?.({ error: 'This 1:1 session is assigned to another student' });
+            }
+          } else {
+            const courseIds = [];
+            if (lc.course) courseIds.push(lc.course);
+            if (lc.courses && lc.courses.length > 0) {
+              lc.courses.forEach((courseId) => {
+                const cid = courseId.toString();
+                if (!courseIds.map((item) => item.toString()).includes(cid)) {
+                  courseIds.push(courseId);
+                }
+              });
+            }
+            if (courseIds.length > 0) {
+              const enrolled = await Enrollment.exists({ student: socket.user._id, course: { $in: courseIds } });
+              if (!enrolled) return ack?.({ error: 'You are not enrolled in this course' });
+            }
+          }
         }
         // Only admins can be host
         const finalRole = role === 'host' && socket.user.role === 'admin' ? 'host' : 'viewer';

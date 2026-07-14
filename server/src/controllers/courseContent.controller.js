@@ -45,11 +45,24 @@ export const getLearningContent = asyncHandler(async (req, res) => {
       .select('-questions.correct -questions.explanation') // hide answers for student
       .lean(),
     LiveClass.find({
-      $or: [
-        { course: courseId },
-        { courses: courseId }
+      $and: [
+        {
+          $or: [
+            { course: courseId },
+            { courses: courseId },
+          ],
+        },
+        req.user.role === 'admin'
+          ? {}
+          : {
+              $or: [
+                { allowedStudents: req.user._id },
+                { allowedStudents: { $exists: false } },
+                { allowedStudents: { $size: 0 } },
+              ],
+            },
       ],
-      isActive: true
+      isActive: true,
     })
       .sort({ scheduledAt: 1 })
       .lean(),

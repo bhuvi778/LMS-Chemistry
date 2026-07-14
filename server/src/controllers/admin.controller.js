@@ -11,6 +11,7 @@ import Doubt from '../models/Doubt.js';
 import TestSeries from '../models/TestSeries.js';
 import TestSeriesEnrollment from '../models/TestSeriesEnrollment.js';
 import SystemSetting from '../models/SystemSetting.js';
+import PowerCourseProgress from '../models/PowerCourseProgress.js';
 import { notifyMany } from './notification.controller.js';
 import { signToken } from '../middleware/auth.js';
 import { sendPasswordResetEmail } from '../services/email.js';
@@ -30,19 +31,66 @@ const calculateValidityEndDate = (validitySystem) => {
   return null;
 };
 
+const openAudienceFilter = {
+  $or: [
+    { allowedStudents: { $exists: false } },
+    { allowedStudents: { $size: 0 } },
+  ],
+};
+
+const studentLiveClassAccessFilter = (studentId, courseIds = []) => ({
+  $or: [
+    { allowedStudents: studentId },
+    {
+      $and: [
+        openAudienceFilter,
+        {
+          $or: [
+            { course: null, courses: { $size: 0 } },
+            { course: { $in: courseIds } },
+            { courses: { $elemMatch: { $in: courseIds } } },
+          ],
+        },
+      ],
+    },
+  ],
+});
+
 export const stats = asyncHandler(async (_req, res) => {
-  const [students, courses, enrollments, revenueAgg, downloadSetting] = await Promise.all([
+  const [students, courses, powerBatches, enrollments, revenueAgg, enrollmentTypeAgg, downloadSetting] = await Promise.all([
     User.countDocuments({ role: 'student' }),
-    Course.countDocuments(),
+    Course.countDocuments({ isPowerCourse: { $ne: true } }),
+    Course.countDocuments({ isPowerCourse: true }),
     Enrollment.countDocuments(),
     Enrollment.aggregate([{ $group: { _id: null, total: { $sum: '$pricePaid' } } }]),
+    Enrollment.aggregate([
+      { $lookup: { from: 'courses', localField: 'course', foreignField: '_id', as: 'courseDoc' } },
+      { $unwind: { path: '$courseDoc', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: { $cond: ['$courseDoc.isPowerCourse', 'powerBatch', 'course'] },
+          enrollments: { $sum: 1 },
+          revenue: { $sum: '$pricePaid' },
+        },
+      },
+    ]),
     SystemSetting.findOne({ key: 'appDownloadsCount' }),
   ]);
+  const typeMap = enrollmentTypeAgg.reduce((acc, row) => {
+    acc[row._id || 'course'] = row;
+    return acc;
+  }, {});
   res.json({
     students,
     courses,
+    powerBatches,
+    allCourses: courses + powerBatches,
     enrollments,
+    courseEnrollments: typeMap.course?.enrollments || 0,
+    powerBatchEnrollments: typeMap.powerBatch?.enrollments || 0,
     revenue: revenueAgg[0]?.total || 0,
+    courseRevenue: typeMap.course?.revenue || 0,
+    powerBatchRevenue: typeMap.powerBatch?.revenue || 0,
     appDownloads: downloadSetting ? Number(downloadSetting.value || 0) : 0,
   });
 });
@@ -50,11 +98,36 @@ export const stats = asyncHandler(async (_req, res) => {
 export const statsDetail = asyncHandler(async (_req, res) => {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+  const courseTypeExpr = { $cond: ['$courseDoc.isPowerCourse', 'powerBatch', 'course'] };
 
-  const [enrollmentsByCat, recentEnrollments, topCourses, publishedCourses, monthlyRevenue, studentGrowth, doubtStats] = await Promise.all([
+  const [
+    enrollmentsByCat,
+    powerEnrollmentsByCat,
+    recentEnrollments,
+    recentEnrollmentsByType,
+    topCourses,
+    topPowerBatches,
+    publishedCourses,
+    publishedPowerBatches,
+    monthlyRevenue,
+    monthlyRevenueByType,
+    studentGrowth,
+    planSplit,
+    powerTypeSplit,
+    powerProgressAgg,
+    doubtStats,
+  ] = await Promise.all([
     Enrollment.aggregate([
       { $lookup: { from: 'courses', localField: 'course', foreignField: '_id', as: 'courseDoc' } },
       { $unwind: { path: '$courseDoc', preserveNullAndEmptyArrays: true } },
+      { $match: { 'courseDoc.isPowerCourse': { $ne: true } } },
+      { $group: { _id: '$courseDoc.category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]),
+    Enrollment.aggregate([
+      { $lookup: { from: 'courses', localField: 'course', foreignField: '_id', as: 'courseDoc' } },
+      { $unwind: { path: '$courseDoc', preserveNullAndEmptyArrays: true } },
+      { $match: { 'courseDoc.isPowerCourse': true } },
       { $group: { _id: '$courseDoc.category', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]),
@@ -69,6 +142,24 @@ export const statsDetail = asyncHandler(async (_req, res) => {
       { $sort: { _id: 1 } },
     ]),
     Enrollment.aggregate([
+      { $match: { createdAt: { $gte: sevenDaysAgo } } },
+      { $lookup: { from: 'courses', localField: 'course', foreignField: '_id', as: 'courseDoc' } },
+      { $unwind: { path: '$courseDoc', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: {
+            day: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            type: courseTypeExpr,
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.day': 1 } },
+    ]),
+    Enrollment.aggregate([
+      { $lookup: { from: 'courses', localField: 'course', foreignField: '_id', as: 'courseDoc' } },
+      { $unwind: { path: '$courseDoc', preserveNullAndEmptyArrays: true } },
+      { $match: { 'courseDoc.isPowerCourse': { $ne: true } } },
       { $group: { _id: '$course', enrollmentCount: { $sum: 1 }, revenue: { $sum: '$pricePaid' } } },
       { $sort: { enrollmentCount: -1 } },
       { $limit: 5 },
@@ -83,7 +174,28 @@ export const statsDetail = asyncHandler(async (_req, res) => {
         },
       },
     ]),
-    Course.countDocuments({ isPublished: true }),
+    Enrollment.aggregate([
+      { $lookup: { from: 'courses', localField: 'course', foreignField: '_id', as: 'courseDoc' } },
+      { $unwind: { path: '$courseDoc', preserveNullAndEmptyArrays: true } },
+      { $match: { 'courseDoc.isPowerCourse': true } },
+      { $group: { _id: '$course', enrollmentCount: { $sum: 1 }, revenue: { $sum: '$pricePaid' } } },
+      { $sort: { enrollmentCount: -1 } },
+      { $limit: 5 },
+      { $lookup: { from: 'courses', localField: '_id', foreignField: '_id', as: 'courseDoc' } },
+      { $unwind: { path: '$courseDoc', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          title: '$courseDoc.title',
+          category: '$courseDoc.category',
+          powerCourseType: '$courseDoc.powerCourseType',
+          powerCourseDuration: '$courseDoc.powerCourseDuration',
+          enrollmentCount: 1,
+          revenue: 1,
+        },
+      },
+    ]),
+    Course.countDocuments({ isPublished: true, isPowerCourse: { $ne: true } }),
+    Course.countDocuments({ isPublished: true, isPowerCourse: true }),
     // Monthly revenue for last 6 months
     Payment.aggregate([
       { $match: { status: 'paid', createdAt: { $gte: sixMonthsAgo } } },
@@ -96,6 +208,22 @@ export const statsDetail = asyncHandler(async (_req, res) => {
       },
       { $sort: { _id: 1 } },
     ]),
+    Enrollment.aggregate([
+      { $match: { createdAt: { $gte: sixMonthsAgo } } },
+      { $lookup: { from: 'courses', localField: 'course', foreignField: '_id', as: 'courseDoc' } },
+      { $unwind: { path: '$courseDoc', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: {
+            month: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+            type: courseTypeExpr,
+          },
+          revenue: { $sum: '$pricePaid' },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.month': 1 } },
+    ]),
     // Student growth for last 6 months
     User.aggregate([
       { $match: { role: 'student', createdAt: { $gte: sixMonthsAgo } } },
@@ -107,6 +235,55 @@ export const statsDetail = asyncHandler(async (_req, res) => {
       },
       { $sort: { _id: 1 } },
     ]),
+    Enrollment.aggregate([
+      { $lookup: { from: 'courses', localField: 'course', foreignField: '_id', as: 'courseDoc' } },
+      { $unwind: { path: '$courseDoc', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: { type: courseTypeExpr, planType: '$planType' },
+          count: { $sum: 1 },
+          revenue: { $sum: '$pricePaid' },
+        },
+      },
+      { $sort: { '_id.planType': 1 } },
+    ]),
+    Enrollment.aggregate([
+      { $lookup: { from: 'courses', localField: 'course', foreignField: '_id', as: 'courseDoc' } },
+      { $unwind: { path: '$courseDoc', preserveNullAndEmptyArrays: true } },
+      { $match: { 'courseDoc.isPowerCourse': true } },
+      {
+        $group: {
+          _id: '$courseDoc.powerCourseType',
+          count: { $sum: 1 },
+          revenue: { $sum: '$pricePaid' },
+        },
+      },
+      { $sort: { count: -1 } },
+    ]),
+    Promise.all([
+      PowerCourseProgress.countDocuments(),
+      PowerCourseProgress.aggregate([
+        {
+          $group: {
+            _id: null,
+            completedDays: { $sum: { $size: { $ifNull: ['$completedDays', []] } } },
+            activeStudents: { $addToSet: '$student' },
+          },
+        },
+      ]),
+      Enrollment.aggregate([
+        { $lookup: { from: 'courses', localField: 'course', foreignField: '_id', as: 'courseDoc' } },
+        { $unwind: { path: '$courseDoc', preserveNullAndEmptyArrays: true } },
+        { $match: { 'courseDoc.isPowerCourse': true } },
+        { $group: { _id: null, avgProgress: { $avg: '$progress' }, completed: { $sum: { $cond: [{ $gte: ['$progress', 100] }, 1, 0] } } } },
+      ]),
+    ]).then(([progressRecords, completedAgg, avgAgg]) => ({
+      progressRecords,
+      completedDays: completedAgg[0]?.completedDays || 0,
+      activeStudents: completedAgg[0]?.activeStudents?.length || 0,
+      avgProgress: Math.round(avgAgg[0]?.avgProgress || 0),
+      completedEnrollments: avgAgg[0]?.completed || 0,
+    })),
     // Doubt stats
     Promise.all([
       Doubt.countDocuments({ status: 'open' }),
@@ -117,13 +294,21 @@ export const statsDetail = asyncHandler(async (_req, res) => {
   // Fill missing days in last 7
   const dayMap = {};
   recentEnrollments.forEach((d) => { dayMap[d._id] = d.count; });
+  const dayTypeMap = {};
+  recentEnrollmentsByType.forEach((d) => {
+    dayTypeMap[d._id.day] = dayTypeMap[d._id.day] || { course: 0, powerBatch: 0 };
+    dayTypeMap[d._id.day][d._id.type] = d.count;
+  });
   const recentDays = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
     const key = d.toISOString().slice(0, 10);
+    const split = dayTypeMap[key] || { course: 0, powerBatch: 0 };
     recentDays.push({
       day: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
       count: dayMap[key] || 0,
+      course: split.course || 0,
+      powerBatch: split.powerBatch || 0,
     });
   }
 
@@ -133,12 +318,74 @@ export const statsDetail = asyncHandler(async (_req, res) => {
     revenue: m.revenue,
     count: m.count,
   }));
+  const monthlyTypeMap = {};
+  monthlyRevenueByType.forEach((m) => {
+    monthlyTypeMap[m._id.month] = monthlyTypeMap[m._id.month] || { course: { revenue: 0, count: 0 }, powerBatch: { revenue: 0, count: 0 } };
+    monthlyTypeMap[m._id.month][m._id.type] = { revenue: m.revenue, count: m.count };
+  });
+  const monthlyProductRevenue = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const key = d.toISOString().slice(0, 7);
+    const split = monthlyTypeMap[key] || { course: { revenue: 0, count: 0 }, powerBatch: { revenue: 0, count: 0 } };
+    monthlyProductRevenue.push({
+      month: d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
+      courseRevenue: split.course?.revenue || 0,
+      courseCount: split.course?.count || 0,
+      powerBatchRevenue: split.powerBatch?.revenue || 0,
+      powerBatchCount: split.powerBatch?.count || 0,
+    });
+  }
   const studentGrowthFormatted = studentGrowth.map((m) => ({
     month: new Date(m._id + '-01').toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
     count: m.count,
   }));
 
-  res.json({ enrollmentsByCat, recentDays, topCourses, publishedCourses, monthlyRevenue: monthlyRevenueFormatted, studentGrowth: studentGrowthFormatted, doubtStats });
+  const summarizePlanSplit = (type) => planSplit
+    .filter((row) => row._id.type === type)
+    .map((row) => ({
+      planType: row._id.planType || 'batch',
+      count: row.count,
+      revenue: row.revenue,
+    }));
+  const sum = (rows, key) => rows.reduce((total, row) => total + (row[key] || 0), 0);
+
+  res.json({
+    enrollmentsByCat,
+    powerEnrollmentsByCat,
+    recentDays,
+    topCourses,
+    topPowerBatches,
+    publishedCourses,
+    publishedPowerBatches,
+    monthlyRevenue: monthlyRevenueFormatted,
+    monthlyProductRevenue,
+    studentGrowth: studentGrowthFormatted,
+    courseAnalytics: {
+      published: publishedCourses,
+      categorySplit: enrollmentsByCat,
+      planSplit: summarizePlanSplit('course'),
+      topItems: topCourses,
+      enrollments: sum(summarizePlanSplit('course'), 'count'),
+      revenue: sum(summarizePlanSplit('course'), 'revenue'),
+    },
+    powerBatchAnalytics: {
+      published: publishedPowerBatches,
+      categorySplit: powerEnrollmentsByCat,
+      planSplit: summarizePlanSplit('powerBatch'),
+      typeSplit: powerTypeSplit.map((row) => ({
+        type: row._id || 'other',
+        count: row.count,
+        revenue: row.revenue,
+      })),
+      topItems: topPowerBatches,
+      enrollments: sum(summarizePlanSplit('powerBatch'), 'count'),
+      revenue: sum(summarizePlanSplit('powerBatch'), 'revenue'),
+      progress: powerProgressAgg,
+    },
+    doubtStats,
+  });
 });
 
 export const allStudents = asyncHandler(async (_req, res) => {
@@ -220,7 +467,9 @@ export const createLiveClass = asyncHandler(async (req, res) => {
   if (!body.courses || !Array.isArray(body.courses)) body.courses = [];
   // Filter out empty string course IDs
   body.courses = body.courses.filter(c => c && c !== '');
-  
+  if (!Array.isArray(body.allowedStudents)) body.allowedStudents = [];
+  body.allowedStudents = body.allowedStudents.filter(s => s && s !== '');
+
   const lc = await LiveClass.create(body);
   const link = lc.useInternalRoom ? `/live/${lc._id}` : (lc.meetLink || '');
   const notifPayload = {
@@ -243,7 +492,10 @@ export const createLiveClass = asyncHandler(async (req, res) => {
     });
   }
 
-  if (courseIds.length > 0) {
+  if (lc.allowedStudents?.length > 0) {
+    const userIds = [...new Set(lc.allowedStudents.map((studentId) => studentId.toString()))];
+    await notifyMany(userIds, notifPayload);
+  } else if (courseIds.length > 0) {
     // Linked class: notify enrolled students of those specific courses
     const enrollments = await Enrollment.find({ course: { $in: courseIds } }).select('student');
     const userIds = [...new Set(enrollments.map((e) => e.student.toString()))];
@@ -270,6 +522,11 @@ export const updateLiveClass = asyncHandler(async (req, res) => {
   if (Array.isArray(updates.courses)) {
     updates.courses = updates.courses.filter(c => c && c !== '');
   }
+  if (updates.allowedStudents !== undefined) {
+    updates.allowedStudents = Array.isArray(updates.allowedStudents)
+      ? updates.allowedStudents.filter(s => s && s !== '')
+      : [];
+  }
   Object.assign(lc, updates);
   if (req.body.courses !== undefined) {
     lc.courses = updates.courses;
@@ -295,16 +552,9 @@ export const upcomingLiveClasses = asyncHandler(async (req, res) => {
   if (req.user && req.user.role !== 'admin') {
     const myEnrolls = await Enrollment.find({ student: req.user._id }).select('course');
     const myCourseIds = myEnrolls.map((e) => e.course);
-    // Show classes that:
-    // 1. Have no linked course (open to all) — course is null AND courses array is empty
-    // 2. Are linked to a course the student is enrolled in
     query = {
       ...baseQuery,
-      $or: [
-        { course: null, courses: { $size: 0 } },
-        { course: { $in: myCourseIds } },
-        { courses: { $elemMatch: { $in: myCourseIds } } },
-      ],
+      ...studentLiveClassAccessFilter(req.user._id, myCourseIds),
     };
   }
 
@@ -322,15 +572,7 @@ export const allLiveClassesForStudent = asyncHandler(async (req, res) => {
   if (req.user && req.user.role !== 'admin') {
     const myEnrolls = await Enrollment.find({ student: req.user._id }).select('course');
     const myCourseIds = myEnrolls.map((e) => e.course);
-    courseFilter = {
-      $or: [
-        // Open classes: no linked course at all (course is null AND courses empty)
-        { course: null, courses: { $size: 0 } },
-        // Linked to courses student is enrolled in
-        { course: { $in: myCourseIds } },
-        { courses: { $elemMatch: { $in: myCourseIds } } },
-      ],
-    };
+    courseFilter = studentLiveClassAccessFilter(req.user._id, myCourseIds);
   }
 
   const now = new Date();
@@ -690,12 +932,25 @@ export const revokeStudentSessionSingle = asyncHandler(async (req, res) => {
 
 // ── Course-scoped live classes for student (Course detail page) ─
 export const liveClassesForCourse = asyncHandler(async (req, res) => {
+  const audienceFilter = req.user?.role === 'admin'
+    ? {}
+    : {
+        $or: [
+          { allowedStudents: req.user._id },
+          openAudienceFilter,
+        ],
+      };
   const list = await LiveClass.find({
-    $or: [
-      { course: req.params.courseId },
-      { courses: req.params.courseId }
+    $and: [
+      {
+        $or: [
+          { course: req.params.courseId },
+          { courses: req.params.courseId },
+        ],
+      },
+      audienceFilter,
     ],
-    isActive: true
+    isActive: true,
   })
     .populate('course', 'title category isPowerCourse powerCourseType powerCourseDuration')
     .populate('courses', 'title category isPowerCourse powerCourseType powerCourseDuration')

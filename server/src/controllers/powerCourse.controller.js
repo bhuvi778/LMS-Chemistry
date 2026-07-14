@@ -3,6 +3,100 @@ import Course from '../models/Course.js';
 import Enrollment from '../models/Enrollment.js';
 import PowerCourseProgress from '../models/PowerCourseProgress.js';
 
+const startOfDay = (value) => {
+  const date = value ? new Date(value) : new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const getRequiredTasks = (dayConfig = {}) => {
+  const tasks = [];
+  if (dayConfig.videoUrl) tasks.push('video');
+  if (dayConfig.notesUrl) tasks.push('notes');
+  if (dayConfig.quizId) tasks.push('quiz');
+  if (dayConfig.liveClassId) tasks.push('live');
+  if (dayConfig.assignmentUrl) tasks.push('assignment');
+  return tasks;
+};
+
+const getTaskSummary = (dayConfig = {}, completedTasks = []) => ([
+  { type: 'video', title: dayConfig.videoTitle || 'Watch Lecture Video', enabled: !!dayConfig.videoUrl },
+  { type: 'notes', title: dayConfig.notesTitle || 'Read Class Notes', enabled: !!dayConfig.notesUrl },
+  { type: 'quiz', title: dayConfig.quizTitle || 'Attempt Quiz', enabled: !!dayConfig.quizId },
+  { type: 'live', title: dayConfig.liveClassTitle || 'Attend Live Class', enabled: !!dayConfig.liveClassId },
+  { type: 'assignment', title: dayConfig.assignmentTitle || 'Daily Assignment', enabled: !!dayConfig.assignmentUrl },
+])
+  .filter((task) => task.enabled)
+  .map((task) => ({ ...task, completed: completedTasks.includes(task.type) }));
+
+// Dashboard-only daily targets. Plans loop forever: day 16 of a 15-day plan becomes day 1 again.
+export const getDashboardDailyTargets = asyncHandler(async (req, res) => {
+  const today = startOfDay();
+  const enrollments = await Enrollment.find({
+    student: req.user._id,
+    paymentStatus: 'paid',
+  })
+    .populate('course')
+    .sort({ createdAt: -1 });
+
+  const powerEnrollments = enrollments.filter((enrollment) => enrollment.course?.isPowerCourse);
+  if (powerEnrollments.length === 0) {
+    return res.json([]);
+  }
+
+  const progresses = await PowerCourseProgress.find({
+    student: req.user._id,
+    course: { $in: powerEnrollments.map((enrollment) => enrollment.course._id) },
+  });
+  const progressMap = new Map(progresses.map((progress) => [progress.course.toString(), progress]));
+
+  const targets = powerEnrollments.map((enrollment) => {
+    const course = enrollment.course;
+    const configuredPlan = (course.dailyPlan || [])
+      .filter((day) => day?.dayNumber)
+      .sort((a, b) => a.dayNumber - b.dayNumber);
+    const cycleLength = configuredPlan.length || course.powerCourseDuration || 1;
+    const cycleStart = startOfDay(course.startDate || enrollment.createdAt);
+    const elapsedDays = Math.max(0, Math.floor((today - cycleStart) / (24 * 60 * 60 * 1000)));
+    const cycleDayNumber = (elapsedDays % cycleLength) + 1;
+    const cycleNumber = Math.floor(elapsedDays / cycleLength) + 1;
+    const dayConfig = configuredPlan.find((day) => day.dayNumber === cycleDayNumber) || {
+      dayNumber: cycleDayNumber,
+      title: `Day ${cycleDayNumber} Target`,
+      description: '',
+      topicsCovered: [],
+      durationText: '60 min',
+    };
+    const progress = progressMap.get(course._id.toString());
+    const dayProgress = cycleNumber === 1
+      ? (progress?.dayProgress || []).find((day) => day.dayNumber === cycleDayNumber)
+      : null;
+    const completedTasks = dayProgress?.tasksCompleted || [];
+    const requiredTasks = getRequiredTasks(dayConfig);
+    const completedRequiredCount = requiredTasks.filter((task) => completedTasks.includes(task)).length;
+
+    return {
+      courseId: course._id,
+      courseTitle: course.title,
+      courseThumbnail: course.thumbnail,
+      powerCourseType: course.powerCourseType,
+      cycleLength,
+      cycleDayNumber,
+      cycleNumber,
+      title: dayConfig.title,
+      description: dayConfig.description || '',
+      durationText: dayConfig.durationText || '60 min',
+      topicsCovered: dayConfig.topicsCovered || [],
+      tasks: getTaskSummary(dayConfig, completedTasks),
+      requiredTaskCount: requiredTasks.length,
+      completedTaskCount: completedRequiredCount,
+      isCompleted: requiredTasks.length > 0 && completedRequiredCount === requiredTasks.length,
+    };
+  });
+
+  res.json(targets);
+});
+
 // Get or initialize student progress for a Power Course
 export const getStudentProgress = asyncHandler(async (req, res) => {
   const { courseId } = req.params;
@@ -101,15 +195,11 @@ export const completeStudentTask = asyncHandler(async (req, res) => {
   }
 
   // Determine what tasks are actually required for this day
-  const requiredTasks = [];
-  if (dayConfig.videoUrl) requiredTasks.push('video');
-  if (dayConfig.notesUrl) requiredTasks.push('notes');
-  if (dayConfig.quizId) requiredTasks.push('quiz');
-  if (dayConfig.liveClassId) requiredTasks.push('live');
-  if (dayConfig.assignmentUrl) requiredTasks.push('assignment');
+  const requiredTasks = getRequiredTasks(dayConfig);
 
   // Check if day is complete
   const isDayComplete = requiredTasks.every((task) => dayProg.tasksCompleted.includes(task));
+  const dayCompletedNow = isDayComplete && !progress.completedDays.includes(Number(dayNumber));
   if (isDayComplete) {
     if (!progress.completedDays.includes(Number(dayNumber))) {
       progress.completedDays.push(Number(dayNumber));
@@ -130,5 +220,5 @@ export const completeStudentTask = asyncHandler(async (req, res) => {
   enrolled.progress = progressPercent;
   await enrolled.save();
 
-  res.json({ progress, progressPercent });
+  res.json({ progress, progressPercent, dayCompletedNow });
 });

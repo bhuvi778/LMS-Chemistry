@@ -10,9 +10,9 @@ const bankTransferRequestSchema = new mongoose.Schema(
     planType: { type: String, enum: ['batch', 'pro', 'infinity'], default: 'batch' },
     testSeries: { type: mongoose.Schema.Types.ObjectId, ref: 'TestSeries', default: null },
 
-    // Amounts (AED)
+    // Amounts (INR)
     baseAmount: { type: Number, required: true },
-    handlingFee: { type: Number, default: 0 }, // 45 AED or 0.7%
+    handlingFee: { type: Number, default: 0 },
     totalAmount: { type: Number, required: true },
 
     // Bank transfer proof

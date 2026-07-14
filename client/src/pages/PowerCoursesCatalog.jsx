@@ -158,6 +158,12 @@ export default function PowerCoursesCatalog() {
     return { recorded, live, total: recorded + live };
   };
 
+  const getPrimaryClassMeta = (classCounts) => (
+    classCounts.live > 0
+      ? { label: 'Live', count: classCounts.live, configuredText: `${classCounts.live} live classes configured` }
+      : { label: 'Recorded', count: classCounts.recorded, configuredText: `${classCounts.recorded} recorded classes configured` }
+  );
+
   const hasCalendar = (course) => !!getScheduleWindow(course);
   const minPrice = courses.length ? Math.min(...courses.map((c) => c.price || 29)) : 29;
   const activeCount = courses.length;
@@ -186,7 +192,7 @@ export default function PowerCoursesCatalog() {
                     Quick chemistry wins, one target at a time.
                   </h1>
                   <p className="mt-4 max-w-2xl text-sm md:text-base leading-relaxed text-slate-300">
-                    Short, focused batches for targets, PYQs, practice and live/recorded class execution. Start flexible or follow date-wise daily plans.
+                    Short, focused batches for targets, PYQs, practice and class execution. Start flexible or follow date-wise daily plans.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -316,6 +322,7 @@ export default function PowerCoursesCatalog() {
             {filteredCourses.map((course) => {
               const duration = course.powerCourseDuration || 7;
               const classCounts = getClassCounts(course);
+              const classMode = getPrimaryClassMeta(classCounts);
               const discPercent = course.mrp && course.mrp > course.price ? Math.round(((course.mrp - course.price) / course.mrp) * 100) : 0;
               const calendarMode = hasCalendar(course);
               const scheduleWindow = getScheduleWindow(course);
@@ -368,7 +375,7 @@ export default function PowerCoursesCatalog() {
 
                   <div className="p-5 space-y-4">
                     <p className="line-clamp-2 min-h-[40px] text-xs font-semibold leading-relaxed text-slate-500">
-                      {course.shortDescription || 'Focused day-wise target plan with live/recorded classes, notes, practice, and assignments.'}
+                      {course.shortDescription || `Focused day-wise target plan with ${classMode.label.toLowerCase()} classes, notes, practice, and assignments.`}
                     </p>
 
                     {(categories.length > 0 || subCategories.length > 0) && (
@@ -394,13 +401,13 @@ export default function PowerCoursesCatalog() {
                       </div>
                       <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                         <BookOpen size={14} className="text-slate-500" />
-                        <div className="mt-1 text-xs font-black text-slate-800">{classCounts.recorded}</div>
-                        <div className="text-[9px] font-bold text-slate-400">Recorded</div>
+                        <div className="mt-1 text-xs font-black text-slate-800">{classMode.count}</div>
+                        <div className="text-[9px] font-bold text-slate-400">{classMode.label}</div>
                       </div>
                       <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                         <Target size={14} className="text-slate-500" />
-                        <div className="mt-1 text-xs font-black text-slate-800">{classCounts.live}</div>
-                        <div className="text-[9px] font-bold text-slate-400">Live</div>
+                        <div className="mt-1 text-xs font-black text-slate-800">{classCounts.total}</div>
+                        <div className="text-[9px] font-bold text-slate-400">Classes</div>
                       </div>
                     </div>
 
@@ -414,9 +421,9 @@ export default function PowerCoursesCatalog() {
                           ? `${scheduleWindow?.start ? formatDate(scheduleWindow.start) : 'Open'} - ${scheduleWindow?.end ? formatDate(scheduleWindow.end) : 'Complete'}`
                           : 'Follow targets sequentially at your own start date.'}
                       </p>
-                      {classCounts.total > 0 && (
+                      {classMode.count > 0 && (
                         <p className="mt-1 text-[10px] font-bold text-slate-400">
-                          {classCounts.total} live/recorded classes configured
+                          {classMode.configuredText}
                         </p>
                       )}
                     </div>

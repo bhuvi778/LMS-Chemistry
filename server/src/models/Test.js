@@ -27,6 +27,7 @@ const questionSchema = new mongoose.Schema(
     section: { type: String, default: '' },
     chapter: { type: String, default: '' },
     topic: { type: String, default: '' },
+    fontFamily: { type: String, default: 'default' },
   },
   { _id: true }
 );

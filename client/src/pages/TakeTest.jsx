@@ -66,6 +66,7 @@ function InstructionsModal({ test, onStart }) {
 
   const positiveMarks = test.questions?.[0]?.marks || 4;
   const negativeMarks = test.questions?.[0]?.negativeMarks ?? -1;
+  const showMarkingScheme = !test.isDailyTest;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -227,27 +228,31 @@ function InstructionsModal({ test, onStart }) {
 
             <div className="h-px bg-slate-155 my-4" />
 
-            <h3 className="font-black text-slate-800 text-xs uppercase tracking-wider mb-2">Marking Scheme (Specific for this Paper)</h3>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 font-semibold">
-              <div className="flex items-center gap-2.5 text-slate-700">
-                <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle size={12} className="text-emerald-600" />
-                </span>
-                Correct answer: <span className="font-black text-emerald-700">+{positiveMarks} marks</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-slate-700">
-                <span className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                  <X size={12} className="text-red-600" />
-                </span>
-                Wrong answer: <span className="font-black text-red-700">{negativeMarks} marks</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-slate-700">
-                <span className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
-                  <Circle size={12} className="text-slate-400" />
-                </span>
-                Unattempted: <span className="font-black text-slate-500">0 marks</span>
-              </div>
-            </div>
+            {showMarkingScheme && (
+              <>
+                <h3 className="font-black text-slate-800 text-xs uppercase tracking-wider mb-2">Marking Scheme (Specific for this Paper)</h3>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 font-semibold">
+                  <div className="flex items-center gap-2.5 text-slate-700">
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle size={12} className="text-emerald-600" />
+                    </span>
+                    Correct answer: <span className="font-black text-emerald-700">+{positiveMarks} marks</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-slate-700">
+                    <span className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                      <X size={12} className="text-red-600" />
+                    </span>
+                    Wrong answer: <span className="font-black text-red-700">{negativeMarks} marks</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-slate-700">
+                    <span className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                      <Circle size={12} className="text-slate-400" />
+                    </span>
+                    Unattempted: <span className="font-black text-slate-500">0 marks</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -332,6 +337,58 @@ const isQuestionAttempted = (selected, type) => {
   }
   return selected !== -1 && selected !== undefined && selected !== null;
 };
+
+const getCorrectOptionIndexes = (q = {}) => {
+  if (q.type === 'msq') {
+    return q.correctOptions && q.correctOptions.length > 0 ? q.correctOptions.map(Number) : [Number(q.correct)];
+  }
+  return q.correct !== undefined && q.correct !== null ? [Number(q.correct)] : [];
+};
+
+const getAnswerFeedback = (q = {}, selected) => {
+  if (!isQuestionAttempted(selected, q.type || 'mcq')) return null;
+
+  if (q.type === 'numerical') {
+    const correctValue = Number(q.correctNumerical || 0);
+    const isCorrect = Math.abs(Number(selected) - correctValue) < 0.01;
+    return {
+      isCorrect,
+      correctLabel: Number.isFinite(correctValue) ? String(correctValue) : String(q.correctNumerical || ''),
+    };
+  }
+
+  const correctIndexes = getCorrectOptionIndexes(q);
+  if (q.type === 'msq') {
+    const selectedList = Array.isArray(selected) ? selected.map(Number) : [Number(selected)];
+    const isCorrect = selectedList.length === correctIndexes.length
+      && selectedList.every((idx) => correctIndexes.includes(idx));
+    return {
+      isCorrect,
+      correctIndexes,
+      correctLabel: correctIndexes.map((idx) => String.fromCharCode(65 + idx)).join(', '),
+    };
+  }
+
+  const isCorrect = Number(selected) === correctIndexes[0];
+  return {
+    isCorrect,
+    correctIndexes,
+    correctLabel: correctIndexes.map((idx) => String.fromCharCode(65 + idx)).join(', '),
+  };
+};
+
+const questionFontFamilies = {
+  default: 'inherit',
+  sans: 'Inter, ui-sans-serif, system-ui, sans-serif',
+  serif: 'Georgia, "Times New Roman", serif',
+  mono: '"Courier New", ui-monospace, monospace',
+  devanagari: '"Noto Sans Devanagari", Mangal, sans-serif',
+  handwritten: '"Comic Sans MS", cursive',
+};
+
+const getQuestionFontStyle = (question = {}) => ({
+  fontFamily: questionFontFamilies[question.fontFamily] || questionFontFamilies.default,
+});
 
 export default function TakeTest() {
   const { testId } = useParams();
@@ -419,7 +476,7 @@ export default function TakeTest() {
   }, [testId, nav]);
 
   const handleStart = async () => {
-    if (user?.role !== 'admin') {
+    if (user?.role !== 'admin' && !test?.isDailyTest) {
       if ((user?.coins || 0) < 1) {
         toast.error('Insufficient Ace Coins! Attempting this test costs 1 Ace Coin. Go to your Coins Wallet or complete daily planner goals to earn more.');
         return;
@@ -448,6 +505,14 @@ export default function TakeTest() {
     setStartTime(Date.now());
   };
 
+  useEffect(() => {
+    const shouldAutoStart = new URLSearchParams(window.location.search).get('start') === '1';
+    if (!loading && test?.isDailyTest && shouldAutoStart && !started) {
+      setStarted(true);
+      setStartTime(Date.now());
+    }
+  }, [loading, test, started]);
+
   const handleSelectOption = (qId, optIdx) => {
     const qObj = (test?.questions || []).find((quest) => quest._id === qId);
     const qType = qObj?.type || 'mcq';
@@ -475,6 +540,8 @@ export default function TakeTest() {
         newVal = [...currentVal, optIdx].sort();
       }
       setTempAnswers((t) => ({ ...t, [qId]: newVal }));
+      setAnswers((a) => ({ ...a, [qId]: newVal }));
+      setStates((s) => ({ ...s, [qId]: newVal.length > 0 ? 'answered' : 'not_answered' }));
     } else {
       const isCurrentlyAttempted = isQuestionAttempted(answers[qId], qType);
       if (!isCurrentlyAttempted) {
@@ -488,6 +555,8 @@ export default function TakeTest() {
         }
       }
       setTempAnswers((t) => ({ ...t, [qId]: optIdx }));
+      setAnswers((a) => ({ ...a, [qId]: optIdx }));
+      setStates((s) => ({ ...s, [qId]: 'answered' }));
     }
   };
 
@@ -703,6 +772,9 @@ export default function TakeTest() {
 
   const questions = test.questions || [];
   const q = questions[current];
+  const currentFeedback = q && isQuestionAttempted(tempAnswers[q._id], q.type || 'mcq')
+    ? getAnswerFeedback(q, tempAnswers[q._id])
+    : null;
 
   // Palette counts computation
   const stateList = Object.values(states);
@@ -848,9 +920,11 @@ export default function TakeTest() {
                   <span className="hidden sm:inline">Report</span>
                 </button>
 
-                <span className="text-xs font-bold px-2.5 py-1.5 rounded-full bg-brand-55 text-brand-800 border border-brand-100">
-                  +{q?.marks || 4} / {q?.negativeMarks ?? -1}
-                </span>
+                {!test.isDailyTest && (
+                  <span className="text-xs font-bold px-2.5 py-1.5 rounded-full bg-brand-55 text-brand-800 border border-brand-100">
+                    +{q?.marks || 4} / {q?.negativeMarks ?? -1}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -858,6 +932,7 @@ export default function TakeTest() {
             <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-5">
               <div 
                 className="text-[15px] text-slate-800 font-semibold leading-relaxed"
+                style={getQuestionFontStyle(q)}
                 dangerouslySetInnerHTML={{ __html: q?.question || '' }}
               />
 
@@ -892,8 +967,16 @@ export default function TakeTest() {
                         }
                       }
                       setTempAnswers((t) => ({ ...t, [q._id]: val }));
+                      setAnswers((a) => ({ ...a, [q._id]: val }));
+                      setStates((s) => ({ ...s, [q._id]: val !== '' ? 'answered' : 'not_answered' }));
                     }}
-                    className="w-full border-2 border-slate-200 focus:border-brand-500 rounded-xl px-4 py-3 text-base font-medium focus:outline-none bg-white transition-all shadow-sm"
+                    className={`w-full border-2 rounded-xl px-4 py-3 text-base font-medium focus:outline-none bg-white transition-all shadow-sm ${
+                      currentFeedback
+                        ? currentFeedback.isCorrect
+                          ? 'border-emerald-400 focus:border-emerald-500 bg-emerald-50/40'
+                          : 'border-rose-400 focus:border-rose-500 bg-rose-50/40'
+                        : 'border-slate-200 focus:border-brand-500'
+                    }`}
                     placeholder="Enter numerical response..."
                   />
                 </div>
@@ -905,27 +988,110 @@ export default function TakeTest() {
                       ? (Array.isArray(tempAnswers[q._id]) ? tempAnswers[q._id] : []).includes(oi)
                       : tempAnswers[q._id] === oi;
                     const optText = typeof opt === 'string' ? opt : opt.text;
+                    const isCorrectOption = currentFeedback?.correctIndexes?.includes(oi);
+                    const isWrongSelected = !!currentFeedback && isTempSelected && !isCorrectOption;
+                    const optionClass = currentFeedback
+                      ? isCorrectOption
+                        ? 'border-emerald-400 bg-emerald-50 shadow-sm'
+                        : isWrongSelected
+                          ? 'border-rose-400 bg-rose-50 shadow-sm'
+                          : 'border-slate-200 bg-white'
+                      : isTempSelected
+                        ? 'border-brand-500 bg-brand-50 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50';
+                    const bulletClass = currentFeedback
+                      ? isCorrectOption
+                        ? 'border-emerald-500 bg-emerald-600 text-white'
+                        : isWrongSelected
+                          ? 'border-rose-500 bg-rose-600 text-white'
+                          : 'border-slate-300 text-slate-500 bg-white'
+                      : isTempSelected
+                        ? 'border-brand-500 bg-brand-600 text-white'
+                        : 'border-slate-300 text-slate-500 bg-white';
                     return (
                       <button
                         key={oi}
                         onClick={() => handleSelectOption(q._id, oi)}
-                        className={`w-full text-left flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all ${
-                          isTempSelected
-                            ? 'border-brand-500 bg-brand-50 shadow-sm'
-                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
+                        className={`w-full text-left flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all ${optionClass}`}
                       >
-                        <span className={`w-7 h-7 flex-shrink-0 flex items-center justify-center text-xs font-bold transition-all border-2 ${
-                          isTempSelected
-                            ? 'border-brand-500 bg-brand-600 text-white'
-                            : 'border-slate-300 text-slate-500 bg-white'
-                        } ${isMsq ? 'rounded' : 'rounded-full'}`}>
+                        <span className={`w-7 h-7 flex-shrink-0 flex items-center justify-center text-xs font-bold transition-all border-2 ${bulletClass} ${isMsq ? 'rounded' : 'rounded-full'}`}>
                           {String.fromCharCode(65 + oi)}
                         </span>
-                        <span className="text-sm text-slate-700 font-medium leading-relaxed pt-0.5" dangerouslySetInnerHTML={{ __html: optText }} />
+                        <span
+                          className="min-w-0 flex-1 text-sm text-slate-700 font-medium leading-relaxed pt-0.5"
+                          style={getQuestionFontStyle(q)}
+                          dangerouslySetInnerHTML={{ __html: optText }}
+                        />
+                        {currentFeedback && isCorrectOption && (
+                          <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                            Correct
+                          </span>
+                        )}
+                        {currentFeedback && isWrongSelected && (
+                          <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700">
+                            Wrong
+                          </span>
+                        )}
                       </button>
                     );
                   })}
+                </div>
+              )}
+
+              {currentFeedback && (
+                <div className={`rounded-2xl border p-4 ${
+                  currentFeedback.isCorrect
+                    ? 'border-emerald-200 bg-emerald-50/70'
+                    : 'border-rose-200 bg-rose-50/70'
+                }`}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${
+                        currentFeedback.isCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                      }`}>
+                        {currentFeedback.isCorrect ? <CheckCircle size={18} /> : <X size={18} />}
+                      </div>
+                      <div>
+                        <p className={`text-sm font-black ${
+                          currentFeedback.isCorrect ? 'text-emerald-800' : 'text-rose-800'
+                        }`}>
+                          {currentFeedback.isCorrect ? 'Correct answer' : 'Wrong answer'}
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-slate-650">
+                          Correct Answer: <span className="text-slate-950">{currentFeedback.correctLabel || 'Not configured'}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowReportModal(true)}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-650"
+                    >
+                      <Flag size={13} /> Report Question
+                    </button>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-white/70 bg-white/75 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Solution</p>
+                    {q?.explanation ? (
+                      <div
+                        className="mt-2 text-sm font-medium leading-relaxed text-slate-700"
+                        dangerouslySetInnerHTML={{ __html: q.explanation }}
+                      />
+                    ) : (
+                      <p className="mt-2 text-sm font-semibold text-slate-500">Solution has not been added for this question yet.</p>
+                    )}
+                    {q?.videoSolutionUrl && (
+                      <a
+                        href={q.videoSolutionUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-black text-white hover:bg-slate-800"
+                      >
+                        <Play size={12} /> Watch Video Solution
+                      </a>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

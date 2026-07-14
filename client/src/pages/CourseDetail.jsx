@@ -502,7 +502,6 @@ export default function CourseDetail() {
   const [upsellCourse, setUpsellCourse] = useState(null);
   const [payMode, setPayMode] = useState('razorpay'); // 'razorpay' | 'bank'
   const [showBankModal, setShowBankModal] = useState(false);
-  const [feeBreakdown, setFeeBreakdown] = useState(null); // { baseAmount, gatewayFee, gstAmount, totalAmount }
   const [openPdf, setOpenPdf] = useState(null);
 
   // Coupon state
@@ -620,10 +619,6 @@ export default function CourseDetail() {
   // ─── Apply coupon ─────────────────────────────────────────────────────────
   const applyCoupon = async () => {
     if (!couponInput.trim()) return;
-    if (isUpgradePurchase) {
-      toast.error('Coupon codes cannot be used for course upgrades.');
-      return;
-    }
     setCouponBusy(true);
     try {
       const { data } = await api.post('/payment/validate-coupon', {
@@ -634,7 +629,7 @@ export default function CourseDetail() {
       setCouponApplied(data);
       toast.success(`Coupon applied! You save ₹${data.discountAmount}`);
     } catch (e) {
-      toast.error(e.message || 'Invalid coupon code');
+      toast.error(e.response?.data?.message || e.message || 'Invalid coupon code');
       setCouponApplied(null);
     } finally {
       setCouponBusy(false);
@@ -645,13 +640,6 @@ export default function CourseDetail() {
     setCouponApplied(null);
     setCouponInput('');
   };
-
-  useEffect(() => {
-    if (isUpgradePurchase && couponApplied) {
-      setCouponApplied(null);
-      setCouponInput('');
-    }
-  }, [isUpgradePurchase, couponApplied]);
 
   // ─── Submit rating ────────────────────────────────────────────────────────
   const submitRating = async () => {
@@ -1186,7 +1174,7 @@ export default function CourseDetail() {
                       </button>
                     )}
                     {/* Coupon code input — only for students */}
-                    {user && user.role !== 'admin' && !isUpgradePurchase && (
+                    {user && user.role !== 'admin' && (
                       <div className="mt-4">
                         {couponApplied ? (
                           <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 text-sm font-semibold">
@@ -1241,9 +1229,9 @@ export default function CourseDetail() {
                         )}
                       </div>
                     )}
-                    {user && user.role !== 'admin' && isUpgradePurchase && (
-                      <div className="mt-4 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500">
-                        Coupon codes are not available on course upgrades.
+                    {user && user.role !== 'admin' && isUpgradePurchase && !couponApplied && (
+                      <div className="mt-2 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-xs font-semibold text-amber-700">
+                        Coupon can be used on this upgrade only if you have not used any coupon for this course before.
                       </div>
                     )}
 
@@ -1292,8 +1280,7 @@ export default function CourseDetail() {
                         coinDiscount = coinsToRedeem;
                         baseAmt = Math.max(0, initialAmt - coinDiscount);
                       }
-                      const gwFee = Math.round(baseAmt * 0.03 * 100) / 100;
-                      const rzpTotal = Math.round((baseAmt + gwFee) * 100) / 100;
+                      const rzpTotal = baseAmt;
 
                       const seatsLimit = course.plans?.infinity?.seatsLimit || 15;
                       const seatsReserved = course.plans?.infinity?.seatsReserved || 0;
@@ -1314,7 +1301,7 @@ export default function CourseDetail() {
                                 </div>
                               )}
                               {coinDiscount > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coin discount</span><span>- ₹{coinDiscount.toFixed(2)}</span></div>}
-                              <div className="flex justify-between text-slate-500"><span>Internet handling fee</span><span>₹{gwFee.toFixed(2)}</span></div>
+
                               <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1"><span>Total</span><span>₹{rzpTotal.toFixed(2)}</span></div>
                             </div>
                           )}

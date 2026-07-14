@@ -19,23 +19,62 @@ const ICE_SERVERS = {
   ],
 };
 
+const AGORA_PLATFORMS = ['agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast'];
+
+const getRawPlatform = (liveMeta) => liveMeta?.platform || (liveMeta?.useInternalRoom ? 'internal' : 'meet');
+
+const hasUsableAgora = (liveMeta) => (
+  !!liveMeta?.agoraAppId
+  && liveMeta.agoraAppId !== 'mock_app_id_placeholder'
+  && liveMeta.fallbackMode !== 'internal_webrtc'
+);
+
+const getEffectivePlatform = (liveMeta) => {
+  const rawPlatform = getRawPlatform(liveMeta);
+  return AGORA_PLATFORMS.includes(rawPlatform) && !hasUsableAgora(liveMeta)
+    ? 'internal'
+    : rawPlatform;
+};
+
+const attachStreamToVideo = (node, stream) => {
+  if (!node || !stream) return;
+  if (node.srcObject !== stream) {
+    node.srcObject = stream;
+  }
+  const playPromise = node.play?.();
+  if (playPromise?.catch) {
+    playPromise.catch(() => {});
+  }
+};
+
 // Agora Video Player sub-component
 function AgoraVideoPlayer({ videoTrack, className }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
     if (!videoTrack || !containerRef.current) return;
+    // play() attaches the video to the DOM element
     videoTrack.play(containerRef.current);
     return () => {
       try {
+        // stop() just detaches from DOM; don't close() here — that destroys the track permanently
         videoTrack.stop();
       } catch (e) {
-        console.error('Error stopping track:', e);
+        // ignore errors on cleanup
       }
     };
   }, [videoTrack]);
 
-  return <div ref={containerRef} className={className} />;
+  // Also re-play when the container mounts (handles React re-renders)
+  const setContainer = useCallback((node) => {
+    if (node && videoTrack) {
+      try { videoTrack.stop(); } catch {}
+      videoTrack.play(node);
+    }
+    containerRef.current = node;
+  }, [videoTrack]);
+
+  return <div ref={setContainer} className={className} />;
 }
 
 // Helper to extract YouTube embed URL
@@ -64,6 +103,8 @@ export default function LiveRoom() {
   const [connecting, setConnecting] = useState(false);
   const [hostName, setHostName] = useState('Instructor');
   const [hostStreamReady, setHostStreamReady] = useState(false);
+  const [localStreamReady, setLocalStreamReady] = useState(false);
+  const [remoteStream, setRemoteStream] = useState(null);
   const [peers, setPeers] = useState([]); // list of viewers
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -82,6 +123,7 @@ export default function LiveRoom() {
   const [activeCoHosts, setActiveCoHosts] = useState([]);
   const [hostAgoraUid, setHostAgoraUid] = useState(null);
   const [showRaiseRequests, setShowRaiseRequests] = useState(false);
+  const [localVideoTrack, setLocalVideoTrack] = useState(null);
 
   // WebRTC refs
   const socketRef = useRef(null);
@@ -145,6 +187,37 @@ export default function LiveRoom() {
   const [, forceRender] = useState(0);
   const rerender = () => forceRender((v) => v + 1);
 
+  const setLocalVideoNode = useCallback((node) => {
+    localVideoRef.current = node;
+    if (node && localStreamRef.current) {
+      attachStreamToVideo(node, localStreamRef.current);
+      setLocalStreamReady(true);
+    }
+  }, []);
+
+  const setRemoteVideoNode = useCallback((node) => {
+    remoteVideoRef.current = node;
+    const stream = remoteStream || [...remoteStreamsRef.current.values()][0];
+    if (node && stream) {
+      attachStreamToVideo(node, stream);
+      setHostStreamReady(true);
+    }
+  }, [remoteStream]);
+
+  useEffect(() => {
+    if (localVideoRef.current && localStreamRef.current) {
+      attachStreamToVideo(localVideoRef.current, localStreamRef.current);
+      setLocalStreamReady(true);
+    }
+  }, [role]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      attachStreamToVideo(remoteVideoRef.current, remoteStream);
+      setHostStreamReady(true);
+    }
+  }, [remoteStream]);
+
   // Fetch live class metadata
   const [accessError, setAccessError] = useState(null);
   useEffect(() => {
@@ -178,10 +251,9 @@ export default function LiveRoom() {
     pc.ontrack = (e) => {
       const remoteStream = e.streams[0] || new MediaStream([e.track]);
       remoteStreamsRef.current.set(peerId, remoteStream);
-      if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
-        remoteVideoRef.current.srcObject = remoteStream;
-        setHostStreamReady(true);
-      }
+      setRemoteStream(remoteStream);
+      if (remoteVideoRef.current) attachStreamToVideo(remoteVideoRef.current, remoteStream);
+      setHostStreamReady(true);
       rerender();
     };
 
@@ -211,6 +283,8 @@ export default function LiveRoom() {
     rerender();
   };
 
+  const shareOnRef = useRef(false);
+
   // Connect to Agora
   const connectAgora = async (appId, channel, token, agoraUid, platform, joinAsHost) => {
     try {
@@ -226,14 +300,20 @@ export default function LiveRoom() {
       client.on('user-published', async (user, mediaType) => {
         await client.subscribe(user, mediaType);
         if (mediaType === 'video') {
+          // Spread into a new object so React detects the state change
           setRemoteUsers((prev) => {
-            if (prev.find((u) => u.uid === user.uid)) {
-              return prev.map((u) => u.uid === user.uid ? user : u);
+            const exists = prev.find((u) => u.uid === user.uid);
+            if (exists) {
+              return prev.map((u) => u.uid === user.uid ? { ...u, videoTrack: user.videoTrack, hasVideo: true } : u);
             }
-            return [...prev, user];
+            return [...prev, { uid: user.uid, videoTrack: user.videoTrack, audioTrack: user.audioTrack, hasVideo: true }];
           });
         }
         if (mediaType === 'audio') {
+          // Update audioTrack in state too
+          setRemoteUsers((prev) =>
+            prev.map((u) => u.uid === user.uid ? { ...u, audioTrack: user.audioTrack } : u)
+          );
           if (user.audioTrack) {
             try {
               user.audioTrack.play();
@@ -247,7 +327,14 @@ export default function LiveRoom() {
 
       client.on('user-unpublished', (user, mediaType) => {
         if (mediaType === 'video') {
-          setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid));
+          setRemoteUsers((prev) =>
+            prev.map((u) => u.uid === user.uid ? { ...u, videoTrack: null, hasVideo: false } : u)
+          );
+        }
+        if (mediaType === 'audio') {
+          setRemoteUsers((prev) =>
+            prev.map((u) => u.uid === user.uid ? { ...u, audioTrack: null } : u)
+          );
         }
       });
 
@@ -259,20 +346,22 @@ export default function LiveRoom() {
       await client.join(appId, channel, token, numericUid);
 
       if (joinAsHost || isCall) {
-        const tracks = await AgoraRTC.createMicrophoneAndCameraTracks(
-          { mode: 'motion' },
-          { AEC: true, ANS: true }
+        // IMPORTANT: createMicrophoneAndCameraTracks(audioConfig, videoConfig)
+        // audioConfig is 1st arg, videoConfig is 2nd arg
+        const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
+          { AEC: true, ANS: true, AGC: true },   // audioConfig (1st)
+          { encoderConfig: '720p_1', facingMode: 'user' }  // videoConfig (2nd)
         );
-        const [audioTrack, videoTrack] = tracks;
         localAudioTrackRef.current = audioTrack;
         localVideoTrackRef.current = videoTrack;
+        setLocalVideoTrack(videoTrack);
 
         await client.publish([audioTrack, videoTrack]);
         rerender();
       }
     } catch (err) {
       console.error('Agora connection error:', err);
-      toast.error('Failed to initialize Agora RTC: ' + err.message);
+      toast.error('Failed to initialize Agora RTC: ' + (err.message || String(err)));
     }
   };
 
@@ -280,13 +369,14 @@ export default function LiveRoom() {
     try {
       if (!agoraClientRef.current) return;
       await agoraClientRef.current.setClientRole('host');
-      const tracks = await AgoraRTC.createMicrophoneAndCameraTracks(
-        { mode: 'motion' },
-        { AEC: true, ANS: true }
+      // IMPORTANT: createMicrophoneAndCameraTracks(audioConfig, videoConfig)
+      const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
+        { AEC: true, ANS: true, AGC: true },
+        { encoderConfig: '720p_1', facingMode: 'user' }
       );
-      const [audioTrack, videoTrack] = tracks;
       localAudioTrackRef.current = audioTrack;
       localVideoTrackRef.current = videoTrack;
+      setLocalVideoTrack(videoTrack);
       await agoraClientRef.current.publish([audioTrack, videoTrack]);
       setLocalIsCoHost(true);
       setCamOn(true);
@@ -316,6 +406,7 @@ export default function LiveRoom() {
         if (localVideoTrackRef.current) {
           try { localVideoTrackRef.current.stop(); localVideoTrackRef.current.close(); } catch {}
           localVideoTrackRef.current = null;
+          setLocalVideoTrack(null);
         }
         if (screenTrackRef.current) {
           try { screenTrackRef.current.stop(); screenTrackRef.current.close(); } catch {}
@@ -351,15 +442,16 @@ export default function LiveRoom() {
 
   const connect = async (joinAsHost) => {
     setConnecting(true);
-    const platform = meta.platform || (meta.useInternalRoom ? 'internal' : 'meet');
-    const isAgora = ['agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast'].includes(platform);
+    const platform = getEffectivePlatform(meta);
+    const isAgora = AGORA_PLATFORMS.includes(platform);
     const isYoutube = platform === 'youtube';
 
     try {
       if (!isAgora && !isYoutube && joinAsHost) {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localStreamRef.current = stream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        setLocalStreamReady(true);
+        if (localVideoRef.current) attachStreamToVideo(localVideoRef.current, stream);
       }
 
       const token = localStorage.getItem('token');
@@ -386,7 +478,9 @@ export default function LiveRoom() {
           if (isAgora) {
             try {
               const { data } = await api.get(`/live/${id}`);
-              if (data.agoraToken && data.agoraAppId) {
+              if (data.fallbackMode === 'internal_webrtc' || !hasUsableAgora(data)) {
+                toast('Agora is not configured, using internal video room.', { icon: 'ℹ️' });
+              } else if (data.agoraToken !== undefined && data.agoraAppId) {
                 await connectAgora(data.agoraAppId, data.agoraChannel, data.agoraToken, data.agoraUid, platform, joinAsHost);
               } else {
                 toast.error('Agora session token not generated by server.');
@@ -535,6 +629,9 @@ export default function LiveRoom() {
     peerConnectionsRef.current.forEach((pc) => { try { pc.close(); } catch { /* */ } });
     peerConnectionsRef.current.clear();
     remoteStreamsRef.current.clear();
+    setRemoteStream(null);
+    setHostStreamReady(false);
+    setLocalStreamReady(false);
     if (localStreamRef.current) localStreamRef.current.getTracks().forEach((t) => t.stop());
     if (screenStreamRef.current) screenStreamRef.current.getTracks().forEach((t) => t.stop());
 
@@ -545,6 +642,7 @@ export default function LiveRoom() {
     if (localVideoTrackRef.current) {
       try { localVideoTrackRef.current.stop(); localVideoTrackRef.current.close(); } catch (e) {}
       localVideoTrackRef.current = null;
+      setLocalVideoTrack(null);
     }
     if (screenTrackRef.current) {
       try { screenTrackRef.current.stop(); screenTrackRef.current.close(); } catch (e) {}
@@ -562,8 +660,8 @@ export default function LiveRoom() {
 
   // Media toggles
   const toggleCam = async () => {
-    const platform = meta.platform || (meta.useInternalRoom ? 'internal' : 'meet');
-    const isAgora = ['agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast'].includes(platform);
+    const platform = getEffectivePlatform(meta);
+    const isAgora = AGORA_PLATFORMS.includes(platform);
 
     if (isAgora) {
       if (localVideoTrackRef.current) {
@@ -579,8 +677,8 @@ export default function LiveRoom() {
   };
 
   const toggleMic = async () => {
-    const platform = meta.platform || (meta.useInternalRoom ? 'internal' : 'meet');
-    const isAgora = ['agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast'].includes(platform);
+    const platform = getEffectivePlatform(meta);
+    const isAgora = AGORA_PLATFORMS.includes(platform);
 
     if (isAgora) {
       if (localAudioTrackRef.current) {
@@ -596,8 +694,8 @@ export default function LiveRoom() {
   };
 
   const toggleScreenShare = async () => {
-    const platform = meta.platform || (meta.useInternalRoom ? 'internal' : 'meet');
-    const isAgora = ['agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast'].includes(platform);
+    const platform = getEffectivePlatform(meta);
+    const isAgora = AGORA_PLATFORMS.includes(platform);
 
     if (isAgora) {
       if (!agoraClientRef.current) return;
@@ -611,17 +709,33 @@ export default function LiveRoom() {
         if (localVideoTrackRef.current) {
           await agoraClientRef.current.publish(localVideoTrackRef.current);
         }
+        shareOnRef.current = false;
         setShareOn(false);
       } else {
         try {
-          const track = await AgoraRTC.createScreenVideoTrack();
+          // createScreenVideoTrack can return a track or [videoTrack, audioTrack]
+          const result = await AgoraRTC.createScreenVideoTrack({ encoderConfig: '1080p_1' }, 'disable');
+          const track = Array.isArray(result) ? result[0] : result;
           screenTrackRef.current = track;
           if (localVideoTrackRef.current) {
             await agoraClientRef.current.unpublish(localVideoTrackRef.current);
           }
           await agoraClientRef.current.publish(track);
-          track.on('track-ended', () => {
-            toggleScreenShare();
+          // Use ref to avoid stale closure
+          shareOnRef.current = true;
+          track.on('track-ended', async () => {
+            if (shareOnRef.current) {
+              if (screenTrackRef.current) {
+                try { await agoraClientRef.current?.unpublish(screenTrackRef.current); } catch {}
+                try { screenTrackRef.current.stop(); screenTrackRef.current.close(); } catch {}
+                screenTrackRef.current = null;
+              }
+              if (localVideoTrackRef.current) {
+                try { await agoraClientRef.current?.publish(localVideoTrackRef.current); } catch {}
+              }
+              shareOnRef.current = false;
+              setShareOn(false);
+            }
           });
           setShareOn(true);
         } catch (e) {
@@ -639,7 +753,7 @@ export default function LiveRoom() {
           const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
           if (sender && camTrack) sender.replaceTrack(camTrack);
         });
-        if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+        if (localVideoRef.current) attachStreamToVideo(localVideoRef.current, localStreamRef.current);
         setShareOn(false);
       } else {
         try {
@@ -650,7 +764,7 @@ export default function LiveRoom() {
             const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
             if (sender) sender.replaceTrack(screenTrack);
           });
-          if (localVideoRef.current) localVideoRef.current.srcObject = ds;
+          if (localVideoRef.current) attachStreamToVideo(localVideoRef.current, ds);
           screenTrack.onended = () => toggleScreenShare();
           setShareOn(true);
         } catch (e) {
@@ -703,7 +817,9 @@ export default function LiveRoom() {
     );
   }
 
-  const platform = meta.platform || (meta.useInternalRoom ? 'internal' : 'meet');
+  const rawPlatform = getRawPlatform(meta);
+  const platform = getEffectivePlatform(meta);
+  const isAgoraFallback = AGORA_PLATFORMS.includes(rawPlatform) && platform === 'internal';
 
   // Pre-join screen
   if (!role) {
@@ -741,6 +857,11 @@ export default function LiveRoom() {
                            platform === 'agora_broadcast' ? 'Ace Broadcast' :
                            platform === 'youtube' ? 'YouTube Live' : platform}
               </span>
+              {isAgoraFallback && (
+                <span className="chip text-[10px] bg-amber-100 text-amber-700">
+                  Internal fallback active
+                </span>
+              )}
             </div>
           </div>
           {meta.status === 'ended' ? (
@@ -822,12 +943,22 @@ export default function LiveRoom() {
           )}
 
           {/* WebRTC Video Player */}
-          {!['agora_call', 'agora_stream', 'agora_interactive', 'agora_broadcast', 'youtube'].includes(platform) && (
+          {![...AGORA_PLATFORMS, 'youtube'].includes(platform) && (
             role === 'host' ? (
-              <video ref={localVideoRef} autoPlay playsInline muted className="max-w-full max-h-full rounded-2xl bg-black shadow-2xl" />
+              <>
+                <video ref={setLocalVideoNode} autoPlay playsInline muted className="max-w-full max-h-full rounded-2xl bg-black shadow-2xl" />
+                {!localStreamReady && (
+                  <div className="absolute inset-0 grid place-items-center text-white bg-slate-900/50">
+                    <div className="text-center">
+                      <Loader2 className="animate-spin mx-auto mb-3" size={36} />
+                      <div className="text-sm">Starting your camera preview…</div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <>
-                <video ref={remoteVideoRef} autoPlay playsInline className={`max-w-full max-h-full rounded-2xl bg-black shadow-2xl ${!hostStreamReady && 'opacity-0'}`} />
+                <video ref={setRemoteVideoNode} autoPlay playsInline className={`max-w-full max-h-full rounded-2xl bg-black shadow-2xl ${!hostStreamReady && 'opacity-0'}`} />
                 {!hostStreamReady && (
                   <div className="absolute inset-0 grid place-items-center text-white bg-slate-900/50">
                     <div className="text-center">
@@ -844,10 +975,10 @@ export default function LiveRoom() {
           {platform === 'agora_call' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-5xl h-full p-4 overflow-y-auto align-middle justify-items-center items-center">
               {/* Local Stream */}
-              {(role === 'host' || localVideoTrackRef.current) && (
+              {(role === 'host' || localVideoTrack) && (
                 <div className="relative rounded-2xl overflow-hidden bg-slate-900 w-full aspect-video shadow-lg border border-slate-700">
-                  {camOn && localVideoTrackRef.current ? (
-                    <AgoraVideoPlayer videoTrack={localVideoTrackRef.current} className="w-full h-full object-cover" />
+                  {camOn && localVideoTrack ? (
+                    <AgoraVideoPlayer videoTrack={localVideoTrack} className="w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-slate-400 font-semibold text-sm">
                       Camera Off (You)
@@ -875,7 +1006,7 @@ export default function LiveRoom() {
                 </div>
               ))}
               
-              {remoteUsers.length === 0 && (role !== 'host' && !localVideoTrackRef.current) && (
+              {remoteUsers.length === 0 && (role !== 'host' && !localVideoTrack) && (
                 <div className="col-span-full flex items-center justify-center text-slate-400 py-16">
                   No other participants in the call.
                 </div>
@@ -893,8 +1024,8 @@ export default function LiveRoom() {
                 <div className="flex-1 w-full flex items-center justify-center relative">
                   {role === 'host' ? (
                     <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-900 shadow-2xl border border-slate-700">
-                      {camOn && localVideoTrackRef.current ? (
-                        <AgoraVideoPlayer videoTrack={localVideoTrackRef.current} className="w-full h-full object-cover" />
+                      {camOn && localVideoTrack ? (
+                        <AgoraVideoPlayer videoTrack={localVideoTrack} className="w-full h-full object-cover" />
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 font-semibold text-lg bg-slate-950">
                           <VideoOff size={48} className="text-slate-600 mb-2" />
@@ -970,8 +1101,8 @@ export default function LiveRoom() {
                       {/* Local student stream if co-hosting */}
                       {role !== 'host' && localIsCoHost && (
                         <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-950 border-2 border-emerald-500 shadow-md">
-                          {camOn && localVideoTrackRef.current ? (
-                            <AgoraVideoPlayer videoTrack={localVideoTrackRef.current} className="w-full h-full object-cover" />
+                          {camOn && localVideoTrack ? (
+                            <AgoraVideoPlayer videoTrack={localVideoTrack} className="w-full h-full object-cover" />
                           ) : (
                             <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-[10px]">
                               <VideoOff size={18} />

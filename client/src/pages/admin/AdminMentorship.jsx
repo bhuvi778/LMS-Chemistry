@@ -102,6 +102,20 @@ export default function AdminSession() {
   const [scheduleEndTime, setScheduleEndTime] = useState('11:00');
   const [createLiveClass, setCreateLiveClass] = useState(false);
 
+  // Admin-create session for a specific student
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [students, setStudents] = useState([]);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [createForm, setCreateForm] = useState({
+    sessionType: 'mentorship',
+    subject: '',
+    description: '',
+    preferredDate: '',
+    preferredTimeSlot: '',
+  });
+  const [createBusy, setCreateBusy] = useState(false);
+
   // Complete session form states
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [sessionNotes, setSessionNotes] = useState('');
@@ -260,6 +274,7 @@ export default function AdminSession() {
 
   useEffect(() => {
     fetchBookings();
+    api.get('/admin/students?limit=500').then(r => setStudents(r.data?.students || r.data || [])).catch(() => {});
   }, []);
 
   const fetchBookings = async () => {
@@ -356,6 +371,33 @@ export default function AdminSession() {
     }
   };
 
+  const handleAdminCreateSession = async (e) => {
+    e.preventDefault();
+    if (!selectedStudent) { toast.error('Please select a student'); return; }
+    if (!createForm.subject.trim() || !createForm.preferredDate || !createForm.preferredTimeSlot.trim()) {
+      toast.error('Please fill subject, date and time slot');
+      return;
+    }
+    setCreateBusy(true);
+    try {
+      await api.post('/ace-track/mentorship/admin-create', {
+        studentId: selectedStudent._id,
+        ...createForm,
+      });
+      toast.success('Session created for student! 🎉');
+      setShowCreateModal(false);
+      setSelectedStudent(null);
+      setStudentSearch('');
+      setCreateForm({ sessionType: 'mentorship', subject: '', description: '', preferredDate: '', preferredTimeSlot: '' });
+      fetchBookings();
+    } catch (err) {
+      // Fallback: use requestMentorship on behalf of student via PUT
+      toast.error(err.response?.data?.message || 'Failed to create session');
+    } finally {
+      setCreateBusy(false);
+    }
+  };
+
   const handleDeleteBooking = async (id) => {
     if (!window.confirm('Are you sure you want to delete this session booking session request? This action cannot be undone.')) return;
     try {
@@ -380,6 +422,12 @@ export default function AdminSession() {
             <p className="text-[11px] text-slate-400">Schedule mentor slots, write notes, and review ratings</p>
           </div>
         </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5"
+        >
+          <Plus size={14} /> Create Session for Student
+        </button>
       </div>
 
       {/* Tabs */}
@@ -412,14 +460,14 @@ export default function AdminSession() {
       {/* List / Settings */}
       {activeTab === 'Settings' ? (
         <div className="space-y-6">
-          <div className="flex justify-between items-center bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-            <div>
+          <div className="flex flex-col gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <h3 className="text-xs font-black text-slate-850">1:1 Session Slots Configuration</h3>
               <p className="text-[10px] text-slate-400">Set active booking dates & slots globally, or override them per course/category.</p>
             </div>
             <button
               onClick={handleAddSetting}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer transition"
+              className="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition sm:w-auto"
             >
               <Plus size={14} /> Add Custom Override
             </button>
@@ -429,7 +477,75 @@ export default function AdminSession() {
             <div className="text-center py-8 text-xs text-slate-400">Loading settings...</div>
           ) : (
             <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
-              <table className="w-full text-left border-collapse">
+              <div className="divide-y divide-slate-100 sm:hidden">
+                {settingsList.map((setting) => {
+                  const targetName = getSettingTargetName(setting);
+                  return (
+                    <div key={setting._id} className="p-4 space-y-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-black text-slate-850 text-sm leading-snug">
+                            {targetName}
+                          </div>
+                          {setting.targetType === 'global' && (
+                            <span className="mt-1 inline-flex px-1.5 py-0.5 bg-indigo-50 text-[9px] text-indigo-600 rounded font-black border border-indigo-100/50">Default</span>
+                          )}
+                        </div>
+                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          setting.enabled
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                            : 'bg-rose-50 text-rose-700 border border-rose-100'
+                        }`}>
+                          {setting.enabled ? 'Open' : 'Closed'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                          <div className="text-[9px] font-black uppercase tracking-wider text-slate-400">Session Limit</div>
+                          <div className="mt-1 font-bold text-slate-700">{setting.mentorshipMonthlyLimit ?? DEFAULT_LIMITS.mentorshipMonthlyLimit}/month</div>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                          <div className="text-[9px] font-black uppercase tracking-wider text-slate-400">Doubt Limit</div>
+                          <div className="mt-1 font-bold text-slate-700">{setting.doubtMonthlyLimit ?? DEFAULT_LIMITS.doubtMonthlyLimit}/month, {setting.doubtWeeklyLimit ?? DEFAULT_LIMITS.doubtWeeklyLimit}/week</div>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                          <div className="text-[9px] font-black uppercase tracking-wider text-slate-400">Dates</div>
+                          <div className="mt-1 font-bold text-slate-700">{setting.availableDates?.length || 0} configured</div>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                          <div className="text-[9px] font-black uppercase tracking-wider text-slate-400">Slots</div>
+                          <div className="mt-1 font-bold text-slate-700">{setting.availableSlots?.length || 0} configured</div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditSetting(setting)}
+                          className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs cursor-pointer transition"
+                        >
+                          Edit
+                        </button>
+                        {setting.targetType !== 'global' && (
+                          <button
+                            onClick={() => handleDeleteSetting(setting._id, targetName)}
+                            className="flex-1 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl font-bold text-xs cursor-pointer transition"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {settingsList.length === 0 && (
+                  <div className="py-8 text-center text-slate-400 text-xs">
+                    No 1:1 session settings configured yet.
+                  </div>
+                )}
+              </div>
+
+              <table className="hidden w-full text-left border-collapse sm:table">
                 <thead className="bg-slate-50 border-b border-slate-150/80 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   <tr>
                     <th className="p-4">Target Scope</th>
@@ -1102,6 +1218,167 @@ export default function AdminSession() {
                   className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-600/10 cursor-pointer"
                 >
                   Save Settings
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Session for Student Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg border border-slate-200 shadow-2xl animate-fade-in space-y-5 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm font-black text-slate-800">Create 1:1 Session for Student</h3>
+                <p className="text-[10px] text-slate-400 mt-0.5">Select a student and fill session details on their behalf.</p>
+              </div>
+              <button
+                onClick={() => { setShowCreateModal(false); setSelectedStudent(null); setStudentSearch(''); }}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Student Search */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">
+                Search & Select Student
+              </label>
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={studentSearch}
+                onChange={(e) => { setStudentSearch(e.target.value); setSelectedStudent(null); }}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 text-xs font-semibold text-slate-700"
+              />
+              {studentSearch.trim().length >= 2 && (
+                <div className="border border-slate-200 rounded-xl max-h-44 overflow-y-auto bg-slate-50 divide-y divide-slate-100">
+                  {students
+                    .filter(s =>
+                      s.name?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+                      s.email?.toLowerCase().includes(studentSearch.toLowerCase())
+                    )
+                    .slice(0, 20)
+                    .map(s => (
+                      <button
+                        key={s._id}
+                        type="button"
+                        onClick={() => { setSelectedStudent(s); setStudentSearch(s.name); }}
+                        className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 transition flex items-center gap-3"
+                      >
+                        <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-xs font-black flex items-center justify-center shrink-0">
+                          {(s.name || '?')[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-800">{s.name}</div>
+                          <div className="text-[10px] text-slate-400">{s.email}</div>
+                        </div>
+                        {selectedStudent?._id === s._id && (
+                          <Check size={14} className="ml-auto text-indigo-600" />
+                        )}
+                      </button>
+                    ))}
+                  {students.filter(s =>
+                    s.name?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+                    s.email?.toLowerCase().includes(studentSearch.toLowerCase())
+                  ).length === 0 && (
+                    <p className="text-xs text-slate-400 text-center py-4">No students found</p>
+                  )}
+                </div>
+              )}
+              {selectedStudent && (
+                <div className="flex items-center gap-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
+                  <div className="w-8 h-8 rounded-full bg-indigo-200 text-indigo-800 text-sm font-black flex items-center justify-center shrink-0">
+                    {(selectedStudent.name || '?')[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold text-indigo-900">{selectedStudent.name}</div>
+                    <div className="text-[10px] text-indigo-600">{selectedStudent.email}</div>
+                  </div>
+                  <button type="button" onClick={() => { setSelectedStudent(null); setStudentSearch(''); }} className="text-indigo-400 hover:text-indigo-600">
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleAdminCreateSession} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Session Type</label>
+                  <select
+                    value={createForm.sessionType}
+                    onChange={e => setCreateForm(f => ({ ...f, sessionType: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700"
+                  >
+                    <option value="mentorship">1:1 Mentorship</option>
+                    <option value="doubt">1:1 Doubt Session</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Preferred Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={createForm.preferredDate}
+                    onChange={e => setCreateForm(f => ({ ...f, preferredDate: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Preferred Time Slot</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 10:00 AM - 11:00 AM"
+                  value={createForm.preferredTimeSlot}
+                  onChange={e => setCreateForm(f => ({ ...f, preferredTimeSlot: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Subject / Topic</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Organic Chemistry — Mechanisms"
+                  value={createForm.subject}
+                  onChange={e => setCreateForm(f => ({ ...f, subject: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 tracking-wider uppercase block">Description (Optional)</label>
+                <textarea
+                  rows={3}
+                  placeholder="Specific doubts or topics to cover..."
+                  value={createForm.description}
+                  onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none text-xs font-semibold text-slate-700 resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => { setShowCreateModal(false); setSelectedStudent(null); setStudentSearch(''); }}
+                  className="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-500 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createBusy || !selectedStudent}
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer transition"
+                >
+                  {createBusy ? 'Creating…' : 'Create Session'}
                 </button>
               </div>
             </form>

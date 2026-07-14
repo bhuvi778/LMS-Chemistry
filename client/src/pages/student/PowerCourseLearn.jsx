@@ -36,6 +36,7 @@ export default function PowerCourseLearn() {
   const [expandedDay, setExpandedDay] = useState(1);
   const [activeVideo, setActiveVideo] = useState(null); // { url, title } (for popup backup if needed, else inline)
   const [liveClasses, setLiveClasses] = useState([]);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -167,10 +168,18 @@ export default function PowerCourseLearn() {
   const totalQuizzes = (course.dailyPlan || []).filter(d => d.quizId).length;
   const completedQuizzes = dayProgressList.reduce((acc, curr) => acc + (curr.tasksCompleted?.includes('quiz') ? 1 : 0), 0);
 
-  const totalLiveClasses = (course.dailyPlan || []).filter(d => d.liveClassId).length;
+  const dailyPlanLiveClassIds = new Set(
+    (course.dailyPlan || [])
+      .map((d) => d.liveClassId)
+      .filter(Boolean)
+      .map(String)
+  );
+  const totalLiveClasses = Math.max(dailyPlanLiveClassIds.size, liveClasses.length);
   const completedLiveClasses = dayProgressList.reduce((acc, curr) => acc + (curr.tasksCompleted?.includes('live') ? 1 : 0), 0);
   const totalClasses = totalLessons + totalLiveClasses;
   const completedClasses = completedLessons + completedLiveClasses;
+  const accessModeLabel = totalLiveClasses > 0 ? 'Live' : 'Recorded';
+  const contentModePhrase = totalLiveClasses > 0 ? 'live classes, recorded classes' : 'recorded classes';
 
   const totalAssignments = (course.dailyPlan || []).filter(d => d.assignmentUrl).length;
   const completedAssignments = dayProgressList.reduce((acc, curr) => acc + (curr.tasksCompleted?.includes('assignment') ? 1 : 0), 0);
@@ -300,7 +309,7 @@ export default function PowerCourseLearn() {
           </div>
 
           <p className="text-slate-400 text-xs max-w-2xl leading-relaxed pt-1">
-            {course.shortDescription || 'Master topics step-by-step with live/recorded classes, notes, formulas, PYQs, and daily practice.'}
+            {course.shortDescription || `Master topics step-by-step with ${contentModePhrase}, notes, formulas, PYQs, and daily practice.`}
           </p>
 
           {/* Progress summary bar */}
@@ -327,7 +336,7 @@ export default function PowerCourseLearn() {
           <div className="space-y-3 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-500">Access Mode</span>
-              <span className="font-bold text-slate-200">Live + Recorded</span>
+              <span className="font-bold text-slate-200">{accessModeLabel}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">{firstUnlockDate ? 'First Unlock' : 'Start Date'}</span>
@@ -387,9 +396,13 @@ export default function PowerCourseLearn() {
                   <h3 className="font-extrabold text-slate-800 text-sm">Daily Planner</h3>
                   <p className="text-[11px] text-slate-500 mt-0.5">Complete one day at a time to unlock subsequent targets and stay consistent!</p>
                 </div>
-                <div className="inline-flex items-center gap-1.5 text-xs text-brand-655 font-bold bg-white border border-slate-200 px-3 py-1.5 rounded-xl shrink-0 cursor-help">
+                <button
+                  type="button"
+                  onClick={() => setShowHowItWorks(true)}
+                  className="inline-flex items-center gap-1.5 text-xs text-brand-655 font-bold bg-white border border-slate-200 px-3 py-1.5 rounded-xl shrink-0 hover:border-brand-200 hover:bg-brand-50 transition"
+                >
                   <HelpCircle size={13} /> How It Works?
-                </div>
+                </button>
               </div>
 
               <div className="grid xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] gap-4">
@@ -829,6 +842,78 @@ export default function PowerCourseLearn() {
             </div>
             <div className="p-6">
               <SecureYTPlayer url={activeVideo.url} title={activeVideo.title} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showHowItWorks && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50 px-6 py-5">
+              <div>
+                <h3 className="font-display text-lg font-black text-slate-900">How Daily Planner Works</h3>
+                <p className="mt-1 text-xs font-semibold text-slate-500">Follow targets in order and complete each task to unlock the next day.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHowItWorks(false)}
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"
+                aria-label="Close instructions"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="max-h-[70vh] overflow-y-auto p-6">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  {
+                    title: 'Day Map',
+                    text: 'Use the day buttons to open any unlocked target. Locked days cannot be opened until their rule is complete.',
+                  },
+                  {
+                    title: 'Calendar Lock',
+                    text: 'If the batch has dates, a day opens only on or after its scheduled date.',
+                  },
+                  {
+                    title: 'Sequence Unlock',
+                    text: 'After Day 1, the next day unlocks only when the previous day is completed.',
+                  },
+                  {
+                    title: 'Mark Tasks Done',
+                    text: 'Watch video, read notes, attend live class, do practice, and finish assignments. Tap Mark Done for each task.',
+                  },
+                  {
+                    title: 'Progress',
+                    text: 'Your progress circle updates when a complete day is finished. Completed days show a check mark.',
+                  },
+                  {
+                    title: 'Live Classes',
+                    text: 'Open Room joins the in-app live class. If the class uses Zoom/Meet, it opens the external meeting link.',
+                  },
+                  {
+                    title: 'Notes & Assignments',
+                    text: 'Notes and assignment PDFs open in a new tab. Mark them done after reading or completing them.',
+                  },
+                  {
+                    title: 'Practice',
+                    text: 'Practice checkpoints take you to the test/practice area. Mark done after completing the practice.',
+                  },
+                ].map((item, idx) => (
+                  <div key={item.title} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="grid h-6 w-6 place-items-center rounded-lg bg-brand-600 text-[10px] font-black text-white">{idx + 1}</span>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">{item.title}</h4>
+                    </div>
+                    <p className="text-xs font-semibold leading-relaxed text-slate-500">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-xs font-semibold leading-relaxed text-emerald-800">
+                Tip: Complete one day properly before moving ahead. This keeps your revision, class watching, notes, and practice in sync.
+              </div>
             </div>
           </div>
         </div>

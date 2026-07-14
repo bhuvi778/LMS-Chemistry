@@ -18,6 +18,7 @@ import {
   togglePlannerGoal,
   deletePlannerGoal,
   requestMentorship,
+  adminCreateMentorshipBooking,
   getMentorshipBookings,
   updateMentorshipBooking,
   deleteMentorshipBooking,
@@ -55,6 +56,7 @@ router.delete('/planner/:id', deletePlannerGoal);
 
 // Mentorship Routes
 router.post('/mentorship', requestMentorship);
+router.post('/mentorship/admin-create', adminOnly, adminCreateMentorshipBooking);
 router.get('/mentorship', getMentorshipBookings);
 router.get('/mentorship/settings', getMentorshipSettings);
 router.get('/mentorship/settings/all', adminOnly, getAllMentorshipSettings);

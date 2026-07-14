@@ -35,3 +35,42 @@ export const playNotificationSound = () => {
     console.warn('Notification sound play blocked or failed:', err);
   }
 };
+
+const playToneSequence = (tones = []) => {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    const audioCtx = new AudioContext();
+    tones.forEach(({ frequency, start = 0, duration = 0.18, type = 'sine', volume = 0.08 }) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(frequency, audioCtx.currentTime + start);
+      gain.gain.setValueAtTime(0, audioCtx.currentTime + start);
+      gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + start + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(audioCtx.currentTime + start);
+      osc.stop(audioCtx.currentTime + start + duration + 0.02);
+    });
+  } catch (err) {
+    console.warn('Answer sound play blocked or failed:', err);
+  }
+};
+
+export const playAnswerSound = (isCorrect) => {
+  if (isCorrect) {
+    playToneSequence([
+      { frequency: 659.25, duration: 0.16, volume: 0.07 },
+      { frequency: 880, start: 0.12, duration: 0.22, volume: 0.08 },
+    ]);
+    return;
+  }
+
+  playToneSequence([
+    { frequency: 220, duration: 0.22, type: 'triangle', volume: 0.07 },
+    { frequency: 164.81, start: 0.18, duration: 0.28, type: 'triangle', volume: 0.075 },
+  ]);
+};

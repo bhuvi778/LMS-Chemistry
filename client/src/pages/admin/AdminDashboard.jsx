@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client.js';
-import toast from 'react-hot-toast';
 import {
   Users,
   BookOpen,
@@ -15,18 +14,68 @@ import {
   Clock,
   Video,
   HelpCircle,
-  TrendingDown,
   Smartphone,
-  Shield,
   Laptop,
-  Globe
+  Flame,
+  Zap,
+  Target,
+  CheckCircle2,
+  PieChart,
 } from 'lucide-react';
 
+const formatCurrency = (value = 0) => `₹ ${(value || 0).toLocaleString('en-IN')}`;
+
+const safePercent = (value, max) => `${Math.max(4, ((value || 0) / Math.max(1, max)) * 100)}%`;
+
+function MetricPill({ label, value, icon: Icon, tone = 'brand' }) {
+  const tones = {
+    brand: 'bg-brand-50 text-brand-700',
+    emerald: 'bg-emerald-50 text-emerald-700',
+    amber: 'bg-amber-50 text-amber-700',
+    rose: 'bg-rose-50 text-rose-700',
+    slate: 'bg-slate-100 text-slate-700',
+  };
+  return (
+    <div className={`rounded-xl px-3 py-2 ${tones[tone] || tones.brand}`}>
+      <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide opacity-80">
+        <Icon size={12} /> {label}
+      </div>
+      <div className="mt-1 text-lg font-black">{value}</div>
+    </div>
+  );
+}
+
+function HorizontalBars({ items = [], maxValue = 1, labelKey = 'label', valueKey = 'count', color = 'bg-brand-500', empty = 'No data yet' }) {
+  if (!items.length) return <p className="text-sm text-slate-400 py-5 text-center">{empty}</p>;
+  return (
+    <div className="space-y-3">
+      {items.slice(0, 5).map((item, i) => (
+        <div key={`${item[labelKey] || item._id || i}-${i}`}>
+          <div className="flex justify-between gap-3 text-xs mb-1">
+            <span className="font-semibold text-slate-700 truncate">{item[labelKey] || item._id || 'Uncategorized'}</span>
+            <span className="text-slate-500 font-bold shrink-0">{item[valueKey] || 0}</span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+            <div className={`h-full rounded-full ${color} transition-all duration-700`} style={{ width: safePercent(item[valueKey], maxValue) }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ students: 0, courses: 0, enrollments: 0, revenue: 0, appDownloads: 0 });
+  const [stats, setStats] = useState({
+    students: 0, courses: 0, powerBatches: 0, allCourses: 0, enrollments: 0,
+    courseEnrollments: 0, powerBatchEnrollments: 0, revenue: 0,
+    courseRevenue: 0, powerBatchRevenue: 0, appDownloads: 0,
+  });
   const [detail, setDetail] = useState({
     enrollmentsByCat: [], recentDays: [], topCourses: [], publishedCourses: 0,
     monthlyRevenue: [], studentGrowth: [], doubtStats: { open: 0, answered: 0 },
+    courseAnalytics: { planSplit: [], categorySplit: [], topItems: [] },
+    powerBatchAnalytics: { planSplit: [], categorySplit: [], typeSplit: [], topItems: [], progress: {} },
+    monthlyProductRevenue: [],
   });
   const [recent, setRecent] = useState([]);
   const [liveClasses, setLiveClasses] = useState([]);
@@ -44,16 +93,22 @@ export default function AdminDashboard() {
 
   const kpis = [
     { label: 'Total Students', value: stats.students.toLocaleString(), icon: Users, color: 'from-blue-500 to-indigo-500', sub: 'Registered learners', link: '/admin/students' },
-    { label: 'Total Courses', value: stats.courses, icon: BookOpen, color: 'from-violet-500 to-fuchsia-500', sub: `${detail.publishedCourses || 0} live`, link: '/admin/courses' },
-    { label: 'Enrollments', value: stats.enrollments.toLocaleString(), icon: FileText, color: 'from-emerald-500 to-teal-500', sub: 'All time', link: '/admin/enrollments' },
-    { label: 'Total Revenue', value: `₹ ${(stats.revenue || 0).toLocaleString()}`, icon: DollarSign, color: 'from-amber-500 to-orange-500', sub: 'All-time earned', link: null },
+    { label: 'Courses', value: (stats.courses || 0).toLocaleString(), icon: BookOpen, color: 'from-violet-500 to-fuchsia-500', sub: `${detail.publishedCourses || 0} live courses`, link: '/admin/courses' },
+    { label: 'Power Batch', value: (stats.powerBatches || 0).toLocaleString(), icon: Flame, color: 'from-rose-500 to-orange-500', sub: `${detail.publishedPowerBatches || 0} live batches`, link: '/admin/power-batch' },
+    { label: 'Enrollments', value: stats.enrollments.toLocaleString(), icon: FileText, color: 'from-emerald-500 to-teal-500', sub: `${stats.courseEnrollments || 0} course · ${stats.powerBatchEnrollments || 0} batch`, link: '/admin/enrollments' },
+    { label: 'Total Revenue', value: formatCurrency(stats.revenue || 0), icon: DollarSign, color: 'from-amber-500 to-orange-500', sub: 'All-time earned', link: null },
     { label: 'App Downloads', value: (stats.appDownloads || 0).toLocaleString(), icon: Smartphone, color: 'from-sky-500 to-blue-500', sub: 'App installations', link: null },
   ];
 
-  const maxDay = useMemo(() => Math.max(1, ...(detail.recentDays || []).map((d) => d.count)), [detail.recentDays]);
+  const maxSplitDay = useMemo(() => Math.max(1, ...(detail.recentDays || []).flatMap((d) => [d.course || 0, d.powerBatch || 0])), [detail.recentDays]);
   const maxCat = useMemo(() => Math.max(1, ...(detail.enrollmentsByCat || []).map((d) => d.count)), [detail.enrollmentsByCat]);
-  const maxRevenue = useMemo(() => Math.max(1, ...(detail.monthlyRevenue || []).map((d) => d.revenue)), [detail.monthlyRevenue]);
+  const maxPowerCat = useMemo(() => Math.max(1, ...(detail.powerBatchAnalytics?.categorySplit || []).map((d) => d.count)), [detail.powerBatchAnalytics]);
+  const maxPowerType = useMemo(() => Math.max(1, ...(detail.powerBatchAnalytics?.typeSplit || []).map((d) => d.count)), [detail.powerBatchAnalytics]);
+  const maxProductRevenue = useMemo(() => Math.max(1, ...(detail.monthlyProductRevenue || []).flatMap((d) => [d.courseRevenue || 0, d.powerBatchRevenue || 0])), [detail.monthlyProductRevenue]);
   const maxStudentGrowth = useMemo(() => Math.max(1, ...(detail.studentGrowth || []).map((d) => d.count)), [detail.studentGrowth]);
+  const courseAnalytics = detail.courseAnalytics || {};
+  const powerAnalytics = detail.powerBatchAnalytics || {};
+  const powerProgress = powerAnalytics.progress || {};
 
   const upcomingLive = liveClasses
     .filter((lc) => lc.isActive && new Date(lc.scheduledAt) >= new Date())
@@ -68,7 +123,7 @@ export default function AdminDashboard() {
         <p className="text-slate-500 text-sm mt-1">Real-time overview — Ace2Examz • {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
       </div>
 
-      <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         {kpis.map((k, i) => (
           <div key={i} className="card p-5 relative overflow-hidden group">
             <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${k.color} grid place-items-center text-white mb-3 shadow-soft`}>
@@ -87,6 +142,115 @@ export default function AdminDashboard() {
             <div className={`absolute -right-5 -top-5 w-20 h-20 rounded-full bg-gradient-to-br ${k.color} opacity-10`} />
           </div>
         ))}
+      </div>
+
+      <div className="grid xl:grid-cols-2 gap-5">
+        <div className="card p-6 overflow-hidden">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-5">
+            <div>
+              <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                <BookOpen size={17} className="text-violet-500" /> Course Analytics
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">Long-form course sales and enrollment health</p>
+            </div>
+            <Link to="/admin/courses" className="text-xs text-brand-700 font-semibold flex items-center gap-1 hover:underline">
+              Manage <ArrowRight size={11} />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            <MetricPill label="Courses" value={(stats.courses || 0).toLocaleString()} icon={BookOpen} tone="brand" />
+            <MetricPill label="Live" value={(courseAnalytics.published || 0).toLocaleString()} icon={CheckCircle2} tone="emerald" />
+            <MetricPill label="Enroll" value={(stats.courseEnrollments || 0).toLocaleString()} icon={Users} tone="slate" />
+            <MetricPill label="Revenue" value={formatCurrency(stats.courseRevenue || 0)} icon={DollarSign} tone="amber" />
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5">
+            <div className="rounded-2xl border border-slate-100 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-black text-slate-800 flex items-center gap-1.5"><PieChart size={14} /> Category Split</h4>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Enrollments</span>
+              </div>
+              <HorizontalBars items={courseAnalytics.categorySplit || []} maxValue={maxCat} labelKey="_id" color="bg-violet-500" />
+            </div>
+
+            <div className="rounded-2xl border border-slate-100 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-black text-slate-800 flex items-center gap-1.5"><Target size={14} /> Plan Mix</h4>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Revenue</span>
+              </div>
+              <div className="space-y-3">
+                {(courseAnalytics.planSplit || []).length === 0 ? (
+                  <p className="text-sm text-slate-400 py-5 text-center">No plan data yet</p>
+                ) : (courseAnalytics.planSplit || []).map((plan) => (
+                  <div key={plan.planType} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                    <div>
+                      <div className="text-xs font-black text-slate-800 capitalize">{plan.planType}</div>
+                      <div className="text-[10px] font-semibold text-slate-400">{plan.count} enrollments</div>
+                    </div>
+                    <div className="text-xs font-black text-emerald-600">{formatCurrency(plan.revenue)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-6 overflow-hidden border-rose-100">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-5">
+            <div>
+              <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                <Flame size={17} className="text-rose-500" /> Power Batch Analytics
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">Short challenge sales, progress and completion health</p>
+            </div>
+            <Link to="/admin/power-batch" className="text-xs text-rose-700 font-semibold flex items-center gap-1 hover:underline">
+              Manage <ArrowRight size={11} />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            <MetricPill label="Batches" value={(stats.powerBatches || 0).toLocaleString()} icon={Flame} tone="rose" />
+            <MetricPill label="Enroll" value={(stats.powerBatchEnrollments || 0).toLocaleString()} icon={Users} tone="slate" />
+            <MetricPill label="Revenue" value={formatCurrency(stats.powerBatchRevenue || 0)} icon={DollarSign} tone="amber" />
+            <MetricPill label="Avg Prog." value={`${powerProgress.avgProgress || 0}%`} icon={Zap} tone="emerald" />
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5">
+            <div className="rounded-2xl border border-slate-100 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-black text-slate-800 flex items-center gap-1.5"><PieChart size={14} /> Batch Type</h4>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Enrollments</span>
+              </div>
+              <HorizontalBars items={powerAnalytics.typeSplit || []} maxValue={maxPowerType} labelKey="type" color="bg-rose-500" empty="No power batch sales yet" />
+            </div>
+
+            <div className="rounded-2xl border border-slate-100 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-black text-slate-800 flex items-center gap-1.5"><CheckCircle2 size={14} /> Progress Signals</h4>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Learner action</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-emerald-50 p-3">
+                  <div className="text-xl font-black text-emerald-700">{(powerProgress.completedDays || 0).toLocaleString()}</div>
+                  <div className="text-[10px] font-bold text-emerald-700/70 uppercase">Days Done</div>
+                </div>
+                <div className="rounded-xl bg-rose-50 p-3">
+                  <div className="text-xl font-black text-rose-700">{(powerProgress.activeStudents || 0).toLocaleString()}</div>
+                  <div className="text-[10px] font-bold text-rose-700/70 uppercase">Active Students</div>
+                </div>
+                <div className="rounded-xl bg-amber-50 p-3">
+                  <div className="text-xl font-black text-amber-700">{(powerProgress.completedEnrollments || 0).toLocaleString()}</div>
+                  <div className="text-[10px] font-bold text-amber-700/70 uppercase">Completed</div>
+                </div>
+                <div className="rounded-xl bg-slate-100 p-3">
+                  <div className="text-xl font-black text-slate-700">{(powerProgress.progressRecords || 0).toLocaleString()}</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase">Progress Rows</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {mentorshipRequests.length > 0 && (
@@ -123,16 +287,33 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="font-bold text-slate-900 flex items-center gap-2"><Activity size={16} className="text-brand-500" /> Enrollment Trend</h3>
-              <p className="text-xs text-slate-400 mt-0.5">New enrollments — last 7 days</p>
+              <p className="text-xs text-slate-400 mt-0.5">Course vs Power Batch — last 7 days</p>
+            </div>
+            <div className="flex items-center gap-3 text-[10px] font-bold uppercase text-slate-400">
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-violet-500" /> Course</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" /> Power Batch</span>
             </div>
           </div>
           {(detail.recentDays || []).length > 0 ? (
-            <div className="flex items-end gap-2 h-36 pb-1">
+            <div className="flex items-end gap-2 h-40 pb-1">
               {(detail.recentDays || []).map((d, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1 group/bar">
-                  <div className="relative w-full flex flex-col items-center">
-                    {d.count > 0 && <span className="text-[10px] font-bold text-brand-600 opacity-0 group-hover/bar:opacity-100 transition mb-1">{d.count}</span>}
-                    <div className="w-full rounded-t-lg bg-gradient-to-t from-brand-500 to-violet-500 shadow-soft transition-all duration-500" style={{ height: `${Math.max(6, (d.count / maxDay) * 120)}px` }} />
+                  <div className="relative w-full flex items-end justify-center gap-1">
+                    {(d.course > 0 || d.powerBatch > 0) && (
+                      <span className="absolute -top-5 text-[10px] font-bold text-slate-600 opacity-0 group-hover/bar:opacity-100 transition">
+                        {d.course || 0}/{d.powerBatch || 0}
+                      </span>
+                    )}
+                    <div
+                      className="w-full max-w-[18px] rounded-t-lg bg-violet-500 shadow-soft transition-all duration-500"
+                      style={{ height: `${Math.max(6, ((d.course || 0) / maxSplitDay) * 126)}px` }}
+                      title={`Course: ${d.course || 0}`}
+                    />
+                    <div
+                      className="w-full max-w-[18px] rounded-t-lg bg-rose-500 shadow-soft transition-all duration-500"
+                      style={{ height: `${Math.max(6, ((d.powerBatch || 0) / maxSplitDay) * 126)}px` }}
+                      title={`Power Batch: ${d.powerBatch || 0}`}
+                    />
                   </div>
                   <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">{d.day}</span>
                 </div>
@@ -146,23 +327,19 @@ export default function AdminDashboard() {
         <div className="card p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-bold text-slate-900 flex items-center gap-2"><BarChart2 size={16} className="text-violet-500" /> By Category</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Enrollments per exam</p>
+              <h3 className="font-bold text-slate-900 flex items-center gap-2"><BarChart2 size={16} className="text-violet-500" /> Category Split</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Courses and power batches</p>
             </div>
           </div>
-          <div className="space-y-3">
-            {(detail.enrollmentsByCat || []).slice(0, 7).map((d, i) => (
-              <div key={i}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="font-semibold text-slate-700">{d._id}</span>
-                  <span className="text-slate-500 font-medium">{d.count}</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                  <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-violet-500 transition-all duration-700" style={{ width: `${(d.count / maxCat) * 100}%` }} />
-                </div>
-              </div>
-            ))}
-            {(detail.enrollmentsByCat || []).length === 0 && <p className="text-sm text-slate-400 py-6 text-center">No data yet</p>}
+          <div className="space-y-5">
+            <div>
+              <div className="mb-2 text-[10px] font-black uppercase tracking-wide text-violet-500">Course</div>
+              <HorizontalBars items={courseAnalytics.categorySplit || []} maxValue={maxCat} labelKey="_id" color="bg-violet-500" />
+            </div>
+            <div className="border-t border-slate-100 pt-4">
+              <div className="mb-2 text-[10px] font-black uppercase tracking-wide text-rose-500">Power Batch</div>
+              <HorizontalBars items={powerAnalytics.categorySplit || []} maxValue={maxPowerCat} labelKey="_id" color="bg-rose-500" empty="No power batch data yet" />
+            </div>
           </div>
         </div>
       </div>
@@ -170,20 +347,31 @@ export default function AdminDashboard() {
       {/* Monthly Revenue + Student Growth Charts */}
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="card p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <DollarSign size={16} className="text-amber-500" />
-            <div>
-              <h3 className="font-bold text-slate-900">Monthly Revenue</h3>
-              <p className="text-xs text-slate-400">Last 6 months</p>
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <div className="flex items-center gap-2">
+              <DollarSign size={16} className="text-amber-500" />
+              <div>
+                <h3 className="font-bold text-slate-900">Monthly Product Revenue</h3>
+                <p className="text-xs text-slate-400">Course vs Power Batch — last 6 months</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-[10px] font-bold uppercase text-slate-400">
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-violet-500" /> Course</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" /> Batch</span>
             </div>
           </div>
-          {(detail.monthlyRevenue || []).length > 0 ? (
-            <div className="flex items-end gap-2 h-28 pb-1">
-              {detail.monthlyRevenue.map((m, i) => (
+          {(detail.monthlyProductRevenue || []).length > 0 ? (
+            <div className="flex items-end gap-2 h-32 pb-1">
+              {detail.monthlyProductRevenue.map((m, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1 group/bar">
-                  <div className="relative w-full flex flex-col items-center">
-                    {m.revenue > 0 && <span className="text-[9px] font-bold text-amber-600 opacity-0 group-hover/bar:opacity-100 transition mb-1">₹{m.revenue.toLocaleString()}</span>}
-                    <div className="w-full rounded-t-lg bg-gradient-to-t from-amber-500 to-orange-400 transition-all duration-500" style={{ height: `${Math.max(4, (m.revenue / maxRevenue) * 100)}px` }} />
+                  <div className="relative w-full flex items-end justify-center gap-1">
+                    {(m.courseRevenue > 0 || m.powerBatchRevenue > 0) && (
+                      <span className="absolute -top-5 text-[9px] font-bold text-amber-600 opacity-0 group-hover/bar:opacity-100 transition">
+                        {formatCurrency((m.courseRevenue || 0) + (m.powerBatchRevenue || 0))}
+                      </span>
+                    )}
+                    <div className="w-full max-w-[20px] rounded-t-lg bg-violet-500 transition-all duration-500" style={{ height: `${Math.max(4, ((m.courseRevenue || 0) / maxProductRevenue) * 104)}px` }} />
+                    <div className="w-full max-w-[20px] rounded-t-lg bg-rose-500 transition-all duration-500" style={{ height: `${Math.max(4, ((m.powerBatchRevenue || 0) / maxProductRevenue) * 104)}px` }} />
                   </div>
                   <span className="text-[9px] text-slate-400 whitespace-nowrap">{m.month}</span>
                 </div>
@@ -223,13 +411,14 @@ export default function AdminDashboard() {
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="card p-6">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2"><Trophy size={16} className="text-amber-500" /> Top Courses</h3>
-            <Link to="/admin/courses" className="text-xs text-brand-700 font-semibold flex items-center gap-1 hover:underline">All <ArrowRight size={11} /></Link>
+            <h3 className="font-bold text-slate-900 flex items-center gap-2"><Trophy size={16} className="text-amber-500" /> Top Learning Products</h3>
+            <Link to="/admin/enrollments" className="text-xs text-brand-700 font-semibold flex items-center gap-1 hover:underline">All <ArrowRight size={11} /></Link>
           </div>
+          <div className="mb-3 text-[10px] font-black uppercase tracking-wide text-violet-500">Courses</div>
           <div className="space-y-3">
             {(detail.topCourses || []).map((c, i) => (
               <div key={c._id} className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 grid place-items-center text-white text-xs font-black shrink-0">{i + 1}</div>
+                <div className="w-7 h-7 rounded-lg bg-violet-500 grid place-items-center text-white text-xs font-black shrink-0">{i + 1}</div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-xs text-slate-900 truncate">{c.title}</div>
                   <div className="text-[10px] text-slate-400">{c.category} · {c.enrollmentCount} enrolled</div>
@@ -238,6 +427,22 @@ export default function AdminDashboard() {
               </div>
             ))}
             {(detail.topCourses || []).length === 0 && <p className="text-sm text-slate-400 py-4 text-center">No data yet</p>}
+          </div>
+          <div className="mt-5 pt-4 border-t border-slate-100">
+            <div className="mb-3 text-[10px] font-black uppercase tracking-wide text-rose-500">Power Batch</div>
+            <div className="space-y-3">
+              {(detail.topPowerBatches || []).map((c, i) => (
+                <div key={c._id} className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-rose-500 grid place-items-center text-white text-xs font-black shrink-0">{i + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-xs text-slate-900 truncate">{c.title}</div>
+                    <div className="text-[10px] text-slate-400 capitalize">{c.powerCourseType || 'other'} · {c.powerCourseDuration || 7} days · {c.enrollmentCount} enrolled</div>
+                  </div>
+                  <div className="text-xs font-bold text-emerald-600 shrink-0">{formatCurrency(c.revenue || 0)}</div>
+                </div>
+              ))}
+              {(detail.topPowerBatches || []).length === 0 && <p className="text-sm text-slate-400 py-4 text-center">No power batch data yet</p>}
+            </div>
           </div>
         </div>
 

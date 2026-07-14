@@ -73,7 +73,7 @@ export default function Session() {
         setPreferredDate('');
       }
     } catch (err) {
-      console.error('Failed to load 1:1 session settings:', err);
+      console.error('Failed to load 1:1 mentorship settings:', err);
     }
   };
 
@@ -103,7 +103,7 @@ export default function Session() {
         await loadSessionSettings(enrolls);
       }
     } catch (error) {
-      toast.error('Failed to load 1:1 session data');
+      toast.error('Failed to load 1:1 mentorship data');
       console.error(error);
     } finally {
       setLoadingAccess(false);
@@ -139,7 +139,7 @@ export default function Session() {
         category
       });
 
-      toast.success(`${sessionType === 'doubt' ? '1:1 Doubt' : 'Session'} request submitted!`);
+      toast.success(`${sessionType === 'doubt' ? '1:1 Doubt' : '1:1 Mentorship'} request submitted!`);
       setShowRequestModal(false);
       setSubject('');
       setDescription('');
@@ -242,9 +242,9 @@ export default function Session() {
               <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
                 Premium Feature
               </span>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Unlock 1:1 Session</h1>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Unlock 1:1 Mentorship</h1>
               <p className="text-slate-300 text-sm max-w-lg mx-auto leading-relaxed">
-                Accelerate your learning path with personalized guidance. 1:1 sessions with top Chemistry faculty are exclusively available for Infinity plan subscribers.
+                Accelerate your learning path with personalized guidance. 1:1 mentorship with top Chemistry faculty is exclusively available for Infinity plan subscribers.
               </p>
             </div>
 
@@ -255,7 +255,7 @@ export default function Session() {
               </div>
               <div className="flex items-center gap-3 text-xs">
                 <span className="text-emerald-400 text-base">✓</span>
-                <span className="text-slate-200 font-bold text-slate-300">Live 1:1 interactive video sessions with assigned mentors</span>
+                <span className="text-slate-200 font-bold text-slate-300">Live 1:1 mentorship calls with assigned mentors</span>
               </div>
               <div className="flex items-center gap-3 text-xs">
                 <span className="text-emerald-400 text-base">✓</span>
@@ -287,23 +287,23 @@ export default function Session() {
             <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
               Premium Session
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">1:1 Sessions</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">1:1 Mentorship</h1>
             <p className="text-slate-300 text-sm max-w-xl">
-              Book monthly 1:1 sessions and weekly 1:1 doubt calls with expert Chemistry mentors.
+              Book monthly 1:1 mentorship and weekly 1:1 doubt calls with expert Chemistry mentors.
             </p>
           </div>
           <button
             onClick={() => setShowRequestModal(true)}
             className="sm:shrink-0 px-6 py-4 bg-white text-indigo-600 font-extrabold text-sm rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 self-start sm:self-auto cursor-pointer"
           >
-            Book 1:1 Session
+            Book 1:1 Mentorship
           </button>
         </div>
       </div>
 
       {/* Bookings Lists */}
       <div className="space-y-4">
-        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Your 1:1 Sessions</h2>
+        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Your 1:1 Mentorship</h2>
         
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -318,7 +318,7 @@ export default function Session() {
         ) : (
           <div className="grid gap-6">
             {bookings.map(booking => {
-              const sessionLabel = booking.sessionType === 'doubt' ? '1:1 Doubt' : '1:1 Session';
+              const sessionLabel = booking.sessionType === 'doubt' ? '1:1 Doubt' : '1:1 Mentorship';
               const dateStr = new Date(booking.preferredDate).toLocaleDateString('en-IN', {
                 weekday: 'long',
                 year: 'numeric',
@@ -485,7 +485,7 @@ export default function Session() {
                 <Users size={20} />
               </div>
               <div>
-                <h3 className="text-sm font-black text-slate-800">Request 1:1 Session</h3>
+                <h3 className="text-sm font-black text-slate-800">Request 1:1 Mentorship</h3>
                 <p className="text-[11px] text-slate-400">Choose session or doubt support and book a slot</p>
               </div>
             </div>
@@ -495,7 +495,7 @@ export default function Session() {
                 <AlertCircle size={40} className="text-amber-500 animate-bounce" />
                 <h4 className="font-bold text-slate-850 text-sm">Session Bookings Closed</h4>
                 <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
-                  1:1 Session requests are currently closed. Our slots will open soon. Please check back later!
+                  1:1 Mentorship requests are currently closed. Our slots will open soon. Please check back later!
                 </p>
                 <button
                   type="button"
@@ -519,7 +519,7 @@ export default function Session() {
                       }`}
                     >
                       <Users size={16} className={sessionType === 'mentorship' ? 'text-indigo-600' : 'text-slate-400'} />
-                      <div className="mt-2 text-xs font-black">1:1 Session</div>
+                      <div className="mt-2 text-xs font-black">1:1 Mentorship</div>
                       <div className="text-[10px] font-semibold opacity-75">
                         {getRangeCounts('mentorship', preferredDate || new Date()).month}/{mentorshipSettings.mentorshipMonthlyLimit} this month
                       </div>
@@ -544,7 +544,7 @@ export default function Session() {
                   {selectedLimitReached && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-700">
                       {monthlyLimitReached
-                        ? `Monthly limit reached for ${sessionType === 'doubt' ? '1:1 Doubt' : '1:1 Session'}.`
+                        ? `Monthly limit reached for ${sessionType === 'doubt' ? '1:1 Doubt' : '1:1 Mentorship'}.`
                         : 'Weekly 1:1 Doubt limit reached for the selected date.'}
                     </div>
                   )}

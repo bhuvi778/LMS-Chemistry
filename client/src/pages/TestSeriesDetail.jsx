@@ -69,6 +69,11 @@ export default function TestSeriesDetail() {
   const [showBankModal, setShowBankModal] = useState(false);
   const [bankTransferRequest, setBankTransferRequest] = useState(null);
   const [redeemCoins, setRedeemCoins] = useState(false);
+  const [ratingVal, setRatingVal] = useState(0);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [ratingBusy, setRatingBusy] = useState(false);
+  const [myReview, setMyReview] = useState(null);
 
   // Custom tag filter for tests inside the series
   const [selectedCustomTag, setSelectedCustomTag] = useState(null);
@@ -78,6 +83,16 @@ export default function TestSeriesDetail() {
       try {
         const { data } = await api.get(`/tests/series/${id}`);
         setSeries(data);
+        if (user && data?.reviews?.length) {
+          const userId = user._id || user.id;
+          const existing = data.reviews.find((review) => {
+            const reviewerId = typeof review.student === 'object' ? review.student?._id : review.student;
+            return reviewerId?.toString() === userId?.toString();
+          });
+          setMyReview(existing || null);
+        } else {
+          setMyReview(null);
+        }
         if (user) {
           const { data: attempts } = await api.get('/tests/attempts/me');
           setMyAttempts(attempts);
@@ -124,6 +139,38 @@ export default function TestSeriesDetail() {
   const removeCoupon = () => {
     setCouponApplied(null);
     setCouponInput('');
+  };
+
+  const submitRating = async () => {
+    if (!user) {
+      toast('Please login to submit a review', { icon: '🔒' });
+      nav('/login', { state: { from: `/test-series/${id}` } });
+      return;
+    }
+    if (!(series?.isFree || enrolled || user?.role === 'admin')) {
+      toast.error('You can rate this test series after enrollment.');
+      return;
+    }
+    if (!ratingVal) {
+      toast.error('Please select a star rating');
+      return;
+    }
+
+    setRatingBusy(true);
+    try {
+      await api.post(`/tests/series/${id}/review`, {
+        rating: ratingVal,
+        comment: ratingComment.trim(),
+      });
+      toast.success('Thank you for your rating!');
+      setMyReview({ rating: ratingVal, comment: ratingComment.trim(), studentName: user?.name });
+      const { data } = await api.get(`/tests/series/${id}`);
+      setSeries(data);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Could not submit rating');
+    } finally {
+      setRatingBusy(false);
+    }
   };
 
   const handleEnroll = useCallback(async () => {
@@ -333,6 +380,7 @@ export default function TestSeriesDetail() {
               <div className="flex flex-wrap items-center justify-between gap-4 mt-4 pt-4 border-t border-white/10 text-sm text-white/60">
                 <div className="flex flex-wrap items-center gap-4">
                   <span className="flex items-center gap-1.5"><ClipboardList size={14} /> {tests.length} Tests</span>
+                  <span className="flex items-center gap-1.5"><Star size={14} className="text-amber-300" fill="currentColor" /> {series.rating || 4.8} Rating</span>
                   {series.validity?.type === 'lifetime' && (
                     <span className="flex items-center gap-1.5"><Clock size={14} /> Lifetime Access</span>
                   )}
@@ -479,16 +527,14 @@ export default function TestSeriesDetail() {
                 baseAmt = Math.max(0, initialAmt - coinDiscountVal);
               }
               const isFreeAfterDiscount = baseAmt <= 0;
-              const gwFee = isFreeAfterDiscount ? 0 : Math.round(baseAmt * 0.03 * 100) / 100;
-              const rzpTotal = isFreeAfterDiscount ? 0 : Math.round((baseAmt + gwFee) * 100) / 100;
+              const rzpTotal = isFreeAfterDiscount ? 0 : Math.round(baseAmt * 100) / 100;
               return (
                 <div className="space-y-3">
-                  {/* Razorpay fee breakdown */}
+                  {/* Payment summary */}
                   <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl px-3 py-2.5 space-y-1 text-xs">
                     <div className="flex justify-between text-slate-600"><span>Series price</span><span>₹{(series?.price || 0).toFixed(2)}</span></div>
                     {couponApplied && couponApplied.discountAmount > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coupon discount ({couponApplied.couponCode})</span><span>- ₹{couponApplied.discountAmount.toFixed(2)}</span></div>}
                     {coinDiscountVal > 0 && <div className="flex justify-between text-emerald-600 font-bold"><span>Coin discount</span><span>- ₹{coinDiscountVal.toFixed(2)}</span></div>}
-                    {!isFreeAfterDiscount && <div className="flex justify-between text-slate-500"><span>Internet handling fee</span><span>₹{gwFee.toFixed(2)}</span></div>}
                     <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1"><span>Total</span><span>{isFreeAfterDiscount ? '₹0.00 (Free!)' : `₹${rzpTotal.toFixed(2)}`}</span></div>
                   </div>
 
@@ -534,6 +580,102 @@ export default function TestSeriesDetail() {
             </div>
           </div>
         )}
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6 space-y-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                <Star size={18} className="text-amber-500" fill="currentColor" />
+                Reviews & Rating
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                {series.reviews?.length || 0} review{(series.reviews?.length || 0) === 1 ? '' : 's'} · Average {series.rating || 4.8}/5
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-amber-500 text-sm font-black">
+              <Star size={16} fill="currentColor" /> {series.rating || 4.8}
+            </div>
+          </div>
+
+          {(canAccess || user?.role === 'admin') ? (
+            myReview ? (
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                <div className="flex items-center gap-1 text-amber-500">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} size={14} fill={i < myReview.rating ? 'currentColor' : 'none'} />
+                  ))}
+                </div>
+                <p className="mt-1 text-xs font-semibold text-emerald-800">
+                  Your rating submitted{myReview.comment ? `: "${myReview.comment}"` : '.'}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 space-y-3">
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => {
+                    const starValue = i + 1;
+                    return (
+                      <button
+                        key={starValue}
+                        type="button"
+                        onClick={() => setRatingVal(starValue)}
+                        onMouseEnter={() => setRatingHover(starValue)}
+                        onMouseLeave={() => setRatingHover(0)}
+                        className="text-amber-400 transition hover:scale-110"
+                        aria-label={`Rate ${starValue} star`}
+                      >
+                        <Star size={24} fill={starValue <= (ratingHover || ratingVal) ? 'currentColor' : 'none'} />
+                      </button>
+                    );
+                  })}
+                </div>
+                <input
+                  type="text"
+                  value={ratingComment}
+                  onChange={(e) => setRatingComment(e.target.value)}
+                  placeholder="Short feedback (optional)"
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={submitRating}
+                  disabled={ratingBusy || !ratingVal}
+                  className="w-full rounded-xl border border-brand-200 bg-white px-4 py-2.5 text-sm font-bold text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
+                >
+                  {ratingBusy ? 'Submitting...' : 'Submit Rating'}
+                </button>
+              </div>
+            )
+          ) : (
+            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs font-semibold text-slate-500">
+              {user ? 'Enroll in this test series to submit your own rating.' : 'Login and enroll to submit your own rating.'}
+            </div>
+          )}
+
+          {(series.reviews || []).length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(series.reviews || []).slice(-4).reverse().map((review, idx) => (
+                <div key={review._id || idx} className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="font-bold text-slate-800 text-xs truncate">{review.studentName || review.student?.name || 'Student'}</div>
+                    <div className="flex items-center gap-0.5 text-amber-500 shrink-0">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star key={i} size={12} fill={i < review.rating ? 'currentColor' : 'none'} />
+                      ))}
+                    </div>
+                  </div>
+                  {review.comment && (
+                    <p className="mt-2 text-xs text-slate-500 font-semibold leading-relaxed line-clamp-2">"{review.comment}"</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-4 text-xs font-semibold text-slate-400">
+              No reviews yet. Enrolled students can add the first rating.
+            </p>
+          )}
+        </div>
 
         {/* Test Series Schedule Section */}
         {series.syllabusFileUrl && (

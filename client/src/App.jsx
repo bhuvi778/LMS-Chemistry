@@ -72,6 +72,7 @@ import AdminPopups from './pages/admin/AdminPopups.jsx';
 import AdminChat from './pages/admin/AdminChat.jsx';
 import AdminRatings from './pages/admin/AdminRatings.jsx';
 import AdminReportedQuestions from './pages/admin/AdminReportedQuestions.jsx';
+import AdminDailyTargets from './pages/admin/AdminDailyTargets.jsx';
 import Contact from './pages/Contact.jsx';
 import Feed from './pages/Feed.jsx';
 import SupportChatWidget from './components/SupportChatWidget.jsx';
@@ -208,6 +209,7 @@ export default function App() {
           <Route path="enrollments" element={<AdminEnrollments />} />
           <Route path="live-classes" element={<AdminLiveClasses />} />
           <Route path="tests" element={<AdminTests />} />
+          <Route path="daily-targets" element={<AdminDailyTargets />} />
           <Route path="tests/new" element={<AdminTestForm />} />
           <Route path="tests/:id/edit" element={<AdminTestForm />} />
           <Route path="test-series" element={<AdminTestSeries />} />

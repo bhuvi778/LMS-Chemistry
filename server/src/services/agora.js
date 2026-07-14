@@ -2,6 +2,19 @@ import pkg from 'agora-token';
 // Uses Node 18+ built-in fetch — no external package needed
 const { RtcTokenBuilder, RtcRole } = pkg;
 
+const readAgoraEnv = () => {
+  const clean = (value) => {
+    const normalized = String(value || '').trim();
+    return normalized && !['undefined', 'null', 'false'].includes(normalized.toLowerCase())
+      ? normalized
+      : '';
+  };
+  return {
+    appId: clean(process.env.AGORA_APP_ID),
+    appCertificate: clean(process.env.AGORA_APP_CERTIFICATE),
+  };
+};
+
 /**
  * Generates an Agora RTC token for a given channel.
  * @param {string} channelName - The room/channel name (e.g. roomId).
@@ -10,14 +23,14 @@ const { RtcTokenBuilder, RtcRole } = pkg;
  * @returns {object} - { token, appId }
  */
 export const generateAgoraToken = (channelName, uid = 0, role = 'subscriber') => {
-  const appId = process.env.AGORA_APP_ID;
-  const appCertificate = process.env.AGORA_APP_CERTIFICATE;
+  const { appId, appCertificate } = readAgoraEnv();
 
   if (!appId || !appCertificate) {
-    console.warn('⚠️ Agora credentials (AGORA_APP_ID, AGORA_APP_CERTIFICATE) are not set or partially set in .env. Fallback to tokenless/mock behavior.');
+    console.warn('⚠️ Agora credentials are missing or incomplete. Live room will use internal WebRTC fallback.');
     return {
-      token: appId ? "" : `mock_token_${channelName}_${role}`,
-      appId: appId || 'mock_app_id_placeholder',
+      token: '',
+      appId: '',
+      fallbackMode: 'internal_webrtc',
     };
   }
 
@@ -41,8 +54,9 @@ export const generateAgoraToken = (channelName, uid = 0, role = 'subscriber') =>
   } catch (error) {
     console.error('Error generating Agora token:', error);
     return {
-      token: `mock_token_${channelName}_${role}`,
-      appId: appId,
+      token: '',
+      appId: '',
+      fallbackMode: 'internal_webrtc',
     };
   }
 };

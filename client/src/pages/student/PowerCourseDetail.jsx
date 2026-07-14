@@ -14,7 +14,6 @@ import {
   Star,
   Award,
   Video,
-  ListTodo,
   Laptop,
   BookOpen
 } from 'lucide-react';
@@ -56,7 +55,6 @@ export default function PowerCourseDetail() {
   const [ratingBusy, setRatingBusy] = useState(false);
   const [myReview, setMyReview] = useState(null);
   const [upsellItem, setUpsellItem] = useState(null);
-  const [liveClasses, setLiveClasses] = useState([]);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -65,7 +63,6 @@ export default function PowerCourseDetail() {
         const fetchedCourse = courseRes.data;
         setCourse(fetchedCourse);
         setUpsellItem(null);
-        setLiveClasses([]);
 
         if (fetchedCourse?.upsell?.enabled) {
           const targetType = fetchedCourse.upsell.targetType || 'course';
@@ -93,14 +90,14 @@ export default function PowerCourseDetail() {
         
         if (user) {
           try {
-            const [enrollRes, liveRes] = await Promise.all([
-              api.get('/enroll/me'),
-              api.get(`/admin/live-classes/by-course/${courseId}`).catch(() => ({ data: [] })),
-            ]);
+            const enrollRes = await api.get('/enroll/me');
             const enrollments = enrollRes.data || [];
-            const isEnrolled = enrollments.some((e) => e.course?._id === courseId);
+            const fetchedCourseId = fetchedCourse?._id?.toString();
+            const isEnrolled = enrollments.some((e) => {
+              const enrolledCourseId = (e.course?._id || e.course)?.toString();
+              return enrolledCourseId === courseId || enrolledCourseId === fetchedCourseId;
+            });
             setEnrolled(isEnrolled);
-            setLiveClasses(liveRes.data || []);
           } catch (e) {
             setEnrolled(false);
           }
@@ -296,16 +293,18 @@ export default function PowerCourseDetail() {
     ? Math.min(coinBalance, Math.floor(priceAfterCoupon))
     : 0;
   const displayPrice = Math.max(0, Math.round((priceAfterCoupon - coinDiscount) * 100) / 100);
-  const gatewayFee = displayPrice > 0 ? Math.round(displayPrice * 0.03 * 100) / 100 : 0;
-  const checkoutTotal = Math.round((displayPrice + gatewayFee) * 100) / 100;
+  const checkoutTotal = displayPrice;
   const discPercent = mrp && mrp > priceAfterCoupon ? Math.round(((mrp - priceAfterCoupon) / mrp) * 100) : 0;
 
   const duration = course.powerCourseDuration || 7;
   const recordedClassCount = (course.dailyPlan || []).filter(d => d.videoUrl).length;
-  const liveClassCount = new Set([
-    ...(course.dailyPlan || []).map(d => d.liveClassId).filter(Boolean).map(String),
-    ...liveClasses.map(lc => lc._id).filter(Boolean).map(String),
-  ]).size;
+  const liveClassCount = (course.dailyPlan || []).filter(d => d.liveClassId).length;
+  const primaryClassMode = liveClassCount > 0 ? 'Live' : 'Recorded';
+  const primaryClassCount = liveClassCount > 0 ? liveClassCount : recordedClassCount;
+  const primaryClassLabel = liveClassCount > 0 ? 'Live classes' : 'Recorded classes';
+  const notesAssignmentCount = (course.dailyPlan || []).reduce((sum, day) => (
+    sum + (day.notesUrl ? 1 : 0) + (day.assignmentUrl ? 1 : 0)
+  ), 0);
   const hasCalendarMode = !!course.startDate || !!course.endDate || (course.dailyPlan || []).some((day) => !!day.unlockDate);
   const categories = Array.from(new Set([...(course.categories || []), course.category].filter(Boolean)));
   const subCategories = Array.from(new Set((course.subCategories || []).filter(Boolean)));
@@ -450,13 +449,13 @@ export default function PowerCourseDetail() {
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                 <Video size={17} className="text-slate-500" />
-                <div className="mt-2 text-xl font-black text-slate-950">{recordedClassCount}</div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Recorded classes</p>
+                <div className="mt-2 text-xl font-black text-slate-950">{primaryClassCount}</div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{primaryClassLabel}</p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                <ListTodo size={17} className="text-slate-500" />
-                <div className="mt-2 text-xl font-black text-slate-950">{liveClassCount}</div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Live classes</p>
+                <BookOpen size={17} className="text-slate-500" />
+                <div className="mt-2 text-xl font-black text-slate-950">{notesAssignmentCount}</div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Notes & Assignments</p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                 <Star size={17} className="text-slate-500" />
@@ -538,7 +537,7 @@ export default function PowerCourseDetail() {
                   { title: 'Concept Clarity', desc: 'Easy explanation of every topic step-by-step.', icon: Award },
                   { title: 'Daily Targets', desc: 'Structured day-by-day plan with date-wise unlock when configured.', icon: Zap },
                   { title: 'PYQ Focused', desc: 'Chapter-wise past years solved problems for better exam confidence.', icon: Clock },
-                  { title: 'Live / Recorded Classes', desc: 'Recorded lectures and live classes mapped inside the daily plan.', icon: Video }
+                  { title: 'Notes & Assignments', desc: 'Reference notes and assignments mapped inside the daily plan.', icon: BookOpen }
                 ].map((hl, i) => (
                   <div key={i} className="p-4 bg-slate-50/50 border border-slate-200 rounded-xl flex gap-3">
                     <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
@@ -653,7 +652,7 @@ export default function PowerCourseDetail() {
                       </div>
                     ) : (
                       <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-[11px] font-semibold text-slate-450">
-                        Live/recorded class, reference notes, and practice material will unlock on this day.
+                        {primaryClassMode} class, reference notes, and practice material will unlock on this day.
                       </div>
                     )}
                   </div>
@@ -666,18 +665,18 @@ export default function PowerCourseDetail() {
           {activeTab === 'faqs' && (
             <div className="card p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-4">
               <h3 className="font-extrabold text-slate-800 text-sm">Frequently Asked Questions</h3>
-              <div className="space-y-3">
-                {[
-                  { q: 'How does the calendar timeline logic work?', a: 'If admin sets Daily Plan dates, each day unlocks on its configured date. Without dates, Power Batch works sequentially after purchase.' },
-                  { q: 'Are notes PDFs downloadable?', a: 'Yes! All target notes summaries and daily assignment sheets are fully downloadable in PDF format once the specific day is unlocked.' },
-                  { q: 'Can I use it without fixed dates?', a: 'Yes. If admin does not set calendar dates, the batch works in flexible day-wise mode exactly like the current flow.' }
-                ].map((faq, i) => (
-                  <div key={i} className="border-b pb-3.5 last:border-0 last:pb-0 space-y-1">
-                    <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">❓ {faq.q}</h4>
-                    <p className="text-slate-500 text-xs leading-relaxed pl-4">{faq.a}</p>
-                  </div>
-                ))}
-              </div>
+              {(course.faqs || []).length === 0 ? (
+                <p className="text-slate-400 text-xs text-center py-6">No FAQs added yet. Admin can add FAQs from the Power Batch settings.</p>
+              ) : (
+                <div className="space-y-3">
+                  {(course.faqs || []).map((faq, i) => (
+                    <div key={i} className="border-b pb-3.5 last:border-0 last:pb-0 space-y-1">
+                      <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">❓ {faq.question}</h4>
+                      <p className="text-slate-500 text-xs leading-relaxed pl-4">{faq.answer}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -723,7 +722,7 @@ export default function PowerCourseDetail() {
               <div className="flex items-center gap-2"><Check size={14} className="text-emerald-500" /> Day-wise target access</div>
               <div className="flex items-center gap-2"><Laptop size={14} className="text-indigo-500" /> Watch on Mobile/Tablet/PC</div>
               <div className="flex items-center gap-2"><Check size={14} className="text-emerald-500" /> Notes & assignments access</div>
-              <div className="flex items-center gap-2"><Check size={14} className="text-emerald-500" /> Live/recorded class access</div>
+              <div className="flex items-center gap-2"><Check size={14} className="text-emerald-500" /> {primaryClassMode} class access</div>
             </div>
 
             {/* Coupon Code section */}
@@ -815,12 +814,7 @@ export default function PowerCourseDetail() {
                     <span>- ₹{coinDiscount.toFixed(2)}</span>
                   </div>
                 )}
-                {displayPrice > 0 && (
-                  <div className="flex justify-between text-slate-500">
-                    <span>Internet handling fee</span>
-                    <span>₹{gatewayFee.toFixed(2)}</span>
-                  </div>
-                )}
+
                 <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1">
                   <span>Total</span>
                   <span>{displayPrice <= 0 ? '₹0.00 (Free!)' : `₹${checkoutTotal.toFixed(2)}`}</span>
@@ -857,19 +851,21 @@ export default function PowerCourseDetail() {
               </p>
             </div>
 
-            {enrolled && (
-              <div className="space-y-3 border-t border-slate-100 pt-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">Rate Power Batch</h3>
-                    <p className="text-[10px] font-semibold text-slate-400">Share feedback after purchase.</p>
-                  </div>
-                  <div className="flex items-center gap-1 text-amber-500 text-xs font-black">
-                    <Star size={14} fill="currentColor" /> {course.rating || 4.8}
-                  </div>
+            <div className="space-y-3 border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">Reviews & Rating</h3>
+                  <p className="text-[10px] font-semibold text-slate-400">
+                    {(course.reviews?.length || 0)} review{(course.reviews?.length || 0) === 1 ? '' : 's'} · Average {course.rating || 4.8}/5
+                  </p>
                 </div>
+                <div className="flex items-center gap-1 text-amber-500 text-xs font-black">
+                  <Star size={14} fill="currentColor" /> {course.rating || 4.8}
+                </div>
+              </div>
 
-                {myReview ? (
+              {enrolled ? (
+                myReview ? (
                   <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
                     <div className="flex items-center gap-1 text-amber-500">
                       {Array.from({ length: 5 }).map((_, i) => (
@@ -916,9 +912,37 @@ export default function PowerCourseDetail() {
                       {ratingBusy ? 'Submitting...' : 'Submit Rating'}
                     </button>
                   </div>
-                )}
-              </div>
-            )}
+                )
+              ) : (
+                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-[11px] font-semibold text-slate-500">
+                  Purchase this Power Batch to submit your own rating.
+                </div>
+              )}
+
+              {(course.reviews || []).length > 0 ? (
+                <div className="space-y-2">
+                  {(course.reviews || []).slice(-3).reverse().map((review, idx) => (
+                    <div key={review._id || idx} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-slate-800 truncate">{review.studentName || review.student?.name || 'Student'}</span>
+                        <span className="flex items-center gap-0.5 text-amber-500 shrink-0">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star key={i} size={11} fill={i < review.rating ? 'currentColor' : 'none'} />
+                          ))}
+                        </span>
+                      </div>
+                      {review.comment && (
+                        <p className="mt-1 text-[11px] font-semibold leading-relaxed text-slate-500 line-clamp-2">"{review.comment}"</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-xl border border-dashed border-slate-200 bg-white p-3 text-[11px] font-semibold text-slate-400">
+                  No student reviews yet. Be the first enrolled student to rate this batch.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

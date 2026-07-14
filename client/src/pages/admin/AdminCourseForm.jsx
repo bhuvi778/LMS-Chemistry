@@ -203,8 +203,9 @@ export default function AdminCourseForm() {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setNested = (k, k2, v) => setForm((f) => ({ ...f, [k]: { ...f[k], [k2]: v } }));
+  // setList: split by newlines; keep empty lines during typing so Enter moves cursor
   const setList = (k, v) =>
-    set(k, v.split('\n').map((x) => x.trim()).filter(Boolean));
+    set(k, v.split('\n').map((x) => x.trimEnd()));
 
   // Toggle category multi-select
   const toggleCategory = (name) => {
@@ -287,6 +288,10 @@ export default function AdminCourseForm() {
     try {
       // Keep legacy category field in sync with first selected category
       const payload = { ...form, category: form.categories[0] || '' };
+      // Clean up highlights: remove trailing empty lines before saving
+      if (Array.isArray(payload.highlights)) {
+        payload.highlights = payload.highlights.map(h => h.trim()).filter(Boolean);
+      }
       if (isPowerMode) {
         payload.isPowerCourse = true;
         payload.powerCourseDuration = Number(payload.powerCourseDuration) || 1;
@@ -303,8 +308,6 @@ export default function AdminCourseForm() {
         payload.demoVideoUrl = '';
         payload.orientationVideoUrl = '';
         payload.batchInformation = '';
-        payload.syllabus = [];
-        payload.faqs = [];
         payload.timetable = [];
         payload.isFeatured = false;
       }
@@ -580,8 +583,8 @@ export default function AdminCourseForm() {
           )}
 
           {/* FAQs */}
-          {!isPowerMode && (
           <div className="card p-6 space-y-4">
+
             <div className="flex items-center justify-between border-b pb-2">
               <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide">FAQs</h2>
               <button type="button" onClick={addFaq} className="btn-outline text-xs flex items-center gap-1">
@@ -614,7 +617,6 @@ export default function AdminCourseForm() {
               </div>
             ))}
           </div>
-          )}
 
           {/* Timetable */}
           {!isPowerMode && (

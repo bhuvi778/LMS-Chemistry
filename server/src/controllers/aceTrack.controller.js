@@ -771,6 +771,27 @@ export const requestMentorship = asyncHandler(async (req, res) => {
   res.status(201).json(booking);
 });
 
+// Admin creates a booking on behalf of a specific student
+export const adminCreateMentorshipBooking = asyncHandler(async (req, res) => {
+  const { studentId, sessionType = 'mentorship', subject, description, preferredDate, preferredTimeSlot } = req.body;
+  if (!studentId) { res.status(400); throw new Error('studentId is required'); }
+  if (!subject || !preferredDate || !preferredTimeSlot) {
+    res.status(400); throw new Error('subject, preferredDate and preferredTimeSlot are required');
+  }
+  const booking = await MentorshipBooking.create({
+    student: studentId,
+    sessionType,
+    subject,
+    description: description || '',
+    preferredDate: new Date(preferredDate),
+    preferredTimeSlot,
+    status: 'Pending',
+  });
+  const populated = await MentorshipBooking.findById(booking._id)
+    .populate('student', 'name email studentId phone avatar');
+  res.status(201).json(populated);
+});
+
 export const getMentorshipBookings = asyncHandler(async (req, res) => {
   if (req.user.role === 'admin') {
     const list = await MentorshipBooking.find()
@@ -839,6 +860,10 @@ export const updateMentorshipBooking = asyncHandler(async (req, res) => {
       useInternalRoom: true,
       meetLink: '',
       meetingUrl: '',
+      allowedStudents: [booking.student],
+      sourceType: 'mentorship',
+      sourceRef: booking._id,
+      sourceModel: 'MentorshipBooking',
     };
 
     let liveClass = booking.liveClass ? await LiveClass.findById(booking.liveClass) : null;

@@ -82,6 +82,43 @@ export const sendEnrollmentEmail = (email, name, courseName, amount) =>
     `)
   );
 
+export const sendPlanUpgradeEmail = (email, name, courseName, oldPlanName, newPlanName, amount) =>
+  send(
+    email,
+    `Plan Upgrade Confirmed: ${courseName}`,
+    base(`
+      <h2 style="color:#1f2937;margin-top:0">Plan Upgrade Confirmed! ✅</h2>
+      <p style="color:#4b5563">Hi <b>${name}</b>, your plan has been upgraded for:</p>
+      <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:16px;border-radius:4px;margin:16px 0">
+        <h3 style="margin:0;color:#1d4ed8">${courseName}</h3>
+        <p style="margin:8px 0 0;color:#2563eb;font-size:14px"><b>${oldPlanName}</b> → <b>${newPlanName}</b></p>
+        ${amount > 0 ? `<p style="margin:4px 0 0;color:#2563eb;font-size:14px">Amount paid: ₹${amount}</p>` : '<p style="margin:4px 0 0;color:#2563eb;font-size:14px">No additional payment required</p>'}
+      </div>
+      <a href="${process.env.CLIENT_URL || 'https://ace2examz.com'}/dashboard"
+         style="display:inline-block;background:#7c3aed;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:8px">
+        Go to Dashboard
+      </a>
+    `)
+  );
+
+export const sendValidityExtensionEmail = (email, name, courseName, amount) =>
+  send(
+    email,
+    `Validity Extended: ${courseName}`,
+    base(`
+      <h2 style="color:#1f2937;margin-top:0">Course Validity Extended! ✅</h2>
+      <p style="color:#4b5563">Hi <b>${name}</b>, your course validity has been extended for:</p>
+      <div style="background:#f5f3ff;border-left:4px solid #7c3aed;padding:16px;border-radius:4px;margin:16px 0">
+        <h3 style="margin:0;color:#6d28d9">${courseName}</h3>
+        ${amount > 0 ? `<p style="margin:4px 0 0;color:#7c3aed;font-size:14px">Amount paid: ₹${amount}</p>` : '<p style="margin:4px 0 0;color:#7c3aed;font-size:14px">Validity updated successfully</p>'}
+      </div>
+      <a href="${process.env.CLIENT_URL || 'https://ace2examz.com'}/dashboard"
+         style="display:inline-block;background:#7c3aed;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:8px">
+        Go to Dashboard
+      </a>
+    `)
+  );
+
 export const sendPaymentReceiptEmail = (email, name, invoiceData, pdfBuffer = null) => {
   const attachments = [];
   if (pdfBuffer) {

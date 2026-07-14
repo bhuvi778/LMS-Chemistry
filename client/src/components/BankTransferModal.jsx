@@ -40,18 +40,16 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
   const [proofBusy, setProofBusy] = useState(false);
   const fileRef = useRef();
 
-  // Fee calculation: flat 45 AED if < 7300, else 0.7%
   let finalBaseAmt = baseAmount;
   let coinDiscountVal = 0;
   if (redeemCoins && user && (user.coins || 0) >= 250) {
-    const maxCoinsNeeded = Math.floor(baseAmount * 25);
+    const maxCoinsNeeded = Math.floor(baseAmount);
     const coinsToRedeem = Math.min(user.coins || 0, maxCoinsNeeded);
-    coinDiscountVal = coinsToRedeem / 25;
+    coinDiscountVal = coinsToRedeem;
     finalBaseAmt = Math.max(0, baseAmount - coinDiscountVal);
   }
 
-  const handlingFee = Math.round(finalBaseAmt * 0.03 * 100) / 100;
-  const totalAmount = finalBaseAmt + handlingFee;
+  const totalAmount = Math.round(finalBaseAmt * 100) / 100;
 
   if (!isOpen) return null;
 
@@ -195,10 +193,6 @@ export default function BankTransferModal({ isOpen, onClose, itemType, itemId, i
                     <span>- ₹{coinDiscountVal.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Internet Handling Charges</span>
-                  <span className="text-slate-600">₹{handlingFee.toFixed(2)}</span>
-                </div>
                 <div className="border-t border-slate-200 pt-2 flex justify-between text-sm font-bold">
                   <span className="text-slate-800">Total to Transfer</span>
                   <span className="text-indigo-600 text-base">₹{totalAmount.toFixed(2)}</span>

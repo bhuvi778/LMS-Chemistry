@@ -144,7 +144,7 @@ export default function AdminBankTransfers() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="font-semibold text-slate-700">{r.totalAmount?.toFixed(2)}</div>
-                      <div className="text-[10px] text-slate-400">Base: {r.baseAmount} + Fee: {r.handlingFee}</div>
+                      <div className="text-[10px] text-slate-400">Base: {r.baseAmount}</div>
                     </td>
                     <td className="px-4 py-3">
                       <span className="font-mono text-xs text-slate-600">{r.referenceNumber || '—'}</span>

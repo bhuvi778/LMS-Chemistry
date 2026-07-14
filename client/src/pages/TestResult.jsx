@@ -183,6 +183,19 @@ function ScoreGauge({ percentage }) {
   );
 }
 
+const questionFontFamilies = {
+  default: 'inherit',
+  sans: 'Inter, ui-sans-serif, system-ui, sans-serif',
+  serif: 'Georgia, "Times New Roman", serif',
+  mono: '"Courier New", ui-monospace, monospace',
+  devanagari: '"Noto Sans Devanagari", Mangal, sans-serif',
+  handwritten: '"Comic Sans MS", cursive',
+};
+
+const getQuestionFontStyle = (question = {}) => ({
+  fontFamily: questionFontFamilies[question.fontFamily] || questionFontFamilies.default,
+});
+
 function QuestionReview({ question, answer }) {
   const [open, setOpen] = useState(false);
   const optText = (opt) => (typeof opt === 'string' ? opt : opt?.text || '');
@@ -215,7 +228,11 @@ function QuestionReview({ question, answer }) {
       >
         {statusStyle.icon}
         <div className="flex-1 min-w-0">
-          <div className="text-sm text-slate-700 font-semibold leading-relaxed" dangerouslySetInnerHTML={{ __html: question.question }} />
+          <div
+            className="text-sm text-slate-700 font-semibold leading-relaxed"
+            style={getQuestionFontStyle(question)}
+            dangerouslySetInnerHTML={{ __html: question.question }}
+          />
           {(question.chapter || question.topic) && (
             <div className="flex flex-wrap gap-1.5 mt-2 select-none">
               {question.chapter && (
@@ -272,7 +289,11 @@ function QuestionReview({ question, answer }) {
                   }`}>
                     {String.fromCharCode(65 + oi)}
                   </span>
-                  <span className="flex-1 font-medium" dangerouslySetInnerHTML={{ __html: optText(opt) }} />
+                  <span
+                    className="flex-1 font-medium"
+                    style={getQuestionFontStyle(question)}
+                    dangerouslySetInnerHTML={{ __html: optText(opt) }}
+                  />
                   {isCorrect && <CheckCircle size={14} className="text-emerald-600" />}
                   {isSelected && !isCorrect && <XCircle size={14} className="text-red-500" />}
                 </div>

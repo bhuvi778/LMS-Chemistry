@@ -473,8 +473,7 @@ export default function StudentCourses() {
 
       {extensionModal && (() => {
         const extPrice = extensionModal.course?.extendValidityPrice || 0;
-        const gwFee = Math.round(extPrice * 0.03 * 100) / 100;
-        const totalAmount = extPrice > 0 ? Math.round((extPrice + gwFee) * 100) / 100 : 0;
+        const totalAmount = extPrice > 0 ? Math.round(extPrice * 100) / 100 : 0;
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -522,10 +521,6 @@ export default function StudentCourses() {
                     <div className="flex justify-between text-slate-650">
                       <span>Extension Price</span>
                       <span>₹{extPrice.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-500">
-                      <span>Internet Handling Charges</span>
-                      <span>₹{gwFee.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-indigo-700 border-t border-indigo-200 pt-1">
                       <span>Total Amount</span>

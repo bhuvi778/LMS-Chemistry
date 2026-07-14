@@ -22,9 +22,13 @@ const calculateValidityEndDate = (validitySystem) => {
   return null;
 };
 
-// ─── Internet handling fee calculation ───────────────────────────────────────
 export const calcHandlingFee = (baseAmount) => {
-  return Math.round(baseAmount * 0.03 * 100) / 100; // 3%
+  return 0;
+};
+
+const getPlanDisplayName = (course, planType) => {
+  const planKey = planType || 'batch';
+  return course?.plans?.[planKey]?.name || planKey.charAt(0).toUpperCase() + planKey.slice(1);
 };
 
 // ─── STUDENT: Submit bank transfer request ────────────────────────────────────
@@ -162,7 +166,7 @@ export const myBankTransfers = asyncHandler(async (req, res) => {
 export const adminListBankTransfers = asyncHandler(async (_req, res) => {
   const list = await BankTransferRequest.find()
     .populate('student', 'name email phone studentId')
-    .populate('course', 'title thumbnail price')
+    .populate('course', 'title thumbnail price plans')
     .populate('testSeries', 'title thumbnail price')
     .sort({ createdAt: -1 });
   res.json(list);
@@ -211,6 +215,9 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
   await request.save();
 
   // Auto-enroll
+  let emailEvent = request.itemType === 'test_series' ? 'enrollment' : 'none';
+  let previousPlanType = '';
+  let nextPlanType = request.planType || 'batch';
   if (request.itemType === 'course' && request.course) {
     const exists = await Enrollment.findOne({ student: request.student, course: request.course });
     const courseObj = await Course.findById(request.course);
@@ -242,6 +249,7 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
         }
         credit = Math.round(credit * 100) / 100;
 
+        previousPlanType = exists.planType || 'batch';
         exists.planType = request.planType;
         exists.pricePaid = Math.round((credit + request.baseAmount) * 100) / 100;
         exists.paymentId = 'BANK_' + request._id;
@@ -249,6 +257,8 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
         exists.validUntil = courseObj ? calculateValidityEndDate(courseObj.validity) : null;
         exists.createdAt = new Date();
         await exists.save();
+        emailEvent = 'upgrade';
+        nextPlanType = request.planType;
       }
     } else {
       await Enrollment.create({
@@ -261,6 +271,8 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
         validUntil: courseObj ? calculateValidityEndDate(courseObj.validity) : null,
       });
       await Course.findByIdAndUpdate(request.course, { $inc: { studentsEnrolled: 1 } });
+      emailEvent = 'enrollment';
+      nextPlanType = request.planType || 'batch';
     }
   } else if (request.itemType === 'test_series' && request.testSeries) {
     const exists = await TestSeriesEnrollment.findOne({ student: request.student, testSeries: request.testSeries });
@@ -279,7 +291,7 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
 
   await request.populate([
     { path: 'student', select: 'name email phone studentId' },
-    { path: 'course', select: 'title thumbnail price' },
+    { path: 'course', select: 'title thumbnail price plans' },
     { path: 'testSeries', select: 'title thumbnail price' },
   ]);
 
@@ -290,7 +302,7 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
 
     if (request.student && request.student.email && itemName) {
       const { generateInvoicePDF } = await import('../services/invoice.js');
-      const { sendEnrollmentEmail, sendPaymentReceiptEmail } = await import('../services/email.js');
+      const { sendEnrollmentEmail, sendPaymentReceiptEmail, sendPlanUpgradeEmail } = await import('../services/email.js');
 
       const invoiceNumber = `ACE-BANK-${request._id.toString().slice(-8).toUpperCase()}`;
       const pdfBuffer = await generateInvoicePDF({
@@ -308,7 +320,18 @@ export const adminConfirmBankTransfer = asyncHandler(async (req, res) => {
         couponCode: '',
       });
 
-      sendEnrollmentEmail(request.student.email, request.student.name, itemName, request.totalAmount).catch(() => {});
+      if (emailEvent === 'upgrade') {
+        sendPlanUpgradeEmail(
+          request.student.email,
+          request.student.name,
+          itemName,
+          getPlanDisplayName(request.course, previousPlanType),
+          getPlanDisplayName(request.course, nextPlanType),
+          request.totalAmount
+        ).catch(() => {});
+      } else if (emailEvent === 'enrollment') {
+        sendEnrollmentEmail(request.student.email, request.student.name, itemName, request.totalAmount).catch(() => {});
+      }
       sendPaymentReceiptEmail(request.student.email, request.student.name, {
         invoiceNumber,
         invoiceDate: request.confirmedAt || new Date(),

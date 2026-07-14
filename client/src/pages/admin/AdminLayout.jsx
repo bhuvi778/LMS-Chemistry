@@ -70,6 +70,7 @@ const groups = [
     items: [
       { to: '/admin/test-series', label: 'Test Series', icon: ListChecks },
       { to: '/admin/tests', label: 'Test Bank', icon: ClipboardList },
+      { to: '/admin/daily-targets', label: 'Daily Target', icon: Clock },
       { to: '/admin/reported-questions', label: 'Reported Questions', icon: Flag },
     ],
   },
@@ -226,7 +227,7 @@ export default function AdminLayout() {
         </div>
       </Link>
 
-      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 min-h-0 p-3 space-y-0.5 overflow-y-auto overscroll-contain pb-4">
         <NavLink
           to="/admin"
           end
@@ -288,7 +289,7 @@ export default function AdminLayout() {
         })}
       </nav>
 
-      <div className="p-3 border-t border-white/10 space-y-1 shrink-0">
+      <div className="sticky bottom-0 p-3 border-t border-white/10 space-y-1 shrink-0 bg-slate-900 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <Link
           to="/"
           className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-slate-400 hover:text-white hover:bg-white/5 transition"
@@ -314,7 +315,7 @@ export default function AdminLayout() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky top-0 w-64 bg-slate-900 text-slate-200 flex flex-col z-40 transition-transform duration-300 h-screen ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`fixed lg:sticky inset-y-0 lg:top-0 lg:inset-y-auto w-72 max-w-[86vw] lg:w-64 lg:max-w-none bg-slate-900 text-slate-200 flex flex-col z-40 transition-transform duration-300 h-[100dvh] lg:h-screen ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
       >
         {sidebarNav}
@@ -369,7 +370,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Page content */}
-        <main ref={mainRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-8">
+        <main ref={mainRef} className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

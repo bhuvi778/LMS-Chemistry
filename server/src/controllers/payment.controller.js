@@ -11,7 +11,7 @@ import User from '../models/User.js';
 import BankTransferRequest from '../models/BankTransferRequest.js';
 import CoinRedemption from '../models/CoinRedemption.js';
 import { generateInvoicePDF } from '../services/invoice.js';
-import { sendEnrollmentEmail, sendPaymentReceiptEmail } from '../services/email.js';
+import { sendEnrollmentEmail, sendPaymentReceiptEmail, sendPlanUpgradeEmail, sendValidityExtensionEmail } from '../services/email.js';
 
 const calculateValidityEndDate = (validitySystem) => {
   if (!validitySystem || validitySystem.type === 'lifetime') return null;
@@ -170,6 +170,11 @@ const calculateUpgradeDetails = (newPlanPrice, existingEnrollment, courseObj) =>
   return { credit, upgradeFee };
 };
 
+const getPlanDisplayName = (course, planType) => {
+  const planKey = planType || 'batch';
+  return course?.plans?.[planKey]?.name || planKey.charAt(0).toUpperCase() + planKey.slice(1);
+};
+
 // ─── POST /api/payment/create-order ──────────────────────────────────────────
 export const createOrder = asyncHandler(async (req, res) => {
   const { courseId, testSeriesId, couponCode, redeemCoins } = req.body;
@@ -285,14 +290,13 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   if (couponCode) {
     if (isCourse) {
-      const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
-      if (existing || req.body.isExtension) {
+      if (req.body.isExtension) {
         res.status(400);
-        throw new Error('Coupon codes cannot be used for course upgrades or validity extensions.');
+        throw new Error('Coupon codes cannot be used for validity extensions.');
       }
       if (await hasUsedCourseCoupon(courseId, req.user._id)) {
         res.status(400);
-        throw new Error('You have already used a coupon for this course.');
+        throw new Error('You have already used a coupon for this course. A course coupon can be used only once across all plans.');
       }
     }
     const result = await findAndValidateCoupon(item, couponCode, originalAmount, req.user._id);
@@ -321,6 +325,9 @@ export const createOrder = asyncHandler(async (req, res) => {
   // Free path (price 0 or coupon/coin-reduced to 0)
   if (finalAmount <= 0) {
     let enrollment;
+    let emailEvent = 'enrollment';
+    let previousPlanType = '';
+    let nextPlanType = planType;
     if (isCourse) {
       const existing = await Enrollment.findOne({ student: req.user._id, course: courseId });
       if (req.body.isExtension) {
@@ -343,9 +350,12 @@ export const createOrder = asyncHandler(async (req, res) => {
         existing.paymentId = 'FREE_EXTENSION_' + Date.now();
         await existing.save();
         enrollment = existing;
+        emailEvent = 'extension';
+        nextPlanType = existing.planType || planType;
       } else if (existing) {
         // Calculate remaining credit from the old pricePaid
         const details = calculateUpgradeDetails(0, existing, item);
+        previousPlanType = existing.planType || 'batch';
         existing.planType = planType;
         existing.pricePaid = Math.round((details.credit + finalAmount) * 100) / 100;
         existing.paymentId = 'FREE_UPGRADE_' + Date.now();
@@ -353,6 +363,8 @@ export const createOrder = asyncHandler(async (req, res) => {
         existing.createdAt = new Date();
         await existing.save();
         enrollment = existing;
+        emailEvent = 'upgrade';
+        nextPlanType = planType;
       } else {
         enrollment = await Enrollment.create({
           student: req.user._id,
@@ -415,20 +427,32 @@ export const createOrder = asyncHandler(async (req, res) => {
       await payment.save();
     }
 
-    // Notify user of free enrollment
+    // Notify user about the completed free action.
     try {
       const student = await User.findById(req.user._id).select('name email');
       if (student && student.email) {
-        sendEnrollmentEmail(student.email, student.name, item.title, 0).catch(() => {});
+        if (emailEvent === 'upgrade') {
+          sendPlanUpgradeEmail(
+            student.email,
+            student.name,
+            item.title,
+            getPlanDisplayName(item, previousPlanType),
+            getPlanDisplayName(item, nextPlanType),
+            0
+          ).catch(() => {});
+        } else if (emailEvent === 'extension') {
+          sendValidityExtensionEmail(student.email, student.name, item.title, 0).catch(() => {});
+        } else {
+          sendEnrollmentEmail(student.email, student.name, item.title, 0).catch(() => {});
+        }
       }
     } catch (_) {}
 
     return res.status(201).json({ free: true, enrollment });
   }
 
-  // Internet handling fee: flat 3%
-  const gatewayFee = Math.round(finalAmount * 0.03 * 100) / 100;
-  const chargeAmount = Math.round((finalAmount + gatewayFee) * 100) / 100;
+  const gatewayFee = 0;
+  const chargeAmount = Math.round(finalAmount * 100) / 100;
 
   // Create Razorpay order (amount in paise, 1 INR = 100 paise)
   const razorpay = getRazorpay();
@@ -522,6 +546,9 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   }
 
   let enrollment;
+  let emailEvent = 'enrollment';
+  let previousPlanType = '';
+  let nextPlanType = payment.planType || 'batch';
   if (courseId) {
     const course = await Course.findById(courseId);
     const already = await Enrollment.findOne({ student: req.user._id, course: courseId });
@@ -546,10 +573,13 @@ export const verifyPayment = asyncHandler(async (req, res) => {
       already.paymentId = razorpayPaymentId;
       await already.save();
       enrollment = already;
+      emailEvent = 'extension';
+      nextPlanType = already.planType || nextPlanType;
     } else if (already) {
       if (payment.planType && payment.planType !== already.planType) {
         // Calculate remaining credit from the old pricePaid
         const details = calculateUpgradeDetails(0, already, course);
+        previousPlanType = already.planType || 'batch';
         already.planType = payment.planType;
         already.pricePaid = Math.round((details.credit + baseAmountPaid) * 100) / 100;
         already.paymentId = razorpayPaymentId;
@@ -557,6 +587,8 @@ export const verifyPayment = asyncHandler(async (req, res) => {
         already.validUntil = course ? calculateValidityEndDate(course.validity) : null;
         already.createdAt = new Date();
         await already.save();
+        emailEvent = 'upgrade';
+        nextPlanType = payment.planType;
       }
       enrollment = already;
     } else {
@@ -620,7 +652,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   try {
     const student = await User.findById(req.user._id).select('name email studentId');
     const itemDoc = courseId
-      ? await Course.findById(courseId).select('title')
+      ? await Course.findById(courseId).select('title plans')
       : await TestSeries.findById(testSeriesId).select('title');
     const itemName = itemDoc?.title || 'Course';
 
@@ -639,7 +671,20 @@ export const verifyPayment = asyncHandler(async (req, res) => {
       couponCode: payment.couponCode,
     });
 
-    sendEnrollmentEmail(student.email, student.name, itemName, payment.amount).catch(() => {});
+    if (emailEvent === 'upgrade') {
+      sendPlanUpgradeEmail(
+        student.email,
+        student.name,
+        itemName,
+        getPlanDisplayName(itemDoc, previousPlanType),
+        getPlanDisplayName(itemDoc, nextPlanType),
+        payment.amount
+      ).catch(() => {});
+    } else if (emailEvent === 'extension') {
+      sendValidityExtensionEmail(student.email, student.name, itemName, payment.amount).catch(() => {});
+    } else {
+      sendEnrollmentEmail(student.email, student.name, itemName, payment.amount).catch(() => {});
+    }
     sendPaymentReceiptEmail(student.email, student.name, {
       invoiceNumber,
       invoiceDate: payment.invoiceGeneratedAt,
@@ -695,13 +740,17 @@ export const validateCoupon = asyncHandler(async (req, res) => {
     if (userId) {
       const existing = await Enrollment.findOne({ student: userId, course: courseId });
       if (existing) {
-        res.status(400);
-        throw new Error('Coupon codes cannot be used for course upgrades.');
+        const planOrder = { batch: 1, pro: 2, infinity: 3 };
+        if (planOrder[pType] <= planOrder[existing.planType]) {
+          res.status(400);
+          throw new Error(`You are already enrolled in the ${existing.planType.toUpperCase()} plan. Downgrade or same-plan upgrade is not allowed.`);
+        }
+        originalAmount = calculateUpgradeDetails(originalAmount, existing, item).upgradeFee;
       }
 
       if (await hasUsedCourseCoupon(courseId, userId)) {
         res.status(400);
-        throw new Error('You have already used a coupon for this course.');
+        throw new Error('You have already used a coupon for this course. A course coupon can be used only once across all plans.');
       }
     }
 

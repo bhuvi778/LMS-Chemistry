@@ -1,5 +1,16 @@
 import mongoose from 'mongoose';
 
+const reviewSchema = new mongoose.Schema(
+  {
+    student: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    studentName: { type: String, default: '' },
+    rating: { type: Number, min: 1, max: 5, required: true },
+    comment: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: true }
+);
+
 const testSeriesSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
@@ -43,6 +54,8 @@ const testSeriesSchema = new mongoose.Schema(
     isFree: { type: Boolean, default: false },
     price: { type: Number, default: 0 },
     mrp: { type: Number, default: 0 },
+    rating: { type: Number, default: 4.8 },
+    reviews: [reviewSchema],
 
     // Discount coupons (array – supports multiple coupons per series)
     discountCoupons: [

@@ -72,7 +72,8 @@ export const getCourse = asyncHandler(async (req, res) => {
     .populate('comboTestSeries', 'title slug thumbnail price mrp isFree')
     .populate('plans.infinity.courses', 'title slug thumbnail price mrp plans isFree courseType')
     .populate('plans.infinity.powerCourses', 'title slug thumbnail price mrp plans isFree courseType isPowerCourse powerCourseType powerCourseDuration startDate endDate')
-    .populate('plans.infinity.testSeries', 'title slug thumbnail price mrp isFree');
+    .populate('plans.infinity.testSeries', 'title slug thumbnail price mrp isFree')
+    .populate('reviews.student', 'name');
   if (!course) {
     res.status(404);
     throw new Error('Course not found');
@@ -122,6 +123,18 @@ export const addReview = asyncHandler(async (req, res) => {
   }
   const course = await Course.findById(req.params.id);
   if (!course) { res.status(404); throw new Error('Course not found'); }
+
+  if (req.user.role !== 'admin') {
+    const enrolled = await Enrollment.exists({
+      student: req.user._id,
+      course: course._id,
+      paymentStatus: 'paid',
+    });
+    if (!enrolled) {
+      res.status(403);
+      throw new Error('You can review this course after enrollment.');
+    }
+  }
 
   // Prevent duplicate reviews
   const already = (course.reviews || []).find(

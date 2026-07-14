@@ -16,6 +16,7 @@ import {
   publicGetTest,
   publicListTestSeries,
   publicGetTestSeries,
+  addTestSeriesReview,
   submitAttempt,
   myAttempts,
   getAttemptResult,
@@ -41,6 +42,7 @@ router.get('/tests', softAuth, publicListTests);
 router.get('/tests/:id', softAuth, publicGetTest);
 router.get('/series', softAuth, publicListTestSeries);
 router.get('/series/:id', softAuth, publicGetTestSeries);
+router.post('/series/:id/review', protect, addTestSeriesReview);
 
 // ─── Course-specific tests (free = no auth, paid = enrolled) ─────────────────
 router.get('/course/:courseId', softAuth, getCourseTests);

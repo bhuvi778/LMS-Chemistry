@@ -23,6 +23,17 @@ const liveClassSchema = new mongoose.Schema(
     roomId: { type: String, unique: true, sparse: true, index: true },
     // Optional 6-char passcode required to join the internal room
     roomPasscode: { type: String, default: '' },
+    // Empty means normal public/course-scoped live class. When set, only these
+    // students (plus admins) can see or join the room.
+    allowedStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    sourceType: {
+      type: String,
+      enum: ['live_class', 'mentorship'],
+      default: 'live_class',
+      index: true,
+    },
+    sourceRef: { type: mongoose.Schema.Types.ObjectId, refPath: 'sourceModel', default: null },
+    sourceModel: { type: String, enum: ['MentorshipBooking'], default: null },
     scheduledAt: { type: Date, required: true },
     durationMins: { type: Number, default: 60 },
     isActive: { type: Boolean, default: true },

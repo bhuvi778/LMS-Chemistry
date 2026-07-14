@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import LiveClass from '../models/LiveClass.js';
 import Enrollment from '../models/Enrollment.js';
+import MentorshipBooking from '../models/MentorshipBooking.js';
 import { generateAgoraToken, startCloudRecording, stopCloudRecording, queryCloudRecording } from '../services/agora.js';
 
 // UID used for the cloud recorder — must not conflict with real user UIDs
@@ -98,12 +99,31 @@ export const getRecordingStatus = asyncHandler(async (req, res) => {
   const isAdmin = req.user.role === 'admin';
 
   if (!isAdmin) {
-    const courseIds = [];
-    if (lc.course) courseIds.push(lc.course);
-    if (lc.courses?.length) lc.courses.forEach(c => courseIds.push(c._id || c));
-    if (courseIds.length > 0) {
-      const enrolled = await Enrollment.exists({ student: req.user._id, course: { $in: courseIds } });
-      if (!enrolled) { res.status(403); throw new Error('Not enrolled in this course'); }
+    let allowedStudentIds = (lc.allowedStudents || []).map((studentId) => studentId.toString());
+    if (allowedStudentIds.length === 0) {
+      const mentorshipBooking = await MentorshipBooking.findOne({ liveClass: lc._id }).select('student');
+      if (mentorshipBooking?.student) {
+        allowedStudentIds = [mentorshipBooking.student.toString()];
+        lc.allowedStudents = [mentorshipBooking.student];
+        lc.sourceType = 'mentorship';
+        lc.sourceRef = mentorshipBooking._id;
+        lc.sourceModel = 'MentorshipBooking';
+        await lc.save();
+      }
+    }
+    if (allowedStudentIds.length > 0) {
+      if (!allowedStudentIds.includes(req.user._id.toString())) {
+        res.status(403);
+        throw new Error('This 1:1 session is assigned to another student');
+      }
+    } else {
+      const courseIds = [];
+      if (lc.course) courseIds.push(lc.course);
+      if (lc.courses?.length) lc.courses.forEach(c => courseIds.push(c._id || c));
+      if (courseIds.length > 0) {
+        const enrolled = await Enrollment.exists({ student: req.user._id, course: { $in: courseIds } });
+        if (!enrolled) { res.status(403); throw new Error('Not enrolled in this course'); }
+      }
     }
   }
 

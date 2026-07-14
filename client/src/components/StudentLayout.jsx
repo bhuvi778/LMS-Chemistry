@@ -98,7 +98,7 @@ const navSections = [
       { to: '/student/syllabus-tracker', label: 'Syllabus Tracker', icon: ClipboardList },
       { to: '/student/planner', label: 'My Planner', icon: Calendar },
       { to: '/student/exam-counter', label: 'Exam Counter', icon: Clock },
-      { to: '/student/mentorship', label: '1:1 Session', icon: Users },
+      { to: '/student/mentorship', label: '1:1 Mentorship', icon: Users },
     ]
   },
   {

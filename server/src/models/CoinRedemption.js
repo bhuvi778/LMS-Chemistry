@@ -7,7 +7,7 @@ const coinRedemptionSchema = new mongoose.Schema(
     itemId: { type: mongoose.Schema.Types.ObjectId, default: null }, // courseId or testSeriesId
     itemName: { type: String, required: true },
     coinsSpent: { type: Number, required: true },
-    discountAmount: { type: Number, default: 0 }, // in AED
+    discountAmount: { type: Number, default: 0 }, // in INR
   },
   { timestamps: true }
 );

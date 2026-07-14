@@ -34,6 +34,7 @@ import examCountdownRoutes from './routes/examCountdown.routes.js';
 import flashcardRoutes from './routes/flashcard.routes.js';
 import ncertRoutes from './routes/ncert.routes.js';
 import powerCourseRoutes from './routes/powerCourse.routes.js';
+import dailyTargetRoutes from './routes/dailyTarget.routes.js';
 import { notFound, errorHandler } from './middleware/error.js';
 import { attachLiveSocket } from './liveSocket.js';
 import { startNotificationScheduler } from './services/notificationScheduler.js';
@@ -82,6 +83,7 @@ app.use('/api/ace-track', aceTrackRoutes);
 app.use('/api/flashcards', flashcardRoutes);
 app.use('/api/ncert', ncertRoutes);
 app.use('/api/power-courses', powerCourseRoutes);
+app.use('/api/daily-targets', dailyTargetRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

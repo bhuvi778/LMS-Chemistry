@@ -1,8 +1,10 @@
 import asyncHandler from 'express-async-handler';
 import Test from '../models/Test.js';
 import TestSeries from '../models/TestSeries.js';
+import TestSeriesEnrollment from '../models/TestSeriesEnrollment.js';
 import TestAttempt from '../models/TestAttempt.js';
 import Enrollment from '../models/Enrollment.js';
+import Course from '../models/Course.js';
 import SavedQuestion from '../models/SavedQuestion.js';
 import ReportedQuestion from '../models/ReportedQuestion.js';
 import CourseTest from '../models/CourseTest.js';
@@ -57,7 +59,7 @@ export const adminDeleteTest = asyncHandler(async (req, res) => {
 export const adminListTestSeries = asyncHandler(async (_req, res) => {
   const series = await TestSeries.find()
     .sort({ createdAt: -1 })
-    .populate('tests.test', 'title durationMins totalMarks difficulty isFree');
+    .populate('tests.test', 'title durationMins totalMarks difficulty isFree questions');
   res.json(series);
 });
 
@@ -193,8 +195,76 @@ export const publicGetTestSeries = asyncHandler(async (req, res) => {
     ? await TestSeries.findById(req.params.id)
     : await TestSeries.findOne({ slug: req.params.id });
   if (!series || !series.isPublished) { res.status(404); throw new Error('Test series not found'); }
-  await series.populate('tests.test', 'title durationMins totalMarks difficulty isFree pdfUrl examTags');
+  await series.populate([
+    { path: 'tests.test', select: 'title durationMins totalMarks difficulty isFree pdfUrl examTags' },
+    { path: 'reviews.student', select: 'name' },
+  ]);
   res.json(series);
+});
+
+// ─── STUDENT: Submit Test Series Review ──────────────────────────────────────
+export const addTestSeriesReview = asyncHandler(async (req, res) => {
+  const { rating, comment } = req.body;
+  const ratingNum = Number(rating);
+  if (!ratingNum || ratingNum < 1 || ratingNum > 5) {
+    res.status(400);
+    throw new Error('Rating must be between 1 and 5');
+  }
+
+  const isObjectId = /^[a-f\d]{24}$/i.test(req.params.id);
+  const series = isObjectId
+    ? await TestSeries.findById(req.params.id)
+    : await TestSeries.findOne({ slug: req.params.id });
+  if (!series) {
+    res.status(404);
+    throw new Error('Test series not found');
+  }
+
+  const already = (series.reviews || []).find(
+    (review) => review.student?.toString() === req.user._id.toString()
+  );
+  if (already) {
+    res.status(400);
+    throw new Error('You have already reviewed this test series');
+  }
+
+  if (req.user.role !== 'admin' && !series.isFree) {
+    let hasAccess = await TestSeriesEnrollment.exists({
+      student: req.user._id,
+      testSeries: series._id,
+      paymentStatus: 'paid',
+    });
+
+    if (!hasAccess) {
+      const enrollments = await Enrollment.find({ student: req.user._id, paymentStatus: 'paid' }).select('course');
+      const courseIds = enrollments.map((enrollment) => enrollment.course).filter(Boolean);
+      if (courseIds.length > 0) {
+        hasAccess = await Course.exists({
+          _id: { $in: courseIds },
+          testSeries: series._id,
+        });
+      }
+    }
+
+    if (!hasAccess) {
+      res.status(403);
+      throw new Error('You can rate this test series after enrollment.');
+    }
+  }
+
+  series.reviews = series.reviews || [];
+  series.reviews.push({
+    student: req.user._id,
+    studentName: req.user.name || 'Student',
+    rating: ratingNum,
+    comment: (comment || '').trim(),
+  });
+
+  const total = series.reviews.reduce((sum, review) => sum + review.rating, 0);
+  series.rating = Math.round((total / series.reviews.length) * 10) / 10;
+  await series.save();
+
+  res.status(201).json({ message: 'Review submitted', rating: series.rating });
 });
 
 // ─── STUDENT: Submit Test Attempt ─────────────────────────────────────────────
@@ -377,6 +447,45 @@ export const submitAttempt = asyncHandler(async (req, res) => {
     if (!alreadyAttempted) {
       const { default: User } = await import('../models/User.js');
       await User.findByIdAndUpdate(req.user._id, { $inc: { coins: 2 } });
+    }
+
+    const [{ default: DailyTarget }, { default: DailyTargetProgress }] = await Promise.all([
+      import('../models/DailyTarget.js'),
+      import('../models/DailyTargetProgress.js'),
+    ]);
+    const dailyTarget = await DailyTarget.findOne({ test: testId });
+    if (dailyTarget) {
+      const istOffsetMs = 5.5 * 60 * 60 * 1000;
+      const startOfDay = (value) => {
+        const shifted = new Date(new Date(value || Date.now()).getTime() + istOffsetMs);
+        return new Date(Date.UTC(
+          shifted.getUTCFullYear(),
+          shifted.getUTCMonth(),
+          shifted.getUTCDate()
+        ) - istOffsetMs);
+      };
+      const dayMs = 24 * 60 * 60 * 1000;
+      const today = startOfDay(new Date());
+      const targetStart = startOfDay(dailyTarget.startDate);
+      const targetEnd = startOfDay(dailyTarget.endDate);
+      const windowDays = Math.max(1, Math.floor((targetEnd - targetStart) / dayMs) + 1);
+      const cycleLengthDays = dailyTarget.loopEnabled
+        ? Math.max(windowDays, Number(dailyTarget.loopCycleDays || windowDays))
+        : windowDays;
+      const elapsedDays = Math.max(0, Math.floor((today - targetStart) / dayMs));
+      const cycleNumber = dailyTarget.loopEnabled ? Math.floor(elapsedDays / cycleLengthDays) + 1 : 1;
+      const currentCycleStart = new Date(targetStart);
+      currentCycleStart.setDate(targetStart.getDate() + ((cycleNumber - 1) * cycleLengthDays));
+
+      await DailyTargetProgress.findOneAndUpdate(
+        { student: req.user._id, target: dailyTarget._id, cycleNumber },
+        {
+          isCompleted: true,
+          completedAt: new Date(),
+          cycleStartDate: currentCycleStart,
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
     }
   }
 

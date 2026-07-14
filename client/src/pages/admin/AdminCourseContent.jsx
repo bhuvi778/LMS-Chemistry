@@ -958,39 +958,51 @@ function LiveClassesTab({ courseId }) {
 
             <div>
               <label className="label">Linked Courses (Select one or more)</label>
-              <div className="border border-slate-200 rounded-xl p-3 max-h-36 overflow-y-auto space-y-2 bg-slate-55 bg-slate-50">
-                {courses.map((c) => {
-                  const selectedCourses = editing.courses || (editing.course ? [editing.course] : []);
-                  const isSelected = selectedCourses.includes(c._id);
-                  return (
-                    <label key={c._id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-1 rounded transition text-xs">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={(e) => {
-                          let nextCourses = [...selectedCourses];
-                          if (e.target.checked) {
-                            if (!nextCourses.includes(c._id)) nextCourses.push(c._id);
-                          } else {
-                            nextCourses = nextCourses.filter((id) => id !== c._id);
-                          }
-                          setEditing((prev) => ({
-                            ...prev,
-                            courses: nextCourses,
-                            course: nextCourses[0] || null,
-                            courseName: nextCourses.length > 0 
-                              ? courses.find(x => x._id === nextCourses[0])?.title || ''
-                              : ''
-                          }));
-                        }}
-                      />
-                      <span className="text-slate-700">
-                        <span className="font-semibold text-slate-500 mr-1">[{c.category}]</span>
-                        {c.title}
-                      </span>
-                    </label>
-                  );
-                })}
+              <div className="border border-slate-200 rounded-xl p-3 max-h-48 overflow-y-auto space-y-1 bg-slate-50">
+                {[
+                  { label: 'Power Batch', items: courses.filter(c => c.isPowerCourse) },
+                  { label: 'Courses', items: courses.filter(c => !c.isPowerCourse) },
+                ].map((group) => group.items.length > 0 && (
+                  <div key={group.label} className="space-y-1">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1 pt-1">
+                      {group.label}
+                    </div>
+                    {group.items.map((c) => {
+                      const selectedCourses = editing.courses || (editing.course ? [editing.course] : []);
+                      const isSelected = selectedCourses.includes(c._id);
+                      return (
+                        <label key={c._id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-1.5 rounded-lg transition text-xs">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              let nextCourses = [...selectedCourses];
+                              if (e.target.checked) {
+                                if (!nextCourses.includes(c._id)) nextCourses.push(c._id);
+                              } else {
+                                nextCourses = nextCourses.filter((id) => id !== c._id);
+                              }
+                              setEditing((prev) => ({
+                                ...prev,
+                                courses: nextCourses,
+                                course: nextCourses[0] || null,
+                                courseName: nextCourses.length > 0
+                                  ? courses.find(x => x._id === nextCourses[0])?.title || ''
+                                  : ''
+                              }));
+                            }}
+                          />
+                          <span className="text-slate-700 min-w-0">
+                            <span className={`font-semibold mr-1 ${c.isPowerCourse ? 'text-rose-600' : 'text-slate-500'}`}>
+                              [{c.isPowerCourse ? 'Power Batch' : (c.category || 'Course')}]
+                            </span>
+                            {c.title}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import LiveClass from '../models/LiveClass.js';
 import Enrollment from '../models/Enrollment.js';
+import MentorshipBooking from '../models/MentorshipBooking.js';
 import { generateAgoraToken } from '../services/agora.js';
 
 /** GET /api/live/:id — for a logged-in user, returns details if they are enrolled (or admin). */
@@ -12,21 +13,43 @@ export const getLiveClass = asyncHandler(async (req, res) => {
   
   const isAdmin = req.user.role === 'admin';
 
-  // Student → must be enrolled in linked course or any linked courses (or no course set)
-  if (!isAdmin) {
-    const courseIds = [];
-    if (lc.course) courseIds.push(lc.course._id || lc.course);
-    if (lc.courses && lc.courses.length > 0) {
-      lc.courses.forEach((c) => {
-        const cid = (c._id || c).toString();
-        if (!courseIds.map(x => x.toString()).includes(cid)) {
-          courseIds.push(c._id || c);
-        }
-      });
+  let allowedStudentIds = (lc.allowedStudents || []).map((studentId) => studentId.toString());
+  if (allowedStudentIds.length === 0) {
+    const mentorshipBooking = await MentorshipBooking.findOne({ liveClass: lc._id }).select('student');
+    if (mentorshipBooking?.student) {
+      allowedStudentIds = [mentorshipBooking.student.toString()];
+      lc.allowedStudents = [mentorshipBooking.student];
+      lc.sourceType = 'mentorship';
+      lc.sourceRef = mentorshipBooking._id;
+      lc.sourceModel = 'MentorshipBooking';
+      await lc.save();
     }
-    if (courseIds.length > 0) {
-      const enrolled = await Enrollment.exists({ student: req.user._id, course: { $in: courseIds } });
-      if (!enrolled) { res.status(403); throw new Error('You are not enrolled in this course'); }
+  }
+  const hasPrivateAudience = allowedStudentIds.length > 0;
+
+  // Student → private 1:1 classes require explicit audience access. Normal
+  // classes require enrollment in the linked course(s), or no course for open classes.
+  if (!isAdmin) {
+    if (hasPrivateAudience) {
+      if (!allowedStudentIds.includes(req.user._id.toString())) {
+        res.status(403);
+        throw new Error('This 1:1 session is assigned to another student');
+      }
+    } else {
+      const courseIds = [];
+      if (lc.course) courseIds.push(lc.course._id || lc.course);
+      if (lc.courses && lc.courses.length > 0) {
+        lc.courses.forEach((c) => {
+          const cid = (c._id || c).toString();
+          if (!courseIds.map(x => x.toString()).includes(cid)) {
+            courseIds.push(c._id || c);
+          }
+        });
+      }
+      if (courseIds.length > 0) {
+        const enrolled = await Enrollment.exists({ student: req.user._id, course: { $in: courseIds } });
+        if (!enrolled) { res.status(403); throw new Error('You are not enrolled in this course'); }
+      }
     }
   }
 
@@ -45,9 +68,10 @@ export const getLiveClass = asyncHandler(async (req, res) => {
       agoraRole = 'publisher';
     }
 
-    const { token, appId } = generateAgoraToken(channelName, uid, agoraRole);
+    const { token, appId, fallbackMode } = generateAgoraToken(channelName, uid, agoraRole);
     obj.agoraToken = token;
     obj.agoraAppId = appId;
+    obj.fallbackMode = fallbackMode || '';
     obj.agoraUid = uid;
     obj.agoraChannel = channelName;
   }

@@ -156,7 +156,7 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden md:flex items-center gap-2 relative">
-          <ThemeToggle />
+          <ThemeToggle className={useDarkHeader ? 'border-white/10 bg-white/10 text-white hover:border-white/20 hover:bg-white/15 hover:text-white dark:border-white/10 dark:bg-white/10' : ''} />
 
           {!user ? (
             <>
@@ -278,7 +278,7 @@ export default function Navbar() {
           >
             {open ? <X size={22} /> : <Menu size={22} />}
           </button>
-          <ThemeToggle compact className={isHome && !scrolled ? 'text-white hover:bg-white/10' : ''} />
+          <ThemeToggle compact className={useDarkHeader ? 'border-white/10 bg-white/10 text-white hover:border-white/20 hover:bg-white/15 dark:border-white/10 dark:bg-white/10' : ''} />
         </div>
       </div>
 
@@ -318,7 +318,7 @@ export default function Navbar() {
               ))}
             </div>
             <div className="flex gap-2 pt-2 flex-wrap">
-              <div className="w-full">
+              <div className="flex items-center px-3 py-1">
                 <ThemeToggle />
               </div>
               {!user ? (
