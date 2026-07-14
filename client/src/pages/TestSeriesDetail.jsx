@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import api from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import toast from 'react-hot-toast';
+import { getRazorpayLogoUrl } from '../utils/razorpay.js';
 import {
   Layers,
   Clock,
@@ -213,6 +214,7 @@ export default function TestSeriesDetail() {
         currency: orderData.currency,
         name: 'Ace2Examz',
         description: orderData.itemName,
+        image: getRazorpayLogoUrl(),
         order_id: orderData.orderId,
         prefill: orderData.prefill,
         theme: { color: '#4f46e5' },

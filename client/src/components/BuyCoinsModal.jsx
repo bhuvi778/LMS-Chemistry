@@ -3,6 +3,7 @@ import { X, CheckCircle, Loader2, Coins, AlertCircle } from 'lucide-react';
 import api from '../api/client';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { getRazorpayLogoUrl } from '../utils/razorpay';
 
 const COIN_PACKAGES = [
   { id: 'starter', coins: 100, price: 100, bonus: 0, name: 'Starter Pack', theme: 'border-amber-200 bg-amber-50/20 text-amber-700 hover:border-amber-400' },
@@ -79,6 +80,7 @@ export default function BuyCoinsModal({ isOpen, onClose, onRequestSubmitted }) {
         currency: orderData.currency,
         name: 'Ace2Examz',
         description: `${orderData.coins || coins} Ace Coins`,
+        image: getRazorpayLogoUrl(),
         order_id: orderData.orderId,
         prefill: orderData.prefill,
         theme: { color: '#f59e0b' },

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { BookOpen, Clock, Download, ArrowRight, Globe, X, Loader2, Pause, Play, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LogoLoader from '../../components/LogoLoader.jsx';
+import { getRazorpayLogoUrl } from '../../utils/razorpay.js';
 
 function loadRazorpayScript() {
   return new Promise((resolve) => {
@@ -111,7 +112,7 @@ export default function StudentCourses() {
         currency: orderData.currency,
         name: 'Ace2Examz',
         description: `Validity Extension - ${orderData.itemName}`,
-        image: orderData.itemThumbnail || '',
+        image: getRazorpayLogoUrl(),
         order_id: orderData.orderId,
         prefill: orderData.prefill,
         theme: { color: '#4f46e5' },

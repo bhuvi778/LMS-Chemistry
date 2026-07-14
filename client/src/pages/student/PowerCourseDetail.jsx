@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { getRazorpayLogoUrl } from '../../utils/razorpay.js';
 
 const POWER_BATCH_COIN_MINIMUM = 30;
 
@@ -232,9 +233,9 @@ export default function PowerCourseDetail() {
         key: orderData.keyId,
         amount: orderData.amount,
         currency: orderData.currency,
-        name: 'Prepiify LMS',
+        name: 'Ace2Examz',
         description: orderData.itemName,
-        image: orderData.itemThumbnail || '',
+        image: getRazorpayLogoUrl(),
         order_id: orderData.orderId,
         prefill: orderData.prefill,
         theme: { color: '#4f46e5' },
