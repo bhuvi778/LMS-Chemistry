@@ -30,9 +30,48 @@ import {
   BookMarked,
   Pause,
   Play,
+  Youtube,
 } from 'lucide-react';
 import SecureYTPlayer from '../components/SecureYTPlayer.jsx';
 // ─── Video Player ─────────────────────────────────────────────────────────────
+function getYouTubeEmbedUrl(url) {
+  if (!url) return '';
+  const match = url.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/))([A-Za-z0-9_-]{11})/
+  );
+  return match ? `https://www.youtube.com/embed/${match[1]}?rel=0&modestbranding=1` : '';
+}
+
+function DirectYouTubePlayer({ url, title }) {
+  const embedUrl = getYouTubeEmbedUrl(url);
+
+  if (!embedUrl) {
+    return (
+      <div className="aspect-video bg-slate-950 rounded-2xl flex flex-col items-center justify-center text-slate-300 p-6 text-center">
+        <Youtube size={42} className="mb-3 text-red-400" />
+        <p className="text-sm font-semibold">This YouTube link cannot be embedded.</p>
+        {url && (
+          <a href={url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-white hover:text-red-100">
+            Open on YouTube <ExternalLink size={13} />
+          </a>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="aspect-video rounded-2xl overflow-hidden bg-black shadow-sm">
+      <iframe
+        className="w-full h-full"
+        src={embedUrl}
+        title={title || 'YouTube lecture'}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+      />
+    </div>
+  );
+}
+
 function VideoPlayer({ url, title, courseId }) {
   const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
@@ -158,6 +197,108 @@ function VideoPlayer({ url, title, courseId }) {
   );
 }
 
+
+// ─── Direct YouTube Lectures Tab ─────────────────────────────────────────────
+function YtLecturesTab({ lectures, onViewPdf }) {
+  const visibleLectures = (lectures || [])
+    .filter((lecture) => lecture.isActive !== false)
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (active >= visibleLectures.length) setActive(0);
+  }, [active, visibleLectures.length]);
+
+  if (visibleLectures.length === 0) {
+    return (
+      <div className="card p-10 text-center text-slate-500">
+        <Youtube size={42} className="mx-auto mb-3 text-red-400 opacity-70" />
+        No YT lectures have been added yet. Check back soon!
+      </div>
+    );
+  }
+
+  const current = visibleLectures[active] || visibleLectures[0];
+  const notesTitle = current.notesTitle || 'Class Notes PDF';
+
+  return (
+    <div className="grid lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 space-y-5">
+        <DirectYouTubePlayer url={current.youtubeUrl} title={current.title} />
+
+        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-wider mb-2">
+                <Youtube size={12} /> Direct YT Lecture
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 leading-snug">{current.title}</h2>
+              {current.duration && (
+                <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
+                  <Clock size={14} /> {current.duration}
+                </p>
+              )}
+              {current.description && (
+                <p className="text-sm text-slate-600 mt-3 leading-relaxed whitespace-pre-line">{current.description}</p>
+              )}
+            </div>
+            <div className="flex sm:flex-col gap-2 shrink-0">
+              {current.youtubeUrl && (
+                <a
+                  href={current.youtubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline justify-center text-xs !py-2"
+                >
+                  <ExternalLink size={13} /> Open YT
+                </a>
+              )}
+              {current.notesPdfUrl && (
+                <button
+                  onClick={() => onViewPdf({ fileUrl: current.notesPdfUrl, title: notesTitle })}
+                  className="btn-primary justify-center text-xs !py-2"
+                >
+                  <FileText size={13} /> Notes PDF
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-3">
+          YT Lectures ({visibleLectures.length})
+        </h3>
+        {visibleLectures.map((lecture, i) => (
+          <button
+            key={lecture._id || i}
+            onClick={() => setActive(i)}
+            className={`w-full text-left p-3 rounded-xl flex items-start gap-3 border transition ${
+              i === active
+                ? 'border-red-300 bg-red-50 text-red-800'
+                : 'border-slate-100 bg-white hover:border-red-200 hover:bg-slate-50'
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-full grid place-items-center shrink-0 mt-0.5 ${
+              i === active ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-500'
+            }`}>
+              <Youtube size={14} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold line-clamp-2">{lecture.title}</div>
+              <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                {lecture.duration && <span>{lecture.duration}</span>}
+                {lecture.notesPdfUrl && <span className="text-emerald-600 font-semibold">Notes</span>}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ─── Classes Tab ──────────────────────────────────────────────────────────────
 function ClassesTab({ lessons, courseId }) {
@@ -1912,6 +2053,8 @@ export default function LearnCourse() {
 
   const { course, pdfs, tests, liveClasses = [], enrollment } = data;
   const lessons = course.lessons || [];
+  const ytLectures = course.ytLectures || [];
+  const activeYtLectures = ytLectures.filter((lecture) => lecture.isActive !== false);
   const planType = enrollment?.planType || 'batch';
 
   if (enrollment?.isPaused) {
@@ -1965,6 +2108,7 @@ export default function LearnCourse() {
     ...(course.courseType === 'live' || liveClasses.length > 0 ? [
       { k: 'live', l: `${planType === 'batch' ? '🔒 ' : ''}Live Classes${liveClasses.length ? ` (${liveClasses.length})` : ''}`, icon: Video }
     ] : []),
+    { k: 'yt-lectures', l: `YT Lectures${activeYtLectures.length ? ` (${activeYtLectures.length})` : ''}`, icon: Youtube },
     { k: 'timetable', l: 'Time Table', icon: Calendar },
     { k: 'syllabus', l: 'Syllabus', icon: BookMarked },
     { k: 'test-series', l: 'Test Series', icon: ListChecks },
@@ -2121,6 +2265,9 @@ export default function LearnCourse() {
           ) : (
             <LiveClassesTab liveClasses={liveClasses} />
           )
+        )}
+        {tab === 'yt-lectures' && (
+          <YtLecturesTab lectures={ytLectures} onViewPdf={(pdf) => setOpenPdf(pdf)} />
         )}
         {tab === 'test-series' && (
           <TestSeriesTab

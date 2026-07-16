@@ -63,14 +63,17 @@ const playToneSequence = (tones = []) => {
 export const playAnswerSound = (isCorrect) => {
   if (isCorrect) {
     playToneSequence([
-      { frequency: 659.25, duration: 0.16, volume: 0.07 },
-      { frequency: 880, start: 0.12, duration: 0.22, volume: 0.08 },
+      { frequency: 523.25, duration: 0.12, volume: 0.06 },
+      { frequency: 659.25, start: 0.08, duration: 0.14, volume: 0.07 },
+      { frequency: 783.99, start: 0.16, duration: 0.18, volume: 0.075 },
+      { frequency: 1046.5, start: 0.27, duration: 0.22, volume: 0.06 },
     ]);
     return;
   }
 
   playToneSequence([
-    { frequency: 220, duration: 0.22, type: 'triangle', volume: 0.07 },
-    { frequency: 164.81, start: 0.18, duration: 0.28, type: 'triangle', volume: 0.075 },
+    { frequency: 196, duration: 0.18, type: 'triangle', volume: 0.075 },
+    { frequency: 146.83, start: 0.12, duration: 0.28, type: 'sawtooth', volume: 0.045 },
+    { frequency: 123.47, start: 0.28, duration: 0.2, type: 'triangle', volume: 0.055 },
   ]);
 };

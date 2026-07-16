@@ -480,8 +480,18 @@ export const submitAttempt = asyncHandler(async (req, res) => {
       await DailyTargetProgress.findOneAndUpdate(
         { student: req.user._id, target: dailyTarget._id, cycleNumber },
         {
+          status: 'completed',
           isCompleted: true,
+          totalQuestions: test.questions?.length || processedAnswers.length || 0,
+          answeredCount: processedAnswers.length - unattempted,
+          correctCount: correct,
+          wrongCount: wrong,
+          progressPercent: 100,
+          lastQuestionIndex: Math.max(0, (test.questions?.length || processedAnswers.length || 1) - 1),
+          draftAnswers: {},
+          draftFeedback: {},
           completedAt: new Date(),
+          lastActivityAt: new Date(),
           cycleStartDate: currentCycleStart,
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }

@@ -12,6 +12,7 @@ import {
   impersonateStudent,
   adminEnrollStudent,
   adminRemoveEnrollment,
+  adminRemoveEnrollmentById,
   adminEnrollTestSeries,
   adminRemoveTestSeriesEnrollment,
   allEnrollments,
@@ -71,6 +72,7 @@ router.delete('/students/:id', deleteStudent);
 router.put('/students/:id/reset-password', resetStudentPassword);
 router.post('/students/:id/impersonate', impersonateStudent);
 router.post('/students/:id/enroll', adminEnrollStudent);
+router.delete('/students/:id/enrollments/:enrollmentId', adminRemoveEnrollmentById);
 router.delete('/students/:id/enroll/:courseId', adminRemoveEnrollment);
 router.post('/students/:id/enroll-test-series', adminEnrollTestSeries);
 router.delete('/students/:id/enroll-test-series/:seriesId', adminRemoveTestSeriesEnrollment);

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { BookOpen, Clock, Download, ArrowRight, Globe, X, Loader2, Pause, Play, AlertTriangle } from 'lucide-react';
+import { BookOpen, Clock, Download, ArrowRight, Globe, X, Loader2, Pause, Play, AlertTriangle, Youtube } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LogoLoader from '../../components/LogoLoader.jsx';
 import { getRazorpayLogoUrl } from '../../utils/razorpay.js';
@@ -335,6 +335,15 @@ export default function StudentCourses() {
                       className="w-full inline-flex items-center justify-center gap-2 bg-gradient-brand hover:opacity-90 text-white font-bold py-2.5 rounded-2xl text-xs shadow-soft transition-all"
                     >
                       Continue Learning
+                    </Link>
+                  )}
+
+                  {!e.isPaused && e.course?.ytLectures?.some((lecture) => lecture.isActive !== false) && (
+                    <Link
+                      to={`/student/yt-lectures?course=${e.course?._id}`}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 font-bold py-2.5 rounded-2xl text-xs transition-all"
+                    >
+                      <Youtube size={13} /> YT Lectures
                     </Link>
                   )}
 

@@ -7,6 +7,10 @@ import {
   adminUpdateLesson,
   adminDeleteLesson,
   adminReorderLessons,
+  adminGetYtLectures,
+  adminAddYtLecture,
+  adminUpdateYtLecture,
+  adminDeleteYtLecture,
   adminGetPdfs,
   adminCreatePdf,
   adminUpdatePdf,
@@ -59,6 +63,12 @@ router.post('/admin/lessons/:courseId', adminAddLesson);
 router.put('/admin/lessons/:courseId/:lessonId', adminUpdateLesson);
 router.delete('/admin/lessons/:courseId/:lessonId', adminDeleteLesson);
 router.put('/admin/lessons/:courseId/reorder', adminReorderLessons);
+
+// Direct YouTube Lectures (embedded in Course)
+router.get('/admin/yt-lectures/:courseId', adminGetYtLectures);
+router.post('/admin/yt-lectures/:courseId', adminAddYtLecture);
+router.put('/admin/yt-lectures/:courseId/:lectureId', adminUpdateYtLecture);
+router.delete('/admin/yt-lectures/:courseId/:lectureId', adminDeleteYtLecture);
 
 // PDFs / Notes
 router.get('/admin/pdfs/:courseId', adminGetPdfs);

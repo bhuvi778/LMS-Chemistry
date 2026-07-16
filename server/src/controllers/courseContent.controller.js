@@ -127,6 +127,46 @@ export const adminReorderLessons = asyncHandler(async (req, res) => {
   res.json(course.lessons);
 });
 
+const sortYtLectures = (lectures = []) =>
+  [...lectures].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+// ─── Admin: Direct YouTube Lectures (no secure player) ───────────────────────
+export const adminGetYtLectures = asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.courseId).select('ytLectures title').lean();
+  if (!course) { res.status(404); throw new Error('Course not found'); }
+  res.json(sortYtLectures(course.ytLectures || []));
+});
+
+export const adminAddYtLecture = asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.courseId);
+  if (!course) { res.status(404); throw new Error('Course not found'); }
+  course.ytLectures = course.ytLectures || [];
+  course.ytLectures.push(req.body);
+  await course.save();
+  res.status(201).json(course.ytLectures[course.ytLectures.length - 1]);
+});
+
+export const adminUpdateYtLecture = asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.courseId);
+  if (!course) { res.status(404); throw new Error('Course not found'); }
+  course.ytLectures = course.ytLectures || [];
+  const lecture = course.ytLectures.id(req.params.lectureId);
+  if (!lecture) { res.status(404); throw new Error('YT lecture not found'); }
+  Object.assign(lecture, req.body);
+  await course.save();
+  res.json(lecture);
+});
+
+export const adminDeleteYtLecture = asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.courseId);
+  if (!course) { res.status(404); throw new Error('Course not found'); }
+  course.ytLectures = (course.ytLectures || []).filter(
+    (lecture) => lecture._id.toString() !== req.params.lectureId
+  );
+  await course.save();
+  res.json({ message: 'YT lecture deleted' });
+});
+
 // ─── Admin: PDFs ─────────────────────────────────────────────────────────────
 
 export const adminGetPdfs = asyncHandler(async (req, res) => {

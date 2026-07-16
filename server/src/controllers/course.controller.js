@@ -110,7 +110,29 @@ export const deleteCourse = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Course not found');
   }
-  res.json({ message: 'Course deleted' });
+
+  const [
+    enrollmentCleanup,
+    coursePdfCleanup,
+    courseTestCleanup,
+    courseSubjectCleanup,
+    powerProgressCleanup,
+  ] = await Promise.all([
+    Enrollment.deleteMany({ course: course._id }),
+    import('../models/CoursePdf.js').then(({ default: CoursePdf }) => CoursePdf.deleteMany({ course: course._id })),
+    import('../models/CourseTest.js').then(({ default: CourseTest }) => CourseTest.deleteMany({ course: course._id })),
+    import('../models/CourseSubject.js').then(({ default: CourseSubject }) => CourseSubject.deleteMany({ course: course._id })),
+    import('../models/PowerCourseProgress.js').then(({ default: PowerCourseProgress }) => PowerCourseProgress.deleteMany({ course: course._id })),
+  ]);
+
+  res.json({
+    message: 'Course deleted',
+    removedEnrollments: enrollmentCleanup.deletedCount || 0,
+    removedCoursePdfs: coursePdfCleanup.deletedCount || 0,
+    removedCourseTests: courseTestCleanup.deletedCount || 0,
+    removedCourseSubjects: courseSubjectCleanup.deletedCount || 0,
+    removedPowerProgress: powerProgressCleanup.deletedCount || 0,
+  });
 });
 
 // ─── POST /api/courses/:id/review ────────────────────────────────────────────

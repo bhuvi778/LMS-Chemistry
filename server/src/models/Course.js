@@ -14,6 +14,20 @@ const lessonSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const ytLectureSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true, trim: true },
+    youtubeUrl: { type: String, required: true, default: '' },
+    duration: { type: String, default: '' },
+    description: { type: String, default: '' },
+    notesTitle: { type: String, default: 'Class Notes PDF' },
+    notesPdfUrl: { type: String, default: '' },
+    order: { type: Number, default: 0 },
+    isActive: { type: Boolean, default: true },
+  },
+  { _id: true }
+);
+
 const faqSchema = new mongoose.Schema(
   {
     question: { type: String, required: true },
@@ -133,6 +147,7 @@ const courseSchema = new mongoose.Schema(
     syllabus: [syllabusItemSchema],
     faqs: [faqSchema],
     lessons: [lessonSchema],
+    ytLectures: [ytLectureSchema],
     rating: { type: Number, default: 4.8 },
     studentsEnrolled: { type: Number, default: 0 },
     isPublished: { type: Boolean, default: true },

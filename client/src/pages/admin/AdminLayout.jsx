@@ -39,6 +39,7 @@ import {
   Menu,
   Flag,
   Shield,
+  Youtube,
 } from 'lucide-react';
 
 const groups = [
@@ -50,6 +51,7 @@ const groups = [
       { to: '/admin/courses', label: 'Courses', icon: BookOpen },
       { to: '/admin/power-batch', label: 'Power Batch', icon: Flame },
       { to: '/admin/live-classes', label: 'Live Classes', icon: Video },
+      { to: '/admin/yt-lectures', label: 'YT Lectures', icon: Youtube },
       { to: '/admin/ebooks', label: 'Library', icon: Library },
       { to: '/admin/doubts', label: 'Doubts', icon: HelpCircle },
       { to: '/admin/support/chat', label: 'Chat Support', icon: MessageSquare },

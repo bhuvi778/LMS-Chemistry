@@ -17,6 +17,7 @@ import {
   Copy,
   Flame,
   Calendar,
+  Youtube,
 } from 'lucide-react';
 import Pagination, { usePaged } from '../../components/Pagination.jsx';
 
@@ -321,6 +322,13 @@ export default function AdminPowerCourses() {
                     >
                       Daily Plan
                     </Link>
+                    <Link
+                      to={`/admin/power-batch/${c._id}/content?tab=yt-lectures`}
+                      className="btn-outline !py-1.5 !px-2 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                      title="Manage YT Lectures"
+                    >
+                      <Youtube size={13} />
+                    </Link>
                     <button
                       onClick={() => del(c._id)}
                       className="p-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50"
@@ -411,6 +419,13 @@ export default function AdminPowerCourses() {
                         title="Manage Daily Plan"
                       >
                         Daily Plan
+                      </Link>
+                      <Link
+                        to={`/admin/power-batch/${c._id}/content?tab=yt-lectures`}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100"
+                        title="Manage YT Lectures"
+                      >
+                        YT Lectures
                       </Link>
                       <button
                         onClick={() => del(c._id)}

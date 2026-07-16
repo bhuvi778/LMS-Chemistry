@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 import {
@@ -35,6 +35,7 @@ import {
   ListChecks,
   Search,
   Bell,
+  Youtube,
 } from 'lucide-react';
 
 // ─── Lessons Tab ──────────────────────────────────────────────────────────────
@@ -215,6 +216,265 @@ function LessonsTab({ courseId }) {
               </button>
               <button
                 onClick={() => del(l._id)}
+                className="btn !py-1.5 !px-2.5 text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg border border-rose-100"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Direct YouTube Lectures Tab ─────────────────────────────────────────────
+function YtLecturesTab({ courseId }) {
+  const [lectures, setLectures] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const notesInputRef = useRef(null);
+
+  const load = () =>
+    api.get(`/course-content/admin/yt-lectures/${courseId}`).then((r) => setLectures(r.data));
+
+  useEffect(() => { load(); }, [courseId]);
+
+  const blank = {
+    title: '',
+    youtubeUrl: '',
+    duration: '',
+    description: '',
+    notesTitle: 'Class Notes PDF',
+    notesPdfUrl: '',
+    order: lectures.length,
+    isActive: true,
+  };
+
+  const handleNotesUpload = async (file) => {
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) { toast.error('File must be under 50 MB'); return; }
+    setUploading(true);
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const { data } = await api.post('/upload/pdf', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (p) => {
+          const pct = Math.round((p.loaded * 100) / p.total);
+          toast.loading(`Uploading… ${pct}%`, { id: 'yt-notes-upload' });
+        },
+      });
+      toast.success('Notes uploaded!', { id: 'yt-notes-upload' });
+      setEditing((f) => ({ ...f, notesPdfUrl: data.url }));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Upload failed', { id: 'yt-notes-upload' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const save = async (e) => {
+    e.preventDefault();
+    if (!editing.title.trim()) { toast.error('Lecture title is required'); return; }
+    if (!editing.youtubeUrl.trim()) { toast.error('YouTube URL is required'); return; }
+    setSaving(true);
+    try {
+      if (editing._id) {
+        await api.put(`/course-content/admin/yt-lectures/${courseId}/${editing._id}`, editing);
+        toast.success('YT lecture updated');
+      } else {
+        await api.post(`/course-content/admin/yt-lectures/${courseId}`, editing);
+        toast.success('YT lecture added');
+      }
+      setEditing(null);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const del = async (lectureId) => {
+    if (!confirm('Delete this YT lecture?')) return;
+    await api.delete(`/course-content/admin/yt-lectures/${courseId}/${lectureId}`);
+    toast.success('Deleted');
+    load();
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5 gap-4">
+        <div>
+          <h2 className="font-bold text-slate-800 text-lg">YT Lectures</h2>
+          <p className="text-sm text-slate-500">Add direct YouTube lecture links with optional class notes PDF. These use a normal embed, not the secure player.</p>
+        </div>
+        <button onClick={() => setEditing(blank)} className="btn-primary shrink-0">
+          <Plus size={15} /> Add YT Lecture
+        </button>
+      </div>
+
+      {editing && (
+        <div className="card p-6 mb-5 border-2 border-red-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-slate-800">{editing._id ? 'Edit YT Lecture' : 'New YT Lecture'}</h3>
+            <button onClick={() => setEditing(null)} className="text-slate-400 hover:text-slate-700"><X size={18} /></button>
+          </div>
+          <form onSubmit={save} className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label">Lecture Title *</label>
+                <input
+                  required
+                  className="input"
+                  value={editing.title}
+                  onChange={(e) => setEditing((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="e.g. Atomic Structure YT Lecture 01"
+                />
+              </div>
+              <div>
+                <label className="label">Duration</label>
+                <input
+                  className="input"
+                  value={editing.duration || ''}
+                  onChange={(e) => setEditing((f) => ({ ...f, duration: e.target.value }))}
+                  placeholder="e.g. 52 min"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="label">YouTube Lecture Link *</label>
+              <input
+                required
+                className="input"
+                value={editing.youtubeUrl || ''}
+                onChange={(e) => setEditing((f) => ({ ...f, youtubeUrl: e.target.value }))}
+                placeholder="https://www.youtube.com/watch?v=..."
+              />
+              <p className="text-xs text-slate-400 mt-1">Students will see this as a direct YouTube embed/open link without secure watermark restrictions.</p>
+            </div>
+
+            <div className="grid sm:grid-cols-[1fr_auto] gap-3 items-end">
+              <div>
+                <label className="label">Class Notes PDF Link</label>
+                <input
+                  className="input"
+                  value={editing.notesPdfUrl || ''}
+                  onChange={(e) => setEditing((f) => ({ ...f, notesPdfUrl: e.target.value }))}
+                  placeholder="Paste notes PDF URL or upload below"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => notesInputRef.current?.click()}
+                disabled={uploading}
+                className="btn-outline justify-center"
+              >
+                {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                {uploading ? 'Uploading…' : 'Upload PDF'}
+              </button>
+              <input
+                ref={notesInputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={(e) => handleNotesUpload(e.target.files?.[0])}
+              />
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label">Notes Button Title</label>
+                <input
+                  className="input"
+                  value={editing.notesTitle || ''}
+                  onChange={(e) => setEditing((f) => ({ ...f, notesTitle: e.target.value }))}
+                  placeholder="Class Notes PDF"
+                />
+              </div>
+              <div>
+                <label className="label">Display Order</label>
+                <input
+                  type="number"
+                  className="input"
+                  value={editing.order || 0}
+                  onChange={(e) => setEditing((f) => ({ ...f, order: Number(e.target.value) }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="label">Description</label>
+              <textarea
+                className="input min-h-[80px]"
+                value={editing.description || ''}
+                onChange={(e) => setEditing((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Optional topic details, homework note, or class context..."
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="ytActive"
+                checked={editing.isActive !== false}
+                onChange={(e) => setEditing((f) => ({ ...f, isActive: e.target.checked }))}
+                className="w-4 h-4 accent-brand-600"
+              />
+              <label htmlFor="ytActive" className="text-sm font-medium text-slate-700 cursor-pointer">
+                Active (visible to students)
+              </label>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button type="submit" disabled={saving || uploading} className="btn-primary">
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {saving ? 'Saving…' : 'Save YT Lecture'}
+              </button>
+              <button type="button" onClick={() => setEditing(null)} className="btn-outline">Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {lectures.length === 0 && !editing && (
+          <div className="card p-10 text-center text-slate-500">
+            No YT lectures yet. Click "Add YT Lecture" to add the first direct lecture.
+          </div>
+        )}
+        {lectures.map((lecture, i) => (
+          <div key={lecture._id} className={`card p-4 flex items-center gap-3 ${lecture.isActive === false ? 'opacity-50' : ''}`}>
+            <div className="w-9 h-9 rounded-xl bg-red-50 text-red-600 grid place-items-center shrink-0">
+              <Youtube size={17} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-slate-800 line-clamp-1">{lecture.title}</div>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-0.5">
+                <span>Order {lecture.order ?? i}</span>
+                {lecture.duration && <span>{lecture.duration}</span>}
+                {lecture.youtubeUrl && (
+                  <a href={lecture.youtubeUrl} target="_blank" rel="noreferrer" className="text-red-600 flex items-center gap-1 hover:underline">
+                    <ExternalLink size={11} /> YouTube
+                  </a>
+                )}
+                {lecture.notesPdfUrl && (
+                  <a href={lecture.notesPdfUrl} target="_blank" rel="noreferrer" className="text-brand-600 flex items-center gap-1 hover:underline">
+                    <FileText size={11} /> Notes PDF
+                  </a>
+                )}
+                {lecture.isActive === false && <span className="text-slate-400">Hidden</span>}
+              </div>
+            </div>
+            <div className="flex gap-1 shrink-0">
+              <button onClick={() => setEditing(lecture)} className="btn-outline !py-1.5 !px-2.5 text-xs">
+                <Edit size={13} />
+              </button>
+              <button
+                onClick={() => del(lecture._id)}
                 className="btn !py-1.5 !px-2.5 text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg border border-rose-100"
               >
                 <Trash2 size={13} />
@@ -2451,24 +2711,29 @@ function DailyPlanTab({ course }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminCourseContent() {
   const { id: courseId } = useParams();
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
   const [course, setCourse] = useState(null);
   const [courseName, setCourseName] = useState('');
-  const [tab, setTab] = useState('subjects');
+  const [tab, setTab] = useState(requestedTab || 'subjects');
 
   useEffect(() => {
     api.get(`/courses/${courseId}`).then((r) => {
       setCourse(r.data);
       setCourseName(r.data.title);
       if (r.data.isPowerCourse) {
-        setTab('daily-plan');
+        setTab(requestedTab || 'daily-plan');
+      } else if (requestedTab) {
+        setTab(requestedTab);
       }
     }).catch(() => {});
-  }, [courseId]);
+  }, [courseId, requestedTab]);
 
   const tabs = course?.isPowerCourse
     ? [
         { k: 'daily-plan', l: 'Daily Plan', icon: Calendar },
         { k: 'live', l: 'Live Classes', icon: Video },
+        { k: 'yt-lectures', l: 'YT Lectures', icon: Youtube },
         { k: 'announcements', l: 'Announcements', icon: Bell },
       ]
     : [
@@ -2477,6 +2742,7 @@ export default function AdminCourseContent() {
         { k: 'pdfs', l: 'PDF / Notes', icon: FileText },
         { k: 'assign-tests', l: 'Test Bank', icon: ListChecks },
         { k: 'live', l: 'Live Classes', icon: Video },
+        { k: 'yt-lectures', l: 'YT Lectures', icon: Youtube },
         { k: 'announcements', l: 'Announcements', icon: Bell },
       ];
 
@@ -2517,6 +2783,7 @@ export default function AdminCourseContent() {
       {tab === 'pdfs' && <PdfsTab courseId={courseId} />}
       {tab === 'assign-tests' && <AssignTestsTab courseId={courseId} />}
       {tab === 'live' && <LiveClassesTab courseId={courseId} />}
+      {tab === 'yt-lectures' && <YtLecturesTab courseId={courseId} />}
       {tab === 'announcements' && <AnnouncementsTab courseId={courseId} />}
     </div>
   );

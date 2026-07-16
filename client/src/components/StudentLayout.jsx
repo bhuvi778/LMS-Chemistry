@@ -41,6 +41,7 @@ import {
   Repeat,
   Layers,
   SquareStack,
+  Youtube,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle.jsx';
 
@@ -75,6 +76,7 @@ const navSections = [
       { to: '/student/power-batch', label: 'Power Batch', icon: Calendar },
       { to: '/student/test-series', label: 'My Test Series', icon: Layers },
       { to: '/student/live-classes', label: 'Live Classes', icon: Video },
+      { to: '/student/yt-lectures', label: 'YT Lectures', icon: Youtube },
       { to: '/student/library', label: 'Library', icon: Library },
       { to: '/student/downloads', label: 'My Downloads', icon: DownloadCloud },
       { to: '/student/doubts', label: 'Ask Doubts', icon: HelpCircle },
@@ -867,7 +869,7 @@ export default function StudentLayout() {
                   library: 'Library', doubts: 'Ask Doubts', streak: 'Streak', wallet: 'Coins Wallet',
                   refer: 'Refer & Earn', profile: 'My Profile', orders: 'My Orders',
                   feed: 'Feed', contact: 'Contact Us', 'privacy-policy': 'Privacy Policy',
-                  'ask-prepiify': 'Ask Prepiify', learn: 'Course Player', 'live-classes': 'Live Classes',
+                  'ask-prepiify': 'Ask Prepiify', learn: 'Course Player', 'live-classes': 'Live Classes', 'yt-lectures': 'YT Lectures',
                   'my-mistakes': 'My Mistakes', 'revision-queue': 'Revision Queue',
                   'saved-questions': 'Saved Questions', 'reported-questions': 'Reported Questions'
                 };

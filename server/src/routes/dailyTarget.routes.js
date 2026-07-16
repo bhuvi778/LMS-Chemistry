@@ -8,12 +8,14 @@ import {
   completeMyDailyTarget,
   getDailyTargetTest,
   getMyDailyTargets,
+  updateMyDailyTargetProgress,
 } from '../controllers/dailyTarget.controller.js';
 
 const router = Router();
 
 router.get('/me', protect, getMyDailyTargets);
 router.get('/:id/start', protect, getDailyTargetTest);
+router.patch('/:id/progress', protect, updateMyDailyTargetProgress);
 router.post('/:id/complete', protect, completeMyDailyTarget);
 
 router.get('/admin', protect, adminOnly, adminListDailyTargets);

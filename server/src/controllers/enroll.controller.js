@@ -85,8 +85,14 @@ export const myEnrollments = asyncHandler(async (req, res) => {
     .populate('course')
     .sort({ createdAt: -1 });
 
+  const validEnrollments = [];
   for (const e of list) {
+    if (!e.course) {
+      await e.deleteOne();
+      continue;
+    }
     await autoResumeEnrollmentIfNeeded(e);
+    validEnrollments.push(e);
   }
 
   // Get watch history to attach duration
@@ -99,7 +105,7 @@ export const myEnrollments = asyncHandler(async (req, res) => {
     }
   });
 
-  const listWithWatchTime = list.map((e) => {
+  const listWithWatchTime = validEnrollments.map((e) => {
     const eObj = e.toObject();
     const totalSeconds = watchMap[e.course?._id?.toString()] || 0;
     eObj.watchedHours = Number((totalSeconds / 3600).toFixed(2));

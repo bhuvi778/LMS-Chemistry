@@ -268,13 +268,49 @@ const getActionUrl = (target) => {
   return '/student/practice';
 };
 
-const serializeTarget = (target, completedSet = new Set()) => {
+const clampNumber = (value, min = 0, max = Number.MAX_SAFE_INTEGER) => (
+  Math.min(max, Math.max(min, Number(value) || 0))
+);
+
+const serializeProgress = (progress, questionFallback = 0, includeDraft = false) => {
+  const totalQuestions = clampNumber(progress?.totalQuestions || questionFallback || 0);
+  const answeredCount = clampNumber(progress?.answeredCount || 0, 0, totalQuestions || Number.MAX_SAFE_INTEGER);
+  const progressPercent = totalQuestions
+    ? clampNumber(progress?.progressPercent || Math.round((answeredCount / totalQuestions) * 100), 0, 100)
+    : clampNumber(progress?.progressPercent || 0, 0, 100);
+  const isCompleted = progress?.isCompleted === true || progress?.status === 'completed';
+
+  const payload = {
+    status: isCompleted ? 'completed' : answeredCount > 0 ? 'in_progress' : (progress?.status || 'not_started'),
+    totalQuestions,
+    answeredCount,
+    correctCount: clampNumber(progress?.correctCount || 0, 0, answeredCount || Number.MAX_SAFE_INTEGER),
+    wrongCount: clampNumber(progress?.wrongCount || 0, 0, answeredCount || Number.MAX_SAFE_INTEGER),
+    progressPercent: isCompleted ? 100 : progressPercent,
+    lastQuestionIndex: clampNumber(progress?.lastQuestionIndex || 0),
+    startedAt: progress?.startedAt || null,
+    lastActivityAt: progress?.lastActivityAt || null,
+    completedAt: progress?.completedAt || null,
+  };
+
+  if (includeDraft) {
+    payload.draftAnswers = progress?.draftAnswers || {};
+    payload.draftFeedback = progress?.draftFeedback || {};
+  }
+
+  return payload;
+};
+
+const serializeTarget = (target, progressMap = new Map()) => {
   const obj = target.toObject ? target.toObject() : target;
   const cycleInfo = getTargetCycleInfo(obj);
   const progressKey = `${obj._id.toString()}:${cycleInfo.cycleNumber || 1}`;
+  const questionFallback = obj.questionsTarget || obj.test?.questions?.length || 0;
+  const progress = serializeProgress(progressMap.get(progressKey), questionFallback);
   return {
     ...obj,
-    isCompleted: completedSet.has(progressKey),
+    progress,
+    isCompleted: progress.status === 'completed',
     actionUrl: getActionUrl(obj),
     cycleInfo,
     isUpcoming: !cycleInfo.isVisibleToday && cycleInfo.daysUntilNext !== null && cycleInfo.daysUntilNext > 0,
@@ -384,7 +420,6 @@ export const adminDeleteDailyTarget = asyncHandler(async (req, res) => {
 export const getMyDailyTargets = asyncHandler(async (req, res) => {
   const now = new Date();
   const todayStart = startOfDay(now);
-  const upcomingUntil = new Date(todayStart.getTime() + 7 * DAY_MS);
   const planContext = await getStudentPlanContext(req.user._id);
   const audienceClauses = [{ 'audience.type': 'all' }];
 
@@ -402,7 +437,6 @@ export const getMyDailyTargets = asyncHandler(async (req, res) => {
 
   const targets = await DailyTarget.find({
     isActive: true,
-    startDate: { $lte: upcomingUntil },
     $or: [
       { loopEnabled: true, $or: [{ loopEndsAt: null }, { loopEndsAt: { $gte: todayStart } }] },
       { loopEnabled: { $ne: true }, endDate: { $gte: todayStart } },
@@ -416,7 +450,7 @@ export const getMyDailyTargets = asyncHandler(async (req, res) => {
   const filtered = targets.filter((target) => {
     const cycleInfo = getTargetCycleInfo(target, now);
     const isTodayOrUpcoming = cycleInfo.isVisibleToday
-      || (cycleInfo.daysUntilNext !== null && cycleInfo.daysUntilNext >= 0 && cycleInfo.daysUntilNext <= 7);
+      || (cycleInfo.daysUntilNext !== null && cycleInfo.daysUntilNext >= 0);
     if (!isTodayOrUpcoming) return false;
     if (!target.categories?.length) return true;
     return target.categories.some((category) => (
@@ -431,18 +465,18 @@ export const getMyDailyTargets = asyncHandler(async (req, res) => {
   const progresses = await DailyTargetProgress.find({
     student: req.user._id,
     target: { $in: filtered.map((target) => target._id) },
-    isCompleted: true,
-  }).select('target cycleNumber');
-  const completedSet = new Set(
+  }).select('target cycleNumber status isCompleted totalQuestions answeredCount correctCount wrongCount progressPercent lastQuestionIndex startedAt lastActivityAt completedAt');
+  const progressMap = new Map(
     progresses
-      .filter((progress) => {
+      .map((progress) => {
         const cycleInfo = cycleInfoByTarget.get(progress.target.toString());
-        return cycleInfo && Number(progress.cycleNumber || 1) === Number(cycleInfo.cycleNumber || 1);
+        if (!cycleInfo || Number(progress.cycleNumber || 1) !== Number(cycleInfo.cycleNumber || 1)) return null;
+        return [`${progress.target.toString()}:${progress.cycleNumber || 1}`, progress];
       })
-      .map((progress) => `${progress.target.toString()}:${progress.cycleNumber || 1}`)
+      .filter(Boolean)
   );
 
-  res.json(filtered.map((target) => serializeTarget(target, completedSet)));
+  res.json(filtered.map((target) => serializeTarget(target, progressMap)));
 });
 
 export const getDailyTargetTest = asyncHandler(async (req, res) => {
@@ -466,8 +500,35 @@ export const getDailyTargetTest = asyncHandler(async (req, res) => {
     throw new Error('This daily target does not have an inline test.');
   }
 
+  const cycleInfo = getTargetCycleInfo(target);
+  const totalQuestions = target.test.questions?.length || target.questionsTarget || 0;
+  const existingProgress = await DailyTargetProgress.findOne({
+    student: req.user._id,
+    target: target._id,
+    cycleNumber: cycleInfo.cycleNumber || 1,
+  });
+  const progress = await DailyTargetProgress.findOneAndUpdate(
+    { student: req.user._id, target: target._id, cycleNumber: cycleInfo.cycleNumber || 1 },
+    {
+      $setOnInsert: {
+        startedAt: new Date(),
+        cycleStartDate: cycleInfo.effectiveStartDate || target.startDate,
+      },
+      $set: {
+        status: existingProgress?.isCompleted ? 'completed' : 'in_progress',
+        totalQuestions,
+        lastActivityAt: new Date(),
+      },
+      $max: {
+        progressPercent: 0,
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
   res.json({
     target: serializeTarget(target),
+    progress: serializeProgress(progress, totalQuestions, true),
     test: {
       _id: target.test._id,
       title: target.test.title,
@@ -478,6 +539,60 @@ export const getDailyTargetTest = asyncHandler(async (req, res) => {
       isDailyTest: true,
       questions: target.test.questions || [],
     },
+  });
+});
+
+export const updateMyDailyTargetProgress = asyncHandler(async (req, res) => {
+  const target = await DailyTarget.findById(req.params.id).populate('test', 'questions');
+  if (!target) {
+    res.status(404);
+    throw new Error('Daily target not found');
+  }
+
+  const planContext = await getStudentPlanContext(req.user._id);
+  if (!isTargetVisibleToStudent(target, planContext, req.user)) {
+    res.status(403);
+    throw new Error('This daily target is not available for your plan.');
+  }
+
+  const cycleInfo = getTargetCycleInfo(target);
+  const totalQuestions = clampNumber(
+    req.body.totalQuestions || target.test?.questions?.length || target.questionsTarget || 0
+  );
+  const answeredCount = clampNumber(req.body.answeredCount, 0, totalQuestions || Number.MAX_SAFE_INTEGER);
+  const correctCount = clampNumber(req.body.correctCount, 0, answeredCount || Number.MAX_SAFE_INTEGER);
+  const wrongCount = clampNumber(req.body.wrongCount, 0, answeredCount || Number.MAX_SAFE_INTEGER);
+  const lastQuestionIndex = clampNumber(req.body.lastQuestionIndex, 0, Math.max(0, totalQuestions - 1));
+  const progressPercent = totalQuestions ? Math.round((answeredCount / totalQuestions) * 100) : 0;
+
+  const progress = await DailyTargetProgress.findOneAndUpdate(
+    { student: req.user._id, target: target._id, cycleNumber: cycleInfo.cycleNumber || 1 },
+    {
+      $setOnInsert: {
+        startedAt: req.body.startedAt ? new Date(req.body.startedAt) : new Date(),
+      },
+      $set: {
+        status: answeredCount > 0 ? 'in_progress' : 'not_started',
+        isCompleted: false,
+        totalQuestions,
+        answeredCount,
+        correctCount,
+        wrongCount,
+        progressPercent,
+        lastQuestionIndex,
+        draftAnswers: req.body.answers && typeof req.body.answers === 'object' ? req.body.answers : {},
+        draftFeedback: req.body.feedback && typeof req.body.feedback === 'object' ? req.body.feedback : {},
+        cycleStartDate: cycleInfo.effectiveStartDate || target.startDate,
+        lastActivityAt: new Date(),
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  res.json({
+    targetId: target._id,
+    cycleNumber: cycleInfo.cycleNumber || 1,
+    progress: serializeProgress(progress, totalQuestions),
   });
 });
 
@@ -497,8 +612,15 @@ export const completeMyDailyTarget = asyncHandler(async (req, res) => {
   const progress = await DailyTargetProgress.findOneAndUpdate(
     { student: req.user._id, target: target._id, cycleNumber: cycleInfo.cycleNumber || 1 },
     {
+      status: 'completed',
       isCompleted: true,
+      totalQuestions: target.questionsTarget || 0,
+      answeredCount: target.questionsTarget || 0,
+      progressPercent: 100,
+      draftAnswers: {},
+      draftFeedback: {},
       completedAt: new Date(),
+      lastActivityAt: new Date(),
       cycleStartDate: cycleInfo.effectiveStartDate || target.startDate,
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }

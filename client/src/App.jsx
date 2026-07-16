@@ -54,6 +54,7 @@ import AdminGamification from './pages/admin/AdminGamification.jsx';
 import AdminEnrollments from './pages/admin/AdminEnrollments.jsx';
 import AdminContent from './pages/admin/AdminContent.jsx';
 import AdminLiveClasses from './pages/admin/AdminLiveClasses.jsx';
+import AdminYtLectures from './pages/admin/AdminYtLectures.jsx';
 import AdminCourseContent from './pages/admin/AdminCourseContent.jsx';
 import AdminTests from './pages/admin/AdminTests.jsx';
 import AdminTestForm from './pages/admin/AdminTestForm.jsx';
@@ -119,6 +120,7 @@ import Downloads from './pages/student/Downloads.jsx';
 import WatchHistory from './pages/student/WatchHistory.jsx';
 import Flashcards from './pages/student/Flashcards.jsx';
 import NcertToolbox from './pages/student/NcertToolbox.jsx';
+import YtLectures from './pages/student/YtLectures.jsx';
 import PowerCoursesDashboard from './pages/student/PowerCoursesDashboard.jsx';
 import PowerCourseDetail from './pages/student/PowerCourseDetail.jsx';
 import PowerCourseLearn from './pages/student/PowerCourseLearn.jsx';
@@ -208,6 +210,7 @@ export default function App() {
           <Route path="gamification" element={<AdminGamification />} />
           <Route path="enrollments" element={<AdminEnrollments />} />
           <Route path="live-classes" element={<AdminLiveClasses />} />
+          <Route path="yt-lectures" element={<AdminYtLectures />} />
           <Route path="tests" element={<AdminTests />} />
           <Route path="daily-targets" element={<AdminDailyTargets />} />
           <Route path="tests/new" element={<AdminTestForm />} />
@@ -263,6 +266,7 @@ export default function App() {
           <Route path="library" element={<Ebooks />} />
           <Route path="downloads" element={<Downloads />} />
           <Route path="live-classes" element={<StudentLiveClasses />} />
+          <Route path="yt-lectures" element={<YtLectures />} />
           <Route path="flashcards" element={<Flashcards />} />
           <Route path="ncert-toolbox" element={<NcertToolbox />} />
           <Route path="boosters" element={<Boosters />} />

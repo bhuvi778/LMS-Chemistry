@@ -540,11 +540,11 @@ function StudentModal({ id, onClose, onChanged }) {
     }
   };
 
-  const removeEnrollment = async (courseId) => {
+  const removeEnrollment = async (enrollment) => {
     if (!confirm('Remove this course enrollment?')) return;
-    setEnrollBusy(courseId);
+    setEnrollBusy(enrollment._id);
     try {
-      await api.delete(`/admin/students/${id}/enroll/${courseId}`);
+      await api.delete(`/admin/students/${id}/enrollments/${enrollment._id}`);
       toast.success('Enrollment removed');
       load();
       onChanged?.();
@@ -603,11 +603,11 @@ function StudentModal({ id, onClose, onChanged }) {
     }
   };
 
-  const removePowerEnrollment = async (courseId) => {
+  const removePowerEnrollment = async (enrollment) => {
     if (!confirm('Remove this Power Batch enrollment?')) return;
-    setEnrollPowerBusy(courseId);
+    setEnrollPowerBusy(enrollment._id);
     try {
-      await api.delete(`/admin/students/${id}/enroll/${courseId}`);
+      await api.delete(`/admin/students/${id}/enrollments/${enrollment._id}`);
       toast.success('Enrollment removed');
       load();
       onChanged?.();
@@ -1132,12 +1132,12 @@ function StudentModal({ id, onClose, onChanged }) {
                           {e.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
                         </span>
                         <button
-                          disabled={enrollBusy === String(e.course?._id || e.course)}
-                          onClick={() => removeEnrollment(String(e.course?._id || e.course))}
+                          disabled={enrollBusy === e._id}
+                          onClick={() => removeEnrollment(e)}
                           className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40"
                           title="Remove enrollment"
                         >
-                          {enrollBusy === String(e.course?._id || e.course)
+                          {enrollBusy === e._id
                             ? <Loader2 size={12} className="animate-spin" />
                             : <Trash2 size={12} />}
                         </button>
@@ -1220,12 +1220,12 @@ function StudentModal({ id, onClose, onChanged }) {
                           {e.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
                         </span>
                         <button
-                          disabled={enrollPowerBusy === String(e.course?._id || e.course)}
-                          onClick={() => removePowerEnrollment(String(e.course?._id || e.course))}
+                          disabled={enrollPowerBusy === e._id}
+                          onClick={() => removePowerEnrollment(e)}
                           className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40"
                           title="Remove enrollment"
                         >
-                          {enrollPowerBusy === String(e.course?._id || e.course)
+                          {enrollPowerBusy === e._id
                             ? <Loader2 size={12} className="animate-spin" />
                             : <Trash2 size={12} />}
                         </button>

@@ -397,7 +397,7 @@ export const allStudents = asyncHandler(async (_req, res) => {
     TestSeriesEnrollment.find().populate('testSeries', 'title categories price').lean()
   ]);
 
-  const byStudent = enrollments.reduce((acc, e) => {
+  const byStudent = enrollments.filter((e) => e.course).reduce((acc, e) => {
     const k = String(e.student);
     (acc[k] = acc[k] || []).push(e);
     return acc;
@@ -430,10 +430,12 @@ export const allEnrollments = asyncHandler(async (_req, res) => {
       .sort({ createdAt: -1 })
   ]);
 
-  const courseList = courseEnrolls.map(e => ({
-    ...e.toObject(),
-    type: 'course'
-  }));
+  const courseList = courseEnrolls
+    .filter((e) => e.course)
+    .map(e => ({
+      ...e.toObject(),
+      type: 'course'
+    }));
 
   const seriesList = testSeriesEnrolls.map(e => ({
     ...e.toObject(),
@@ -615,9 +617,14 @@ export const getStudent = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Student not found');
   }
-  const enrollments = await Enrollment.find({ student: user._id })
+  const rawEnrollments = await Enrollment.find({ student: user._id })
     .populate('course', 'title category price thumbnail courseType plans isPowerCourse powerCourseDuration')
     .lean();
+  const orphanEnrollmentIds = rawEnrollments.filter((e) => !e.course).map((e) => e._id);
+  if (orphanEnrollmentIds.length) {
+    await Enrollment.deleteMany({ _id: { $in: orphanEnrollmentIds }, student: user._id });
+  }
+  const enrollments = rawEnrollments.filter((e) => e.course);
   const testSeriesEnrollments = await TestSeriesEnrollment.find({ student: user._id })
     .populate('testSeries', 'title price thumbnail')
     .lean();
@@ -751,6 +758,25 @@ export const adminRemoveEnrollment = asyncHandler(async (req, res) => {
   await Course.findByIdAndUpdate(req.params.courseId, {
     $inc: { studentsEnrolled: -1 },
   });
+
+  res.json({ ok: true });
+});
+
+export const adminRemoveEnrollmentById = asyncHandler(async (req, res) => {
+  const enrollment = await Enrollment.findOne({
+    _id: req.params.enrollmentId,
+    student: req.params.id,
+  });
+  if (!enrollment) { res.status(404); throw new Error('Enrollment not found'); }
+
+  const courseId = enrollment.course;
+  await enrollment.deleteOne();
+
+  if (courseId) {
+    await Course.findByIdAndUpdate(courseId, {
+      $inc: { studentsEnrolled: -1 },
+    });
+  }
 
   res.json({ ok: true });
 });

@@ -9,7 +9,7 @@ import {
   BookOpen, GraduationCap, Coins, Flame, Video, ExternalLink,
   Calendar, Clock, ArrowRight, Play, ChevronRight, Bell, Zap,
   TrendingUp, Users, Award, Target, CheckCircle, FileText, ListTodo,
-  X, Loader2, ChevronLeft, RotateCcw
+  X, Loader2, ChevronLeft, RotateCcw, Flag, Footprints, Rocket, Lock
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -22,16 +22,26 @@ export default function Dashboard() {
   const [countdowns, setCountdowns] = useState([]);
   const [dailyTargets, setDailyTargets] = useState([]);
   const [practiceTargets, setPracticeTargets] = useState([]);
+  const [practiceTargetsLoading, setPracticeTargetsLoading] = useState(true);
   const [timers, setTimers] = useState({});
   const [dailyTestSession, setDailyTestSession] = useState(null);
   const [dailyTestLoadingId, setDailyTestLoadingId] = useState(null);
   const [dailyTestSubmitting, setDailyTestSubmitting] = useState(false);
+  const [answerEffect, setAnswerEffect] = useState(null);
 
   const loadNotifications = () => {
     api.get('/notifications').then(r => {
       setNotifications(r.data.list || []);
       setUnreadCount(r.data.unread || 0);
     }).catch(() => {});
+  };
+
+  const loadPracticeTargets = () => {
+    setPracticeTargetsLoading(true);
+    api.get('/daily-targets/me')
+      .then(r => setPracticeTargets(r.data || []))
+      .catch(() => setPracticeTargets([]))
+      .finally(() => setPracticeTargetsLoading(false));
   };
   const handleNotifClick = async (n) => {
     if (!n.read) {
@@ -55,7 +65,7 @@ export default function Dashboard() {
     api.get('/admin/live-classes/all').then(r => setLiveClasses(r.data)).catch(() => {});
     api.get('/exam-countdown/active').then(r => setCountdowns(r.data || [])).catch(() => {});
     api.get('/power-courses/daily-targets').then(r => setDailyTargets(r.data || [])).catch(() => {});
-    api.get('/daily-targets/me').then(r => setPracticeTargets(r.data || [])).catch(() => {});
+    loadPracticeTargets();
     loadNotifications();
   }, []);
 
@@ -106,12 +116,15 @@ export default function Dashboard() {
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+  const averageCourseProgress = enrollments.length
+    ? Math.round(enrollments.reduce((sum, enrollment) => sum + (enrollment.progress || 0), 0) / enrollments.length)
+    : 0;
 
   const stats = [
     { icon: BookOpen, label: 'Enrolled Courses', value: enrollments.length, color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50', text: 'text-violet-600' },
-    { icon: Flame, label: 'Day Streak', value: `${user?.streak || 0}🔥`, color: 'from-amber-500 to-orange-600', bg: 'bg-amber-50', text: 'text-amber-600' },
+    { icon: Flame, label: 'Day Streak', value: user?.streak || 0, color: 'from-amber-500 to-orange-600', bg: 'bg-amber-50', text: 'text-amber-600' },
     { icon: Coins, label: 'Ace Coins', value: user?.coins || 0, color: 'from-yellow-400 to-amber-500', bg: 'bg-yellow-50', text: 'text-yellow-600' },
-    { icon: TrendingUp, label: 'Total Invested', value: `₹${enrollments.reduce((a, e) => a + (e.pricePaid || 0), 0).toLocaleString()}`, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+    { icon: TrendingUp, label: 'Average Progress', value: `${averageCourseProgress}%`, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', text: 'text-emerald-600' },
   ];
 
   const quickLinks = [
@@ -124,11 +137,62 @@ export default function Dashboard() {
   ];
 
   const allLive = [...(liveClasses.ongoing || []), ...(liveClasses.upcoming || [])].slice(0, 3);
+  const nextLiveClass = allLive[0];
   const mainTarget = dailyTargets[0];
   const targetProgress = mainTarget?.requiredTaskCount
     ? Math.round((mainTarget.completedTaskCount / mainTarget.requiredTaskCount) * 100)
     : 0;
-  const completedPracticeTargets = practiceTargets.filter((target) => target.isCompleted).length;
+  const isPracticeTargetLocked = (target) => target.isUpcoming || target.cycleInfo?.isVisibleToday === false;
+  const todayPracticeTargets = practiceTargets.filter((target) => !isPracticeTargetLocked(target));
+  const completedPracticeTargets = todayPracticeTargets.filter((target) => target.isCompleted).length;
+  const dailyGoalTotal = todayPracticeTargets.reduce((sum, target) => sum + (target.progress?.totalQuestions || target.questionsTarget || target.test?.questions?.length || 10), 0);
+  const dailyGoalDone = todayPracticeTargets.reduce((sum, target) => {
+    const total = target.questionsTarget || target.progress?.totalQuestions || target.test?.questions?.length || 10;
+    return sum + (target.isCompleted ? total : Math.min(total, target.progress?.answeredCount || 0));
+  }, 0);
+  const dailyGoalPercent = dailyGoalTotal ? Math.round((dailyGoalDone / dailyGoalTotal) * 100) : 0;
+  const dailyGoalMilestones = [
+    { at: 0, Icon: Footprints },
+    { at: 25, Icon: Play },
+    { at: 50, Icon: Rocket },
+    { at: 75, Icon: Zap },
+    { at: 100, Icon: Flag },
+  ];
+  const activePracticeTarget = todayPracticeTargets.find((target) => !target.isCompleted) || todayPracticeTargets[0];
+  const upcomingPracticeTargets = practiceTargets.filter((target) => isPracticeTargetLocked(target));
+  const dashboardHighlights = [
+    {
+      label: 'Daily Goal',
+      value: `${dailyGoalDone}/${dailyGoalTotal || 0}`,
+      meta: dailyGoalTotal ? `${dailyGoalPercent}% attempted today` : 'No target for today',
+      icon: Target,
+      tone: 'bg-sky-50 text-sky-700 border-sky-100',
+      action: activePracticeTarget ? 'Start' : '',
+    },
+    {
+      label: 'Next Live Class',
+      value: nextLiveClass ? new Date(nextLiveClass.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'None',
+      meta: nextLiveClass?.title || 'No upcoming live class',
+      icon: Video,
+      tone: 'bg-rose-50 text-rose-700 border-rose-100',
+      to: nextLiveClass ? `/live/${nextLiveClass._id}` : '',
+    },
+    {
+      label: 'Course Progress',
+      value: `${averageCourseProgress}%`,
+      meta: `${enrollments.length} enrolled course${enrollments.length === 1 ? '' : 's'}`,
+      icon: BookOpen,
+      tone: 'bg-violet-50 text-violet-700 border-violet-100',
+      to: '/student/courses',
+    },
+    {
+      label: 'Notifications',
+      value: unreadCount,
+      meta: unreadCount ? 'Unread updates waiting' : 'All caught up',
+      icon: Bell,
+      tone: 'bg-amber-50 text-amber-700 border-amber-100',
+    },
+  ];
 
   const isDailyAnswerCorrect = (question, selected) => {
     if (!question) return false;
@@ -168,12 +232,25 @@ export default function Dashboard() {
       (data.test?.questions || []).forEach((question) => {
         answers[question._id] = question.type === 'msq' ? [] : question.type === 'numerical' ? '' : -1;
       });
+      const restoredAnswers = data.progress?.status === 'in_progress' && data.progress?.draftAnswers
+        ? data.progress.draftAnswers
+        : {};
+      const restoredFeedback = data.progress?.status === 'in_progress' && data.progress?.draftFeedback
+        ? data.progress.draftFeedback
+        : {};
+      setPracticeTargets((prev) => prev.map((item) => (
+        item._id === target._id
+          ? { ...item, progress: data.progress || item.progress || { status: 'in_progress' } }
+          : item
+      )));
       setDailyTestSession({
         target: data.target,
         test: data.test,
-        answers,
-        feedback: {},
-        current: 0,
+        answers: { ...answers, ...restoredAnswers },
+        feedback: restoredFeedback,
+        current: data.progress?.status === 'in_progress'
+          ? Math.min(Math.max(0, data.progress?.lastQuestionIndex || 0), Math.max(0, (data.test?.questions?.length || 1) - 1))
+          : 0,
         countdown: 3,
         startedAt: null,
         result: null,
@@ -187,21 +264,50 @@ export default function Dashboard() {
 
   const setDailyAnswer = (question, value) => {
     if (!question?._id) return;
+    if (dailyTestSession?.feedback?.[question._id]) return;
     const isCorrect = isDailyAnswerCorrect(question, value);
     playAnswerSound(isCorrect);
+    setAnswerEffect({ questionId: question._id, isCorrect, tick: Date.now() });
+    const nextAnswers = { ...(dailyTestSession?.answers || {}), [question._id]: value };
+    const nextFeedback = {
+      ...(dailyTestSession?.feedback || {}),
+      [question._id]: {
+        selected: value,
+        isCorrect,
+        correct: question.type === 'msq' ? (question.correctOptions || [question.correct]) : question.correct,
+      },
+    };
+    const questions = dailyTestSession?.test?.questions || [];
+    const answeredCount = Object.keys(nextFeedback).length;
+    const correctCount = Object.values(nextFeedback).filter((item) => item.isCorrect).length;
+    const wrongCount = answeredCount - correctCount;
+    const progressPercent = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
+    const progressPayload = {
+      status: answeredCount > 0 ? 'in_progress' : 'not_started',
+      totalQuestions: questions.length,
+      answeredCount,
+      correctCount,
+      wrongCount,
+      progressPercent,
+      lastQuestionIndex: dailyTestSession?.current || 0,
+      answers: nextAnswers,
+      feedback: nextFeedback,
+      startedAt: dailyTestSession?.startedAt || Date.now(),
+    };
+    if (dailyTestSession?.target?._id) {
+      setPracticeTargets((prev) => prev.map((target) => (
+        target._id === dailyTestSession.target._id
+          ? { ...target, progress: { ...(target.progress || {}), ...progressPayload } }
+          : target
+      )));
+      api.patch(`/daily-targets/${dailyTestSession.target._id}/progress`, progressPayload).catch(() => {});
+    }
     setDailyTestSession((prev) => {
       if (!prev || prev.feedback?.[question._id]) return prev;
       return {
         ...prev,
-        answers: { ...prev.answers, [question._id]: value },
-        feedback: {
-          ...prev.feedback,
-          [question._id]: {
-            selected: value,
-            isCorrect,
-            correct: question.type === 'msq' ? (question.correctOptions || [question.correct]) : question.correct,
-          },
-        },
+        answers: nextAnswers,
+        feedback: nextFeedback,
       };
     });
 
@@ -233,11 +339,37 @@ export default function Dashboard() {
       });
       setPracticeTargets((prev) => prev.map((target) => (
         target._id === dailyTestSession.target._id
-          ? { ...target, isCompleted: true, lastScore: data.scored, lastTotalMarks: data.totalMarks, lastPercentage: data.percentage }
+          ? {
+            ...target,
+            isCompleted: true,
+            lastScore: data.scored,
+            lastTotalMarks: data.totalMarks,
+            lastPercentage: data.percentage,
+            progress: {
+              ...(target.progress || {}),
+              status: 'completed',
+              answeredCount: dailyTestSession.test?.questions?.length || target.questionsTarget || 0,
+              totalQuestions: dailyTestSession.test?.questions?.length || target.questionsTarget || 0,
+              correctCount: data.correct || 0,
+              wrongCount: data.wrong || 0,
+              progressPercent: 100,
+            },
+          }
           : target
       )));
-      setDailyTestSession(null);
-      toast.success('Practice submitted. Retake is ready on your card.');
+      setDailyTestSession((prev) => prev ? {
+        ...prev,
+        result: {
+          scored: data.scored || 0,
+          totalMarks: data.totalMarks || 0,
+          percentage: data.percentage || 0,
+          correct: Object.values(prev.feedback || {}).filter((item) => item.isCorrect).length,
+          incorrect: Object.values(prev.feedback || {}).filter((item) => !item.isCorrect).length,
+          totalQuestions: prev.test?.questions?.length || 0,
+          timeTakenSecs: Math.round((Date.now() - (prev.startedAt || Date.now())) / 1000),
+        },
+      } : null);
+      toast.success('Practice submitted. Result is ready.');
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || 'Failed to submit daily target');
     } finally {
@@ -247,37 +379,73 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-7">
-      {/* Welcome Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-indigo-600 to-purple-700 text-white p-7 shadow-lg">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-white blur-3xl translate-x-20 -translate-y-20" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-white blur-2xl -translate-x-10 translate-y-10" />
-        </div>
-        <div className="relative z-10 flex items-start justify-between flex-wrap gap-4">
+      {/* Welcome Header */}
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 text-white shadow-sm">
+        <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-white/70 text-sm font-semibold uppercase tracking-widest mb-1">{greeting} 👋</p>
-            <h1 className="font-display text-3xl font-extrabold leading-tight">
-              {user?.name?.split(' ')[0] || 'Student'}!
+            <p className="mb-1 text-xs font-black uppercase tracking-[0.22em] text-sky-300">{greeting}</p>
+            <h1 className="font-display text-2xl font-extrabold leading-tight sm:text-3xl">
+              {user?.name?.split(' ')[0] || 'Student'} Dashboard
             </h1>
-            <p className="text-white/80 text-sm mt-2">
-              Student ID: <span className="font-mono font-bold text-white bg-white/20 px-2 py-0.5 rounded-lg text-xs">{user?.studentId}</span>
+            <p className="mt-2 text-sm font-semibold text-slate-300">
+              Student ID: <span className="rounded-lg bg-white/10 px-2 py-0.5 font-mono text-xs font-bold text-white">{user?.studentId || 'N/A'}</span>
             </p>
-            <div className="flex items-center gap-3 mt-4 flex-wrap">
-              <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-xl px-3 py-2 text-sm font-semibold">
-                <Flame size={16} className="text-amber-300" /> {user?.streak || 0} Day Streak
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-black">
+                <Flame size={15} className="text-amber-300" /> {user?.streak || 0} Day Streak
               </div>
-              <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-xl px-3 py-2 text-sm font-semibold">
-                <Coins size={16} className="text-yellow-300" /> {user?.coins || 0} Coins
+              <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-black">
+                <Coins size={15} className="text-yellow-300" /> {user?.coins || 0} Coins
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-black">
+                <BookOpen size={15} className="text-sky-300" /> {enrollments.length} Courses
               </div>
             </div>
           </div>
           <Link
             to="/student/courses"
-            className="flex items-center gap-2 bg-white text-brand-700 font-bold text-sm px-5 py-2.5 rounded-2xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto text-center justify-center"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 shadow-sm transition hover:bg-sky-50 sm:w-auto"
           >
             <Play size={15} fill="currentColor" /> Continue Learning
           </Link>
         </div>
+      </div>
+
+      {/* Today Overview */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {dashboardHighlights.map((item) => {
+          const content = (
+            <div className={`h-full rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${item.tone}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-black uppercase tracking-wide opacity-70">{item.label}</div>
+                  <div className="mt-1 text-2xl font-black leading-tight">{item.value}</div>
+                  <div className="mt-1 line-clamp-1 text-xs font-bold opacity-75">{item.meta}</div>
+                </div>
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/70">
+                  <item.icon size={18} />
+                </div>
+              </div>
+              {item.label === 'Daily Goal' && dailyGoalTotal > 0 && (
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/80">
+                  <div className="h-full rounded-full bg-current transition-all" style={{ width: `${dailyGoalPercent}%` }} />
+                </div>
+              )}
+            </div>
+          );
+
+          if (item.label === 'Daily Goal' && activePracticeTarget) {
+            return (
+              <button key={item.label} type="button" onClick={() => startDailyTargetTest(activePracticeTarget)} className="text-left">
+                {content}
+              </button>
+            );
+          }
+          if (item.to) {
+            return <Link key={item.label} to={item.to}>{content}</Link>;
+          }
+          return <div key={item.label}>{content}</div>;
+        })}
       </div>
 
       {/* Exam Countdowns Section */}
@@ -403,28 +571,29 @@ export default function Dashboard() {
       )}
 
       {/* Admin-controlled practice daily targets */}
-      {practiceTargets.length > 0 && (
-        <div className="overflow-hidden rounded-3xl border border-teal-100 bg-white shadow-sm">
-          <div className="border-b border-slate-100 bg-gradient-to-r from-teal-50 via-white to-amber-50 p-4 sm:p-5">
+      <div className="overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-sm">
+          <div className="border-b border-slate-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 p-4 sm:p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-teal-100 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-teal-700">
+                <div className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-sky-700">
                   <Zap size={12} /> Practice Session
                 </div>
-                <h2 className="mt-2 font-display text-lg font-black tracking-tight text-slate-900">My Daily Target</h2>
+                <h2 className="mt-2 font-display text-xl font-black tracking-tight text-slate-900">My Daily Target</h2>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
-                  {completedPracticeTargets}/{practiceTargets.length} completed today. Tap start and begin after 3, 2, 1.
+                  {practiceTargetsLoading
+                    ? 'Loading your targets...'
+                    : `${completedPracticeTargets}/${todayPracticeTargets.length || 0} completed today. ${upcomingPracticeTargets.length} upcoming locked.`}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm sm:min-w-[190px]">
                 <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wide text-slate-400">
                   <span>Progress</span>
-                  <span className="text-teal-700">{Math.round((completedPracticeTargets / practiceTargets.length) * 100)}%</span>
+                  <span className="text-teal-700">{todayPracticeTargets.length ? Math.round((completedPracticeTargets / todayPracticeTargets.length) * 100) : 0}%</span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
                   <div
                     className="h-full rounded-full bg-teal-500 transition-all"
-                    style={{ width: `${Math.round((completedPracticeTargets / practiceTargets.length) * 100)}%` }}
+                    style={{ width: `${todayPracticeTargets.length ? Math.round((completedPracticeTargets / todayPracticeTargets.length) * 100) : 0}%` }}
                   />
                 </div>
               </div>
@@ -432,86 +601,142 @@ export default function Dashboard() {
           </div>
 
           <div className="flex gap-4 overflow-x-auto p-4 sm:p-5">
-            {practiceTargets.map((target) => {
+            {practiceTargetsLoading && [1, 2].map((item) => (
+              <div key={item} className="min-w-[292px] max-w-[292px] rounded-2xl border border-slate-100 bg-white p-3 shadow-sm sm:min-w-[360px] sm:max-w-[360px]">
+                <div className="min-h-[300px] animate-pulse rounded-xl bg-slate-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-slate-200" />
+                    <div className="space-y-2">
+                      <div className="h-3 w-28 rounded bg-slate-200" />
+                      <div className="h-2 w-20 rounded bg-slate-100" />
+                    </div>
+                  </div>
+                  <div className="mt-8 h-5 w-52 rounded bg-slate-200" />
+                  <div className="mt-3 h-3 w-64 rounded bg-slate-100" />
+                  <div className="mt-12 h-2 rounded bg-slate-200" />
+                  <div className="mt-12 h-11 rounded-full bg-slate-200" />
+                </div>
+              </div>
+            ))}
+            {!practiceTargetsLoading && practiceTargets.length === 0 && (
+              <div className="min-w-full rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 p-6 text-center">
+                <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white text-sky-600 shadow-sm">
+                  <Target size={22} />
+                </div>
+                <h3 className="mt-3 text-sm font-black text-slate-900">No Daily Target scheduled</h3>
+                <p className="mx-auto mt-1 max-w-md text-xs font-semibold leading-relaxed text-slate-500">
+                  When admin creates today or upcoming practice targets, they will appear here with locked and progress states.
+                </p>
+              </div>
+            )}
+            {!practiceTargetsLoading && practiceTargets.map((target, idx) => {
+              const isUpcoming = target.isUpcoming || target.cycleInfo?.isVisibleToday === false;
+              const targetTotal = target.progress?.totalQuestions || target.questionsTarget || target.test?.questions?.length || 10;
+              const answeredCount = target.isCompleted ? targetTotal : Math.min(targetTotal, target.progress?.answeredCount || 0);
+              const progressPercent = target.isCompleted ? 100 : Math.min(100, target.progress?.progressPercent || (targetTotal ? Math.round((answeredCount / targetTotal) * 100) : 0));
+              const isInProgress = !isUpcoming && !target.isCompleted && answeredCount > 0;
+              const isDarkCard = isUpcoming || idx % 2 === 1;
+              const cardShell = isDarkCard
+                ? 'border-indigo-900/10 bg-gradient-to-br from-[#312b70] via-[#28245f] to-[#1e1b4b] text-white shadow-indigo-900/15'
+                : 'border-red-100 bg-gradient-to-br from-[#ff5b5f] via-[#f9464f] to-[#ef4444] text-white shadow-red-500/20';
+              const progressWidth = isUpcoming ? 0 : progressPercent;
               return (
-                <div key={target._id} className="min-w-[272px] max-w-[272px] rounded-2xl border border-slate-100 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-w-[330px] sm:max-w-[330px]">
-                  <div className="rounded-xl bg-slate-50 p-3">
+                <div key={target._id} className={`min-w-[292px] max-w-[292px] rounded-2xl border p-3 shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl sm:min-w-[360px] sm:max-w-[360px] ${cardShell}`}>
+                  <div className="relative min-h-[300px] overflow-hidden rounded-xl p-4">
+                    {isDarkCard && (
+                      <div className="pointer-events-none absolute bottom-8 right-6 opacity-40">
+                        <Rocket size={58} strokeWidth={1.4} />
+                      </div>
+                    )}
+                    {!isDarkCard && (
+                      <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full border border-white/20" />
+                    )}
                     <div className="flex items-start gap-3">
-                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-teal-100 text-teal-700">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/20 text-white ring-1 ring-white/20">
                         <Calendar size={17} />
                       </div>
                       <div className="min-w-0">
-                        <div className="text-xs font-black text-slate-900">{target.isUpcoming ? 'Upcoming Topic' : "Today's Topic"}</div>
-                        <div className="mt-0.5 text-[10px] font-bold text-slate-400">
+                        <div className="text-xs font-black text-white">{isUpcoming ? 'Next Topic' : "Today's Topic"}</div>
+                        <div className="mt-0.5 text-[10px] font-bold text-white/70">
                           {new Date(target.startDate || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })}
                         </div>
                       </div>
-                      {target.isUpcoming ? (
-                        <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-700">
-                          <Clock size={11} /> {target.cycleInfo?.daysUntilNext || 1}d
+                      {isUpcoming ? (
+                        <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-[10px] font-black text-white ring-1 ring-white/20">
+                          <Lock size={11} /> {target.cycleInfo?.daysUntilNext || 1}d
                         </span>
-                      ) : target.isCompleted && (
-                        <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-black text-emerald-700">
+                      ) : target.isCompleted ? (
+                        <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-300/95 px-2 py-1 text-[10px] font-black text-emerald-950">
                           <CheckCircle size={11} /> Done
                         </span>
-                      )}
+                      ) : isInProgress ? (
+                        <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-200/95 px-2 py-1 text-[10px] font-black text-amber-950">
+                          <Clock size={11} /> {progressPercent}%
+                        </span>
+                      ) : null}
                     </div>
 
-                    <div className="mt-6 min-h-[70px]">
-                      <h3 className="line-clamp-2 text-sm font-black leading-snug text-slate-900">{target.title}</h3>
-                      <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">
+                    <div className="mt-7 min-h-[82px]">
+                      <h3 className="line-clamp-2 text-base font-black leading-snug text-white">{target.title}</h3>
+                      <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-white/78">
                         {target.description || 'Daily practice questions'}
                       </p>
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between gap-2 text-[11px] font-black text-slate-600">
+                    <div className="mt-3 flex items-center justify-between gap-2 text-[11px] font-black text-white">
                       <span>{target.durationMins || 10} Min Practice</span>
-                      <span>{target.questionsTarget || target.test?.questions?.length || 10} Qs</span>
+                      <span>{answeredCount}/{targetTotal} Qs</span>
                     </div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
-                      <div className={`h-full rounded-full ${target.isCompleted ? 'bg-emerald-400' : 'bg-teal-500'}`} style={{ width: target.isCompleted ? '100%' : '12%' }} />
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/75">
+                      <div className={`h-full rounded-full ${target.isCompleted ? 'bg-emerald-300' : 'bg-white'}`} style={{ width: `${progressWidth}%` }} />
                     </div>
+                    {isInProgress && (
+                      <div className="mt-3 rounded-xl border border-white/15 bg-white/15 px-3 py-2 text-[11px] font-black text-white">
+                        In progress: {answeredCount}/{targetTotal} attempted
+                      </div>
+                    )}
                     {target.lastPercentage !== undefined && (
-                      <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-[11px] font-black text-emerald-700">
+                      <div className="mt-3 rounded-xl border border-white/15 bg-white/15 px-3 py-2 text-[11px] font-black text-white">
                         Last score: {target.lastPercentage}% ({target.lastScore || 0}/{target.lastTotalMarks || 0})
                       </div>
                     )}
 
-                    <div className="mt-6">
+                    <div className="mt-7">
                       <button
                         type="button"
                         onClick={() => startDailyTargetTest(target)}
-                        disabled={dailyTestLoadingId === target._id || target.isUpcoming}
-                        className={`inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-xs font-black shadow-sm transition disabled:cursor-not-allowed disabled:opacity-70 ${
-                          target.isUpcoming
-                            ? 'bg-slate-200 text-slate-500'
-                            : 'bg-teal-600 text-white shadow-teal-600/20 hover:bg-teal-500'
+                        disabled={dailyTestLoadingId === target._id || isUpcoming}
+                        className={`inline-flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-3.5 text-xs font-black shadow-sm transition disabled:cursor-not-allowed ${
+                          isUpcoming
+                            ? 'border border-white/70 bg-transparent text-white'
+                            : 'bg-white text-slate-800 hover:bg-amber-50'
                         }`}
                       >
                         {dailyTestLoadingId === target._id ? (
                           <>
                             <Loader2 size={13} className="animate-spin" /> Opening...
                           </>
-                        ) : target.isUpcoming ? (
+                        ) : isUpcoming ? (
                           <>
-                            <Clock size={13} /> Upcoming
+                            <Lock size={13} /> Locked
                           </>
                         ) : (
                           <>
                             {target.isCompleted ? <RotateCcw size={13} /> : <Play size={13} fill="currentColor" />}
-                            {target.isCompleted ? 'Retake Test' : 'Start Test'}
+                            {target.isCompleted ? 'Retake Test' : isInProgress ? 'Continue Test' : 'Start Test'}
                           </>
                         )}
                       </button>
                     </div>
                   </div>
 
-                  <div className="pt-2 text-center text-[9px] font-bold text-slate-400">
-                    {target.isUpcoming ? `Unlocks in ${target.cycleInfo?.daysUntilNext || 1} day(s).` : target.isCompleted ? 'Completed. You can revise it again.' : 'Practice mode gives instant answers.'}
+                  <div className="pt-2 text-center text-[9px] font-bold text-white/65">
+                    {isUpcoming ? `Unlocks on ${new Date(target.startDate || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })}.` : target.isCompleted ? 'Completed. You can revise it again.' : isInProgress ? 'Your attempt progress is being saved.' : 'Practice mode gives instant answers.'}
                   </div>
                 </div>
               );
             })}
+            {!practiceTargetsLoading && practiceTargets.length > 0 && (
             <div className="min-w-[272px] max-w-[272px] rounded-2xl border border-dashed border-teal-200 bg-gradient-to-br from-teal-50 via-white to-amber-50 p-3 shadow-sm sm:min-w-[330px] sm:max-w-[330px]">
               <div className="flex h-full min-h-[322px] flex-col justify-between rounded-xl bg-white/75 p-3">
                 <div>
@@ -558,13 +783,102 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+            )}
             </div>
-        </div>
-      )}
+
+          <div className="border-t border-slate-100 bg-white px-4 pb-5 sm:px-5">
+            <div className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm">
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <h3 className="text-xl font-black text-slate-900 sm:text-2xl">
+                  Your Daily Goal <span className="text-sky-500">({dailyGoalDone}/{dailyGoalTotal || 0} Qs)</span>
+                </h3>
+                <button
+                  className="grid h-10 w-10 place-items-center rounded-full border-2 border-slate-800 text-slate-800 transition disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                  type="button"
+                  disabled={!activePracticeTarget}
+                  onClick={() => activePracticeTarget && startDailyTargetTest(activePracticeTarget)}
+                >
+                  <ArrowRight size={20} />
+                </button>
+              </div>
+              <div className="relative px-4 pb-2">
+                <div className="absolute left-9 right-9 top-7 h-2 rounded-full bg-slate-100" />
+                <div className="absolute left-9 top-7 h-2 rounded-full bg-sky-400 transition-all" style={{ width: `calc((100% - 4.5rem) * ${dailyGoalPercent / 100})` }} />
+                <div className="relative z-10 flex items-center justify-between">
+                  {dailyGoalMilestones.map(({ at, Icon }) => {
+                    const active = dailyGoalTotal > 0 && dailyGoalPercent >= at;
+                    return (
+                      <div key={at} className={`grid h-14 w-14 place-items-center rounded-full border-4 border-white shadow-sm ${active ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        <Icon size={24} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+      </div>
 
       {dailyTestSession && createPortal((
         <div className="fixed inset-0 z-[9999] h-screen h-dvh w-screen bg-slate-50 text-slate-900">
-          {dailyTestSession.countdown > 0 ? (
+          {dailyTestSession.result ? (
+            <div className="flex h-full items-center justify-center bg-slate-900/65 p-4">
+              <div className="daily-result-rise w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl">
+                <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-amber-100 text-amber-500">
+                  <Award size={54} fill="currentColor" className="text-amber-400" />
+                </div>
+                <h2 className="mt-5 text-2xl font-black text-slate-900">Congratulations!</h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  You are doing better than yesterday. Keep your daily rhythm strong.
+                </p>
+                <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2 text-xs font-black text-slate-700">
+                  <Award size={15} className="text-slate-500" /> Topic Rank #{Math.max(1000, 3000 - Math.round(dailyTestSession.result.percentage * 12))}
+                </div>
+                <div className="mt-6 grid grid-cols-3 gap-3">
+                  <div className="rounded-2xl bg-indigo-600 p-3 text-white shadow-lg shadow-indigo-600/20">
+                    <Target size={24} className="mx-auto mb-1" />
+                    <div className="text-xl font-black">{dailyTestSession.result.percentage}%</div>
+                    <div className="text-[10px] font-bold opacity-80">Accuracy</div>
+                  </div>
+                  <div className="rounded-2xl bg-teal-600 p-3 text-white shadow-lg shadow-teal-600/20">
+                    <Rocket size={24} className="mx-auto mb-1" />
+                    <div className="text-xl font-black">{Math.max(1, Math.round((dailyTestSession.result.totalQuestions || 1) / Math.max(1, dailyTestSession.result.timeTakenSecs / 60)))}</div>
+                    <div className="text-[10px] font-bold opacity-80">Speed</div>
+                  </div>
+                  <div className="rounded-2xl bg-rose-500 p-3 text-white shadow-lg shadow-rose-500/20">
+                    <Zap size={24} className="mx-auto mb-1" />
+                    <div className="text-xl font-black">{dailyTestSession.result.scored}</div>
+                    <div className="text-[10px] font-bold opacity-80">Score</div>
+                  </div>
+                </div>
+                <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl bg-slate-50 p-3 text-xs font-bold text-slate-600">
+                  <div>Questions: {dailyTestSession.result.totalQuestions}</div>
+                  <div>Correct: {dailyTestSession.result.correct}</div>
+                  <div>Wrong: {dailyTestSession.result.incorrect}</div>
+                </div>
+                <div className="mt-6 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDailyTestSession(null)}
+                    className="btn-primary flex-1 justify-center text-xs"
+                  >
+                    Done
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = dailyTestSession.target;
+                      setDailyTestSession(null);
+                      setTimeout(() => startDailyTargetTest(target), 100);
+                    }}
+                    className="btn-outline flex-1 justify-center text-xs"
+                  >
+                    Retake
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : dailyTestSession.countdown > 0 ? (
             <div className="flex h-full items-center justify-center bg-gradient-to-br from-teal-50 via-white to-amber-50 p-5">
               <div className="text-center">
                 <div className="mx-auto grid h-28 w-28 place-items-center rounded-full bg-teal-600 text-6xl font-black text-white shadow-xl shadow-teal-600/20 sm:h-36 sm:w-36 sm:text-7xl">
@@ -676,14 +990,15 @@ export default function Dashboard() {
                             {(currentQuestion.options || []).map((option, optionIdx) => {
                               const optionText = typeof option === 'string' ? option : option.text;
                               const isSelected = selected === optionIdx;
+                              const isEffectTarget = answerEffect?.questionId === currentQuestion._id && isSelected;
                               const correctIndexes = currentQuestion.type === 'msq'
                                 ? (currentQuestion.correctOptions?.length ? currentQuestion.correctOptions : [currentQuestion.correct])
                                 : [currentQuestion.correct];
                               const isCorrectOption = correctIndexes.map(Number).includes(optionIdx);
                               const optionClass = currentFeedback && isCorrectOption
-                                ? 'border-emerald-300 bg-emerald-50 text-emerald-950'
+                                ? 'border-emerald-400 bg-emerald-500 text-white'
                                 : currentFeedback && isSelected
-                                  ? 'border-rose-300 bg-rose-50 text-rose-950'
+                                  ? 'border-red-400 bg-red-500 text-white'
                                   : isSelected
                                     ? 'border-teal-500 bg-teal-50 text-teal-950'
                                     : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50';
@@ -700,8 +1015,33 @@ export default function Dashboard() {
                                   type="button"
                                   onClick={() => setDailyAnswer(currentQuestion, optionIdx)}
                                   disabled={!!currentFeedback}
-                                  className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left transition ${optionClass} disabled:cursor-default`}
+                                  className={`relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border px-4 py-4 text-left transition ${optionClass} disabled:cursor-default ${
+                                    isEffectTarget && answerEffect?.isCorrect ? 'daily-correct-glow' : ''
+                                  } ${isEffectTarget && !answerEffect?.isCorrect ? 'daily-wrong-shake' : ''}`}
                                 >
+                                  {isEffectTarget && answerEffect?.isCorrect && (
+                                    <span className="pointer-events-none absolute inset-0">
+                                      {[
+                                        ['18%', '35%', '-46px', '-34px'],
+                                        ['34%', '20%', '-16px', '-48px'],
+                                        ['52%', '32%', '18px', '-42px'],
+                                        ['70%', '26%', '48px', '-24px'],
+                                        ['80%', '58%', '54px', '24px'],
+                                        ['28%', '72%', '-34px', '36px'],
+                                      ].map(([left, top, x, y], sparkIdx) => (
+                                        <span
+                                          key={`${answerEffect.tick}-${sparkIdx}`}
+                                          className="daily-sparkle absolute h-2 w-2 rounded-full bg-amber-200 shadow-[0_0_12px_rgba(253,224,71,0.9)]"
+                                          style={{
+                                            left,
+                                            top,
+                                            '--spark-x': x,
+                                            '--spark-y': y,
+                                          }}
+                                        />
+                                      ))}
+                                    </span>
+                                  )}
                                   <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-black ${badgeClass}`}>
                                     {String.fromCharCode(65 + optionIdx)}
                                   </span>
@@ -710,8 +1050,8 @@ export default function Dashboard() {
                                     style={questionFont}
                                     dangerouslySetInnerHTML={{ __html: optionText || `Option ${optionIdx + 1}` }}
                                   />
-                                  {currentFeedback && isCorrectOption && <CheckCircle size={18} className="shrink-0 text-emerald-600" />}
-                                  {currentFeedback && isSelected && !isCorrectOption && <X size={18} className="shrink-0 text-rose-600" />}
+                                  {currentFeedback && isCorrectOption && <CheckCircle size={18} className="shrink-0 text-white" />}
+                                  {currentFeedback && isSelected && !isCorrectOption && <X size={18} className="shrink-0 text-white" />}
                                 </button>
                               );
                             })}
@@ -812,16 +1152,21 @@ export default function Dashboard() {
       ), document.body)}
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-all duration-200 group">
-            <div className={`w-10 h-10 rounded-xl ${s.bg} ${s.text} flex items-center justify-center mb-3`}>
-              <s.icon size={20} />
+      <div>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-lg font-extrabold text-slate-800">Performance Summary</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {stats.map((s, i) => (
+            <div key={i} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
+              <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${s.bg} ${s.text}`}>
+                <s.icon size={20} />
+              </div>
+              <div className="truncate font-display text-xl font-extrabold text-slate-800 sm:text-2xl">{s.value}</div>
+              <div className="mt-1 truncate text-xs font-semibold text-slate-400">{s.label}</div>
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-slate-800 font-display truncate">{s.value}</div>
-            <div className="text-xs text-slate-400 font-semibold mt-1 truncate">{s.label}</div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Quick Links */}
